@@ -18,6 +18,10 @@ enum LedgerWrite {
             return result
         } catch {
             context.rollback()
+            // Rollback clears pending writes, but held models can retain stale values until fetched.
+            // Refresh both sides of the transaction/tag graph before failure returns to the UI or retry.
+            _ = try context.fetch(FetchDescriptor<Transaction>())
+            _ = try context.fetch(FetchDescriptor<Tag>())
             throw error
         }
     }

@@ -321,3 +321,110 @@ Smallest decisive reason: failed create/edit rollback does not restore the in-me
 **PHASE 1A NOT YET COMPLETE**
 
 Continue only with a working test/runtime environment: minimally correct the demonstrated rollback/UI defects, rerun failing tests and the complete applicable suites, then obtain real clean-install/relaunch and authentic baseline-store evidence. Remaining Roadmap money/date edge semantics and schema-evolution strategy decisions from the original audit remain deferred; checkpoint validation does not authorize migrations. No Phase 1B or other later-phase work began.
+
+## Run 3 — failed-write recovery correction — 2026-09-10
+
+This section records a focused executable correction, superseding the preceding unresolved persistence-recovery disposition only. Earlier results remain historical evidence. This document is not governance.
+
+### Starting state and authority
+
+- Actual starting HEAD: `b48c4818ed7dad8a2fc907198c2e9c5064725bd0`; working tree clean.
+- Owner-supplied canonical chain: baseline `dbc28ed9649d4930b45e2dcc44a7462729dfcf11` → hardening candidate `45207849da53cd67eb3f33d2e7cd8f1d1d6bba91` → evidence-only continuation `1917d358f9b89018c73386534a42f0c39cf859c7`. This GitHub relationship is accepted as supplied, not independently re-established here.
+- Local HEAD is a child of the previously tested `ba07db07c3ac1153539366ba8436b322cecf2df6`. A direct app-tree comparison against that local checkpoint passed; the docs comparison showed only the prior +131-line audit continuation. Thus production matched the expected previously tested hardening implementation. Exact equivalence to the unavailable canonical GitHub tree is not claimed; no history reconciliation/reset was pursued.
+- Read all four governing documents and this prior audit in full, plus the requested write/draft/UI/test implementations. Additional inspection was limited to model relationships, the schema factory, directly related write/test call sites and SwiftData/debugging reference material.
+- NO TEST-CONTRACT CONTRADICTION FOUND. Contract §§4–5/21, Roadmap 1A.1/1A.6/1A.7 and ADR-001 lines 67–72/102–106 require separation of attempted input from successfully persisted canonical state. Both original failing assertions remain intact.
+
+### Exact execution chronology
+
+All invocations used `swiftTest` with `appPath: "ios-lumen-finance"`. Selectors below are under `LumenFinanceTests/LedgerPersistenceTests/` unless qualified otherwise. No tests ran in parallel.
+
+1. **Unchanged production AND original tests**, selectors:
+   - `testFailedCreateRollsBackSourceAndTagsThenCanRetry`
+   - `testFailedEditStatusAndDeleteRestoreCommittedState`
+   Result: **0 passed / 2 failed**. Same original failures: `XCTAssertTrue failed` for the held tag inverse and `88.5` versus `42.19` for held canonical amount. Both reproduced YES.
+2. **Test-only state-layer diagnostics**, selectors:
+   - `testFailedCreateHeldReferences`, `testFailedCreateSameContext`, `testFailedCreateFreshContext`, `testFailedCreateReopenedStore`
+   - `testFailedEditHeldReference`, `testFailedEditSameContext`, `testFailedEditFreshContext`, `testFailedEditReopenedStore`
+   Result: **6 passed / 2 failed**. Only the held-reference cases failed; same-context, fresh-context and reopened-store cases passed independently for both operations.
+3. **Test-only identity/refresh diagnostics**, selectors `testFailedCreateHeldReferences` and `testFailedEditHeldReference` with added before/after-refetch observations in failure messages.
+   Result: **0 passed / 2 failed**, retaining assertions on values captured BEFORE the diagnostic refetch. Returned evidence establishes that a subsequent fetch heals the SAME held instances; details below. This was additional diagnosis, not an unchanged retry or production strategy.
+4. **Test-only independent cases**, selectors:
+   - `testFailedCreateRetryHasExactlyOneDurableGraph`
+   - `testFailedEditRetainsDraftAndRetryPersistsAfterReopen`
+   - `testFailedStatusIndependentlyRestoresCommittedState`
+   - `testFailedDeleteIndependentlyPreservesCommittedState`
+   - `testFailedWritePreservesUnrelatedCommittedTransaction`
+   Result: **2 passed / 3 failed**. Edit retry and independent delete passed. Create retry failed with Cocoa validation error 1560/1570, including a relationship-connected Transaction missing required amount/created fields. Status and unrelated-write tests failed on held B's attempted values. The failed unrelated case did not alone certify its other assertions.
+5. **One production correction:** after rollback, synchronously fetch Transactions and Tags before rethrowing the failure. No other recovery strategy was implemented in Run 3.
+6. **Directly affected tests:** all 15 selectors from steps 1, 2 and 4 in a single targeted invocation.
+   Result: **15 passed / 0 failed**, 16 seconds. Both original method bodies/assertions remained unchanged.
+7. **Complete persistence suite:** `swiftTest({"appPath":"ios-lumen-finance","onlyTesting":["LumenFinanceTests/LedgerPersistenceTests"]})`.
+   Result: **20 passed / 0 failed**, 14 seconds. All 20 source methods executed; no skips reported and no separate skip inventory supplied.
+8. **Complete domain regression suite, after persistence passed:** `swiftTest({"appPath":"ios-lumen-finance","onlyTesting":["LumenFinanceTests/LumenFinanceTests"]})`.
+   Result: **9 passed / 0 failed**, 13 seconds. All nine existing domain methods are unchanged.
+9. **Final application build:** `runChecks({"appPath":"ios-lumen-finance"})`.
+   Result: **PASS**, simulator build. Device/Release not verified. No UI suite, screenshot tests, clean-install workflow, baseline store generation, or compatibility/migration run was attempted.
+
+### State-layer diagnosis before correction
+
+**FAILED CREATE**
+
+- A — Held Tags: one selected tag retained inverse count 1 instead of 0. In the same observation, context.hasChanges was false, fetched and counted Transactions were 0, TransactionSources were 0, and no Transaction→source graph was present.
+- B — Same-context Tag refetch: all inverses correct/empty; no Transaction or source. Additional diagnostic explicitly found `heldContext=true`, `sameInstance=true`, and both held/fetched inverse counts 0 AFTER this fetch.
+- C — Fresh ModelContext on the same container: empty financial/source graph and correct tag inverses.
+- D — Fresh ModelContainer reopening the URL after the original autoreleasepool ends: no Transaction/source and correct durable tag inverses.
+- Classification: stale held-reference relationship state immediately after rollback; same-context fetch refreshes those very objects. Not detached replacements, not demonstrated durable corruption. The ghost was not harmless: the separate retry test exposed a validation failure before correction.
+
+**FAILED EDIT**
+
+- A — Held Transaction: attempted amount 88.5, posted status, attempted posted date and updated timestamp, EUR currency, changed merchant/transaction date/notes/category/payment/tags remained visible instead of the committed values. Source and legacy metadata were included in the comparison.
+- B — Same-context fetch by stable application id: committed amount 42.19, pending status, nil posted date, original updated timestamp and original relationships/fields. Additional identity evidence: `heldContext=true`, `heldContextNil=false`, `sameInstance=true`, `samePersistentID=true`; the original reference's amount changed to 42.19 after that fetch.
+- C — Fresh ModelContext on the same container: committed state and expected relationship graph.
+- D — Fresh ModelContainer after releasing the original local scope: committed state and graph.
+- Classification: stale held-object values until refetch, not context detachment, not a separately persisted attempted edit. Fresh/reopened storage was correct BEFORE the correction.
+
+The narrow application-level cause is that LedgerWrite returned from its failure path before synchronizing observable held models with the committed state already exposed by a fetch. Private SwiftData cache internals are not established by these observations.
+
+### Recovery design and anti-thrashing
+
+Selected hypothesis: retain rollback for discarding pending writes, then use the demonstrated same-context fetch behavior to refresh held Transactions and Tags before propagating failure to callers.
+
+Implementation: two read-only fetches in LedgerWrite's catch path, plus two explanatory comment lines. Successful writes are unchanged. The clean-context guard, autosave policy, mutation/commit ordering, save-failure propagation, caller success gating and draft ownership remain unchanged. Recovery performs no compensating save and never rewrites persisted fields.
+
+This intentionally reads both entity sets on the failure path rather than introducing snapshots, model reattachment, per-operation recovery registries, replacement contexts or a repository layer. Tradeoff: a failed write incurs a Transaction/Tag read; this is not a per-success cost and no large-ledger performance claim was tested.
+
+Strategies attempted in Run 3: **one**. Result: all targeted, complete persistence and domain tests passed. Anti-thrashing stop rule **not triggered**. Prior-run processPendingChanges/snapshot experiments were not reinstated. No unvalidated production experiment needed reversion in Run 3.
+
+### Acceptance evidence after correction
+
+**Failed create:** held and same-context graphs clean before any test-side healing fetch; context.hasChanges false; no canonical Transaction or inappropriate source graph. Independent failure-point reopened-store test proves zero Transactions/sources and empty tag inverses. Original draft remains valid, its amount/source identity/filename survive, retry succeeds, and held plus reopened relationships contain exactly one Transaction and one source with exactly one selected-tag membership/inverse.
+
+**Failed edit:** original held object, same-context refetch, fresh context and reopened store all match the complete pre-write field/relationship snapshot. Amount, status, posted_date and updated_at are explicitly compared. Original attempted TransactionDraft retains amount, status, posted date, notes and selected relationships; retry on the same canonical reference persists the intended edit, which survives full container reopen with single relationship membership.
+
+**Failed status:** independent outcome passes; pending status, nil posted date, original updated timestamp, all other canonical fields and graph restored in held/fetched/reopened state.
+
+**Failed delete:** independent outcome passes; B remains present with its fields, tag/category/payment/source relationships and shared source. It passed before correction too; no deletion redesign was introduced.
+
+**Unrelated committed state:** A and B are both committed before an admitted write on B fails. A's held/fresh/reopened full state is unchanged; B returns to committed state, graph/source counts are preserved, and the context is clean. No unrelated unsaved mutation bypasses the existing guard. The existing dirty-context protection test also remains passing.
+
+**Evidence boundaries:** these tests inject a commit closure that throws before a durable save; they are not physical disk-full/corrupt-store fault simulations. A secondary error while executing the recovery fetches is not independently injected; fetch errors propagate rather than being swallowed. No claim is made here that unreadable storage can always refresh held objects. Reopen tests use same-build stores, autoreleasepool scope release and a new container at the same URL; they are not app-process relaunches or authentic baseline compatibility fixtures. No detailed xcresult/runtime metadata was exposed; the advertised test-log path was again absent locally. Method outcomes and returned assertion diagnostics are the available execution artifacts.
+
+### Final retained diff and disposition
+
+- **PRODUCTION:** `ios-lumen-finance/LumenFinance/Data/LedgerWrite.swift` — +4 lines, failure-path Transaction/Tag refresh.
+- **TESTS:** `ios-lumen-finance/LumenFinanceTests/LedgerPersistenceTests.swift` — +348 lines, 13 additional independent diagnostic/recovery methods and test helpers. All seven original methods and assertions preserved without removal or weakening.
+- **EVIDENCE:** this appended Run 3 section only.
+- Domain tests, UI/views (including FlowLayout), persisted models, schema factory, project/scheme, assets and governance are unchanged. No manual commit, push, staging, reset or history rewrite was performed.
+- Final simulator app build and protected-path comparisons passed. UI INVALID-FRAME — **NOT VALIDATED** in Run 3; its earlier failure is not declared fixed. Screenshot infrastructure was not touched.
+
+**FAILED-WRITE RECOVERY VALIDATED** for the demonstrated failure contract and executed cases: original failures reproduced → state-layer evidence → one minimal correction → 15/15 targeted → 20/20 complete persistence → 9/9 unchanged domain → simulator build PASS.
+
+**PHASE 1A HARDENING CHECKPOINT NOT YET ACCEPTED.**
+
+**PHASE 1A NOT YET COMPLETE.**
+
+Next hardening-checkpoint evidence stage, not started:
+1. Clean-install/relaunch validation.
+2. Authentic pre-hardening existing-store compatibility.
+
+Broader previously documented Phase 1A Roadmap concerns remain separate: money/input/currency-exponent and aggregate-overflow edge semantics; date/timezone semantics; schema-evolution strategy and compatibility-sensitive migration decisions; existing reference-template trust and remaining core-interaction evidence. No such work, migration or Phase 1B work began. Run 3 stops at the validated persistence objective.
