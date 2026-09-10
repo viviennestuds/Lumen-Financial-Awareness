@@ -428,3 +428,98 @@ Next hardening-checkpoint evidence stage, not started:
 2. Authentic pre-hardening existing-store compatibility.
 
 Broader previously documented Phase 1A Roadmap concerns remain separate: money/input/currency-exponent and aggregate-overflow edge semantics; date/timezone semantics; schema-evolution strategy and compatibility-sensitive migration decisions; existing reference-template trust and remaining core-interaction evidence. No such work, migration or Phase 1B work began. Run 3 stops at the validated persistence objective.
+
+## Run 4 — runtime checkpoint validation, blocked in Manual Entry — 2026-09-10
+
+### Starting checkpoint and authority
+
+- Canonical baseline supplied: `dbc28ed9649d4930b45e2dcc44a7462729dfcf11`.
+- Owner-supplied canonical chain: baseline → `45207849da53cd67eb3f33d2e7cd8f1d1d6bba91` → `1917d358f9b89018c73386534a42f0c39cf859c7` → validated recovery `0845a5c09f7fc3e33d5096a4d363e784bed4f0ee`.
+- Actual starting HEAD: `2988d5400a4734f1ac2b610632fd55957cba2f52`, parent `b48c4818ed7dad8a2fc907198c2e9c5064725bd0`.
+- Starting tree was dirty only in two existing `.rork/history/main` assistant records. App, tests and documentation had no starting modifications. Those history changes were not edited or reverted by this run.
+- Direct production comparison against the previous local Run 3 starting checkpoint showed exactly the validated four-line LedgerWrite correction. Tests also contained the expected +348-line persistence additions; the audit contained the +107-line Run 3 continuation. Production therefore matched the expected Run 3 implementation. Exact canonical GitHub tree equivalence is not claimed, and no history reconciliation/reset was attempted.
+- Read Contract, Roadmap, NON_GOALS, ADR-001 and the prior audit in full using bounded reads. Read the requested UI test, form/manual/review/detail views, app startup, LedgerStore, LedgerWrite and Seed. Additional app inspection was limited to RootView and the shared theme/components used by the failing Manual Entry layout. No broad audit or closed failed-write recovery redesign occurred.
+- No material governance disagreement. Run 3 persistence conclusions remain supported. The earlier attribution of the primary UI failure to a Lumen production defect remains provisional: this run establishes a separate FlowLayout return-value defect, but does not establish the primary UI failure's product-versus-framework/runner cause.
+
+### Executed chronology
+
+All calls used `appPath: "ios-lumen-finance"`; tests were invoked serially. No production modification preceded steps 1–5.
+
+1. Complete persistence baseline: `swiftTest` selector `LumenFinanceTests/LedgerPersistenceTests` — **20 executed / 20 passed / 0 failed**, 24 seconds.
+2. Complete domain baseline: selector `LumenFinanceTests/LumenFinanceTests` — **9 executed / 9 passed / 0 failed**, 9 seconds. Runtime work proceeded only after both were green. No skipped tests or separate skip inventory were reported.
+3. Added test-only checkpoint recording to the original functional workflow, without changing its actions/assertions or production UI. Selector `LumenFinanceUITests/LumenFinanceUITests/testManualReviewSaveRelaunchInspectEditStatusAndDelete` — **0 passed / 1 failed**:
+   `Invalid frame dimension (negative or non-finite). [last completed: 3 Manual Entry opened]`
+4. Added finer test checkpoints around amount/merchant focus and entry, plus issue source-location/detail/symbol extraction. Ran the same functional selector on unchanged production — **0 passed / 1 failed**, same message and checkpoint. No source location, detailed description or symbolicated stack was returned. The last completed checkpoint immediately precedes `amount.tap()`; the subsequent amount-focused checkpoint was not reached.
+5. Added an isolated SwiftUI-hosted diagnostic: selector `LumenFinanceTests/FlowLayoutTests/testFlowLayoutReturnsFiniteMeasuredSize` — **0 passed / 1 failed**:
+   `XCTAssertTrue failed - FlowLayout.sizeThatFits proposal=unspecified returned (inf, 36.33333333333333)`.
+   This supplies actual executable evidence of FlowLayout's non-finite return, not proof that it caused step 3's keyboard/focus-time UI failure.
+6. One minimal production hypothesis in TransactionForm.swift: replace the returned unconstrained width with measured row content width, excluding trailing spacing; retain finite proposal width. Ran both selectors from steps 3 and 5 together — **1 passed / 1 failed**. The isolated FlowLayout test passed, but the primary UI test still failed with the identical invalid-frame message at checkpoint 3. Therefore this did NOT complete the required same-functional-test correction chain.
+7. Reverted that entire production correction. Direct comparison confirmed **all production source byte-identical to starting HEAD**, including TransactionForm and LedgerWrite. No accepted UI correction is retained. No second production hypothesis was attempted.
+8. Final restored-source complete persistence suite — **20 executed / 20 passed / 0 failed**, 16 seconds.
+9. Final restored-source complete domain suite — **9 executed / 9 passed / 0 failed**, 10 seconds.
+10. `runChecks({"appPath":"ios-lumen-finance"})` — **PASS**, simulator application build. Device/Release success remains unverified. Build success does not override the UI/layout failures.
+
+The isolated layout diagnostic remains checked in as a known-failing regression on the restored implementation. It was not rerun unchanged after restoration; its pre-correction failure is the applicable evidence for the byte-identical restored production path. The temporary correction's diagnostic PASS must not be reported as a final-tree PASS. The final 20/20 and 9/9 counts are the named persistence/domain classes, not a claim that every test in the app test target passes.
+
+### Runtime localization and diagnostic limits
+
+**PRIMARY UI FAILURE — REPRODUCED.**
+
+Observed: application launched; initial ledger/add control became available; Manual Entry opened and its amount field existed. Failure was recorded while tapping that amount field, before the amount-focused checkpoint, field entry, Review or any confirmed Transaction. All later CRUD/relaunch stages are NOT REACHED. No created test Transaction or completed terminate/relaunch cycle is claimed.
+
+**UI ROOT CAUSE — NOT ESTABLISHED.**
+
+The test-level issue override preserves and forwards the original XCTIssue, appending the last checkpoint and available issue details. It does not suppress failures, add screenshot attachments, use activities, disable diagnostics, or add production telemetry. Additional issue metadata yielded no returned source/stack localization. The hosted layout test independently proves FlowLayout's unspecified-width result is infinite, but correcting it left the real functional failure unchanged. Consequently FlowLayout is not established as the sole/sufficient cause of the primary failure. No speculative keyboard, sheet, navigation or theme correction was made.
+
+Evidence access: the advertised `/tmp/rork-swift-test-ios-lumen-finance.log` was absent locally. `rork-agent logs runtime --errors --limit 100` returned no runtime logs. Current test responses did not expose an xcresult download, simulator UDID/runtime version, current Xcode version or numeric runner exit status. No screenshot-infrastructure investigation or launch/screenshot test execution occurred.
+
+### Clean-store and application-lifecycle evidence
+
+- **CLEAN-STORE PROVENANCE — NOT ESTABLISHED.** No fresh simulator data, uninstall/reinstall, isolated persistent location or test launch seam was used. Unique merchant naming is not freshness evidence.
+- **Initial persisted Transaction count — UNKNOWN.** The existing application store was not counted or reset. No claim of zero initial financial history or zero automatically inserted samples is made from this UI run.
+- App startup reached usable navigation and Manual Entry. Source inspection shows LedgerStore opens a durable configuration with no fallback, and startup requires Seed.bootstrapIfNeeded before displaying RootView. However genuine fresh-store initialization, initial reference counts, reference idempotence across app relaunch and zero automatic sample history remain **NOT VALIDATED at application level**.
+- Application launch — **PASS**. Manual Entry route — reached, but complete Manual Entry interaction — **FAIL** at amount focus.
+- Review; Confirm; created Transaction visible; relaunch #1; Inspect; status transition; relaunch #2; Edit; relaunch #3; edited value preserved; Delete; final relaunch; deleted test-owned record absent — **NOT REACHED** individually.
+- Storage-level reopen evidence remains valid in the 20 passing persistence tests. It is not substituted for process/application relaunch.
+
+### Authentic-store gate and migration classification
+
+The required runtime prerequisites did not pass. Therefore the authentic-store capability probe was **NOT REACHED**, and no baseline fixture experiment or infrastructure build attempt was made.
+
+Run 4 capability statuses: canonical baseline Apple execution — UNKNOWN; baseline SwiftData store generation — UNKNOWN; clean baseline close — UNKNOWN; complete artifact preservation — UNKNOWN; artifact transfer — UNKNOWN; candidate reopen of that exact store — UNKNOWN. These statuses describe the complete baseline-to-candidate experiment, not the already-demonstrated ability to execute candidate XCTest. No new claim that the full experiment is possible or impossible is established.
+
+**AUTHENTIC BASELINE STORE — NOT GENERATED.** No baseline workspace, store, clean-close procedure, SQLite/WAL/SHM/sidecars/external artifacts, preservation, transfer or candidate reopen exists from Run 4. No candidate-created fixture is represented as legacy.
+
+**EXISTING-STORE COMPATIBILITY — NOT VALIDATED.** The prior documented environment limitation remains unresolved; Run 4 stopped at the runtime gate rather than conducting a new compatibility capability verdict. The required final report's `NOT VALIDATED — ENVIRONMENT LIMITATION` classification carries forward that prior limitation, not an attempted baseline-open failure or a freshly proven absence of every primitive.
+
+**MIGRATION VALIDATION — NOT APPLICABLE.** Persisted models/schema/semantics are unchanged. No migration work began.
+
+### Classification and retained diff
+
+- **PRODUCT DEFECT, EXECUTABLY ISOLATED:** FlowLayout returns infinite width for an unspecified proposal. The finite-size experiment fixed that isolated assertion but not the primary functional workflow; production correction was reverted under the work order's retention rule.
+- **PRIMARY RUNTIME FAILURE, CAUSAL CLASSIFICATION UNRESOLVED:** invalid frame while focusing Manual Entry amount. No evidence justifies definitively blaming either Lumen or the runner/framework for this particular failure.
+- **RUNNER / ENVIRONMENT LIMITATIONS:** detailed test-log path unavailable locally; no runtime logs/source stack returned. Historical screenshot activity limitations remain separate and were not revisited. Baseline-store artifact capabilities were not newly evaluated.
+- **PRE-EXISTING NON-BLOCKING ISSUES:** broader money/date/schema-strategy/reference-template concerns remain deferred for this bounded run, not declared resolved or phase-complete.
+- **RESOLVED DURING RUN 4:** diagnostic visibility now establishes the last completed UI checkpoint and next failing action. No product UI failure was resolved. Run 3 recovery remains green and unchanged.
+- **PRODUCTION retained diff:** none; all production source restored to starting HEAD.
+- **TESTS retained diff:** LumenFinanceUITests.swift +44 diagnostic lines; new FlowLayoutTests.swift +54 lines containing one known-failing isolated regression and its hosting probe. All original functional assertions/actions and both original regression classes remain unchanged. There is no new clean-store seam or reset mechanism.
+- **EVIDENCE retained diff:** this appended Run 4 section only. Pre-existing history-file changes are outside the authored diff.
+- Final `git diff --check HEAD` and protected-path comparisons passed before this evidence append; final documentation/static validation is performed again at completion. No manual Git commit, push, staging, checkout or history mutation was performed.
+
+### Disposition and exact continuation point
+
+- Domain behavior — PASS (9/9).
+- Persistence behavior — PASS (20/20).
+- Failed-write recovery — PASS, unchanged and covered by the complete persistence suite.
+- Primary UI workflow — FAIL.
+- Genuine clean-store initialization — NOT VALIDATED.
+- Application relaunch durability — NOT VALIDATED.
+- Authentic existing-store compatibility — NOT VALIDATED.
+
+**RUNTIME VALIDATION NOT YET COMPLETE.** Smallest demonstrated runtime blocker: invalid-frame failure during the Manual Entry amount tap, after the field appears and before focus/entry completes. Localization of that failure is the next unfinished step; repeating the disproven finite-width-only correction is not justified.
+
+**EXTERNAL EXISTING-STORE COMPATIBILITY EVIDENCE REQUIRED** remains an outstanding prior requirement, not a declaration that Run 4 reached runtime completion or proved every hosted compatibility capability unavailable.
+
+**PHASE 1A HARDENING CHECKPOINT NOT YET ACCEPTED.** State 1: runtime validation incomplete.
+
+**PHASE 1A NOT YET COMPLETE.** No later roadmap work began. Resume from the green lower-layer baseline and the localized failing UI action, not from a broad audit or a LedgerWrite redesign.
