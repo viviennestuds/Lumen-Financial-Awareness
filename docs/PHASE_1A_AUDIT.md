@@ -190,3 +190,134 @@ The legacy-values round-trip test explicitly does not claim an authentic baselin
 ### Diff scope
 
 26 changed/added files: 22 app/configuration files, 3 test files, 1 audit report. Before this report's final expansion, the snapshot diff was 1,082 insertions / 310 deletions; final `git diff --stat` is authoritative. No governing documents, persisted model definitions, icon/assets, or project.pbxproj changed. Initial visible governance-only commits remain separate from this implementation diff.
+
+## Checkpoint validation continuation — 2026-09-10
+
+This section supersedes the earlier unexecuted-test status for this continuation only. The prior chronology is retained as historical evidence, not rewritten. This report is not governance.
+
+### Starting identity and frozen scope
+
+- Canonical pre-hardening identity supplied by the owner: `dbc28ed9649d4930b45e2dcc44a7462729dfcf11`.
+- Canonical candidate supplied by the owner: `45207849da53cd67eb3f33d2e7cd8f1d1d6bba91`, externally verified by the owner as its direct child. That relationship is accepted for this continuation; it was not independently verified here.
+- Actual starting HEAD: `ba07db07c3ac1153539366ba8436b322cecf2df6`; clean working tree. This checkout contains the previous hardening implementation and shared scheme.
+- One object-availability check per canonical SHA returned `not our ref` / `could not get object info` (exit 128). No further history reconciliation, active checkout replacement, reset, manual commit, or push was attempted. Exact tree equivalence to the unavailable GitHub candidate is not claimed. All executable results below identify the actual tested checkout.
+- All four canonical governance documents and the prior audit were read in full. Governance and persisted model files were never modified.
+- Production and tests were restored byte-for-byte to starting HEAD after the unsuccessful/unvalidated experiments below. The only retained continuation change is this evidence section.
+
+### Execution chronology and exact mechanisms
+
+All tools were invoked from project root. No actual remote `xcodebuild` command, destination UDID, current Xcode/runtime version, numeric runner exit status, or downloadable xcresult was exposed in this continuation. Earlier SDK details must not be reused as current runtime evidence.
+
+1. **Unchanged starting checkout, full existing suite:**
+   `swiftTest({"appPath":"ios-lumen-finance","onlyTesting":["LumenFinanceTests","LumenFinanceUITests"]})`
+   returned **14 passed, 7 failed**. Tests genuinely executed. This establishes that the previous Category correction and existing shared scheme permit compilation/execution in this run; neither needed modification.
+2. **Minimal rollback experiment:** inserted `context.processPendingChanges()` immediately before rollback, then ran:
+   `swiftTest({"appPath":"ios-lumen-finance","onlyTesting":["LumenFinanceTests/LedgerPersistenceTests/testFailedCreateRollsBackSourceAndTagsThenCanRetry","LumenFinanceTests/LedgerPersistenceTests/testFailedEditStatusAndDeleteRestoreCommittedState"]})`
+   returned **0 passed, 2 failed**, with the same tag-relationship and amount-restoration failures. The experiment was ineffective and removed.
+3. **Unverified corrective experiment:** prepared explicit pre-write snapshots of affected transactions/tag inverses in LedgerWrite, passed affected records from Review/Detail and corresponding tests without relaxing assertions, and made FlowLayout return measured width for an unconstrained proposal. Then ran:
+   `swiftTest({"appPath":"ios-lumen-finance","onlyTesting":["LumenFinanceTests/LedgerPersistenceTests/testFailedCreateRollsBackSourceAndTagsThenCanRetry","LumenFinanceTests/LedgerPersistenceTests/testFailedEditStatusAndDeleteRestoreCommittedState","LumenFinanceUITests/LumenFinanceUITests/testManualReviewSaveRelaunchInspectEditStatusAndDelete"]})`
+   returned **0 passed, 0 failed**, with `Simulator device failed to launch app.rork.8m36zsug0ex00d13e28li.` No test executed in this attempt. This is a runner/runtime launch blocker, not evidence that the proposed corrections worked or failed. Its underlying cause could not be established. No automatic unchanged launch retry was performed.
+4. **Restore frozen candidate:** all five temporarily edited files were restored to starting HEAD using file edits. This avoids retaining production corrections without the required failing-test-to-pass evidence chain.
+5. **Final restored app build:** `runChecks({"appPath":"ios-lumen-finance"})` returned **PASS**, simulator build only. Device/Release remains unverified. This does not override the executed test failures on the same restored source.
+
+Every swiftTest response advertised `/tmp/rork-swift-test-ios-lumen-finance.log`; attempts to read that path returned file-not-found locally. `rork-agent logs runtime --errors --limit 100` returned no runtime logs on both diagnostic requests. The remote test summaries are the available evidence; detailed per-assertion results, launch failure diagnostics, and workflow checkpoints are not available.
+
+### Test counts and classifications
+
+Counts below describe the first full run, not cumulative retries. The two targeted failed executions in attempt 2 are additional invocations of the same persistence methods. Source inventory is 18 methods; the launch method ran four configurations, yielding 21 reported outcomes. No skipped tests were reported; the tool supplied no separate skip inventory.
+
+| Area | Methods in source | Executed outcomes | Passed | Failed | Result |
+|---|---:|---:|---:|---:|---|
+| Domain | 9 | 9 | 9 | 0 | PASS |
+| Persistence | 7 | 7 | 5 | 2 | FAIL |
+| Primary UI workflow | 1 | 1 | 0 | 1 | FAIL |
+| Existing launch/screenshot | 1 | 4 | 0 | 4 | ENVIRONMENT failure |
+| Total | 18 | 21 | 14 | 7 | FAIL |
+
+The area breakdown follows the complete failed-case list, source inventory, and aggregate result. No per-case success transcript was returned.
+
+- **PRODUCTION DEFECT:** `testFailedCreateRollsBackSourceAndTagsThenCanRetry` reports `XCTAssertTrue failed`. The applicable assertion is `tags.allSatisfy { $0.transactions.isEmpty }`. A failed create does not restore the expected in-memory inverse relationships. Do not call this proven on-disk corruption: no independent disk reopen at the failure point is present in this method.
+- **PRODUCTION DEFECT:** `testFailedEditStatusAndDeleteRestoreCommittedState` reports `XCTAssertEqual failed: ("88.5") is not equal to ("42.19")`. The referenced canonical transaction still exposes the attempted edit after the commit throws and rollback returns. The write boundary's assumption that rollback alone restores all visible values is invalid in this execution. Underlying SwiftData internals are not established. On-disk values were not separately reopened at that failure point.
+- **PRODUCTION DEFECT (localization provisional):** `testManualReviewSaveRelaunchInspectEditStatusAndDelete` reports `Invalid frame dimension (negative or non-finite).` FlowLayout currently returns infinity for an unspecified/infinite width proposal and is a concrete suspect, but the returned summary has no stack or last completed workflow step. The attempted finite-width correction never reached executable validation and was reverted. Introduction in the hardening commit is not established; this layout predates it in the available local history.
+- **ENVIRONMENT:** `testLaunch` fails four configurations with `Internal error: Attachments cannot be added to the test because activities are disabled. (NSInternalInconsistencyException)`. Screenshot assertions were not removed or skipped to conceal the limitation.
+- **ENVIRONMENT (cause unestablished):** attempt 3 cannot launch the app; no assertions execute. No test-configuration change is justified by the limited launch diagnostic alone.
+- No observed failure was reclassified as TEST DEFECT or TEST ASSUMPTION to make the suite pass.
+
+### Domain evidence
+
+All nine existing methods passed: draft confirmation/machine boundary; invalid create/edit validation; new-input lifecycle gate; unrelated-edit high-precision Double and legacy metadata preservation; analytics types/statuses/currencies/decimal intermediates; duplicate currency/type distinction; explicit date windows; composable search/source-free manual origin; formatting and stub authority.
+
+The aggregate test covers expenses, income, refunds, transfers, pending/posted/review_needed inclusion, ignored/duplicate exclusion, foreign-currency exclusion, and 0.1 + 0.2 through decimal intermediate arithmetic. The formatting test checks explicit USD/EUR labeling. This is evidence for the tested cases, not an exhaustive money/date guarantee or observed original-currency UI presentation.
+
+### Persistence evidence and limits
+
+The five passing methods are:
+
+- `testDiskCreateReopenEditStatusDeleteReopen`: actual URL-backed store; defaults, create, container reopen, edit with status change, reopen assertions, delete and reopen absence. This is same-build persistence evidence, not an app clean install or process relaunch.
+- `testSeedIdempotencyAndFailureRetryWithoutSamples`: injected seed failure, successful retry, stable category IDs/reference counts, zero automatic financial Transactions.
+- `testRepeatedDuplicateReadAndDiscardLeaveNoDurableGraph`: repeated matching leaves context/tag inverses untouched; explicit save leaves zero Transactions. This tests the read path, not tapping Discard in the UI.
+- `testAllLegacyValuesRoundTripUnchangedSchemaAndSharedSourceSurvivesDelete`: all legacy statuses, precision/currency/confidence/fingerprint round-trip, shared source survives deleting one transaction. These records are generated by the candidate and are NOT an authentic parent-created fixture.
+- `testContainerFailureNeverFallsBackAndDirtyContextIsNotDiscarded`: injected factory failure is not replaced with another container; dirty-context guard prevents mutation and leaves hasChanges true. It does not directly assert preservation of a separate already-committed transaction during another transaction's rollback.
+
+The two failing methods prevent certification of failed-create atomicity/relationship integrity/retry and failed-edit/status/delete restoration. Their other assertions cannot be independently marked passing from a failed-case summary. In particular:
+
+- Transaction/source counts and retry are asserted, but the failed test is not a complete passing proof and does not reopen disk between failure and retry.
+- The edit buffer, status/timestamps and failed delete are asserted in the failed combined method; independent outcomes are not available.
+- Success feedback is structurally after the write return, and the failure test checks control does not reach a success flag; actual haptics/error UI were not successfully exercised.
+- Dedicated failure-point disk reopen, standalone status failure, unrelated committed-state preservation, and UI save-error behavior remain additional evidence needs, not claims satisfied by compilation.
+
+Temporary store tests create a UUID directory containing `ledger.store`, use fresh ModelContainers at the same URL where specified, and remove the entire temporary directory after each test. Those artifacts were not exported or preserved as legacy fixtures.
+
+### Clean-install and authentic existing-store evidence
+
+**CLEAN-INSTALL VALIDATION — NOT VALIDATED.** The UI workflow failed; no completed workflow checkpoints were exposed. It uses a unique test-owned record but does not guarantee a fresh installation/store. The subsequent simulator launch failed. The passing URL-backed unit-test CRUD method cannot substitute for startup/main-context/UI/relaunch validation. This missing end-to-end durability evidence blocks conservative checkpoint acceptance independently of the known rollback failures.
+
+**AUTHENTIC BASELINE STORE — NOT GENERATED.** This Linux x86_64 host has no xcodebuild, xcrun or Swift executable. The canonical baseline object is unavailable locally, and the available remote build/test interface did not provide an isolated baseline execution and store export/import channel. No baseline worktree/checkout was substituted into the active app, no candidate-created fixture was relabeled, and no SQLite/WAL/SHM/sidecar/external-storage artifacts were copied. Clean close, full artifact preservation, transfer and candidate reopen therefore did not occur.
+
+**EXISTING-STORE COMPATIBILITY — NOT VALIDATED.** Legitimate parent-created data preservation under candidate startup/write handling remains unproven. Unchanged model source and same-build round-trip success are insufficient. Its absence also blocks conservative acceptance of this first durability checkpoint.
+
+**MIGRATION VALIDATION — NOT APPLICABLE.** No persisted model, field, enum, relationship, or historical data migration occurred.
+
+### Warning/failure delta and retained diff
+
+- PRE-EXISTING: prior missing-xctestrun and Category test compilation issues; local Apple toolchain absence; legacy launch/screenshot test and its runner incompatibility. Prior AppIntents warnings are historical only; this continuation did not expose a compiler-warning inventory.
+- RESOLVED: the previous compile/execution blockage no longer exists on the first full run, without any scheme or test-source change. This does not establish why the earlier remote harness failed.
+- NEWLY EXPOSED, not introduced by continuation: two rollback defects and the UI invalid-frame failure in unchanged starting source.
+- INTRODUCED: no retained code/test changes or demonstrated new build failure. The unverified experiment was removed; its launch failure is not attributed to a production source cause without diagnostics.
+- REMAINING: rollback failures, UI runtime failure, screenshot activity limitation, unexplained simulator launch blocker, inaccessible detailed artifacts, missing clean-install and authentic existing-store evidence.
+
+Temporary edits, all reverted: Data/LedgerWrite.swift; Views/ReviewTransactionView.swift; Views/TransactionDetailView.swift; Views/TransactionForm.swift; LumenFinanceTests/LedgerPersistenceTests.swift. No tests were weakened, removed or skipped. No shared scheme, project configuration, governance, model or asset changes were retained.
+
+Retained continuation diff: **docs/PHASE_1A_AUDIT.md only**, appending this evidence. Exact GitHub-SHA comparison is unavailable; the verified local continuation base is `ba07db07c3ac1153539366ba8436b322cecf2df6`.
+
+Validation commands:
+```
+git rev-parse HEAD
+git status --short
+git log -3 --format='%H %P %s'
+git cat-file -t 45207849da53cd67eb3f33d2e7cd8f1d1d6bba91
+git cat-file -t dbc28ed9649d4930b45e2dcc44a7462729dfcf11
+git diff --exit-code ba07db07c3ac1153539366ba8436b322cecf2df6 -- ios-lumen-finance docs/architecture docs/ROADMAP.md docs/NON_GOALS.md
+git diff --check HEAD
+git diff --stat ba07db07c3ac1153539366ba8436b322cecf2df6
+```
+The protected-path comparison passed after restoration. The final simulator app build passed on that restored source. Neither validates the failed tests.
+
+### Checkpoint acceptance and Phase 1A status
+
+1. Domain tests: **PASS** — 9/9 in the full run.
+2. Persistence tests: **FAIL** — 5/7; two material rollback failures.
+3. Introduced build failures resolved: **PASS** — restored app builds; first full suite compiled/executed; no retained new code.
+4. Production test failures resolved: **FAIL** — original failures remain.
+5. Direct executable durability evidence: **FAIL** against acceptance — successful disk CRUD exists, but failure/rollback evidence demonstrates broken guarantees and additional cases remain unproven.
+6. Validation-discovered defects resolved: **FAIL** — no correction has the required passing-test/suite chain.
+7. Clean install: **NOT VALIDATED** — absence blocks acceptance because real startup/UI/relaunch durability is unproven.
+8. Existing-store compatibility: **NOT VALIDATED** — absence blocks acceptance because authentic parent data has not been opened/preserved.
+
+**PHASE 1A HARDENING CHECKPOINT NOT YET ACCEPTED**
+
+Smallest decisive reason: failed create/edit rollback does not restore the in-memory canonical graph/values in executed tests. The candidate must not be presented as a validated hardening checkpoint.
+
+**PHASE 1A NOT YET COMPLETE**
+
+Continue only with a working test/runtime environment: minimally correct the demonstrated rollback/UI defects, rerun failing tests and the complete applicable suites, then obtain real clean-install/relaunch and authentic baseline-store evidence. Remaining Roadmap money/date edge semantics and schema-evolution strategy decisions from the original audit remain deferred; checkpoint validation does not authorize migrations. No Phase 1B or other later-phase work began.
