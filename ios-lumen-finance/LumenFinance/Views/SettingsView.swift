@@ -18,11 +18,9 @@ struct SettingsView: View {
     @State private var showExport = false
 
     private let currencies = ["USD", "EUR", "GBP", "CAD", "AUD", "JPY"]
-    private let timezones = ["America/New_York", "America/Chicago", "America/Denver", "America/Los_Angeles", "Europe/London", "UTC"]
 
     var body: some View {
-        @Bindable var appState = appState
-        return NavigationStack {
+        NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: Theme.s4) {
                     preferencesCard
@@ -49,9 +47,9 @@ struct SettingsView: View {
                 ForEach(currencies, id: \.self) { c in Button(c) { appState.currencyCode = c } }
             }
             Divider().background(Theme.hairline)
-            menuRow(label: "Timezone", value: shortTimezone(appState.timezoneIdentifier)) {
-                ForEach(timezones, id: \.self) { tz in Button(tz) { appState.timezoneIdentifier = tz } }
-            }
+            DetailRow(label: "Date display timezone", value: shortTimezone(TimeZone.current.identifier))
+            Text("Dates currently follow this device’s timezone. Changing the device timezone can change the displayed day of older records.")
+                .font(.footnote).foregroundStyle(Theme.inkSecondary)
         }
     }
 
@@ -102,11 +100,8 @@ struct SettingsView: View {
                 .tint(Theme.accent)
             }
             Divider().background(Theme.hairline)
-            Button(role: .destructive) { resetData() } label: {
-                Label("Reset & reseed sample data", systemImage: "arrow.counterclockwise")
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundStyle(Theme.expense)
-            }
+            Text("Developer reset is unavailable in the live ledger. Sample data belongs in isolated test stores.")
+                .font(.footnote).foregroundStyle(Theme.inkSecondary)
         }
     }
 
@@ -134,17 +129,6 @@ struct SettingsView: View {
         id.split(separator: "/").last.map(String.init)?.replacingOccurrences(of: "_", with: " ") ?? id
     }
 
-    private func resetData() {
-        for txn in transactions { modelContext.delete(txn) }
-        try? modelContext.delete(model: Category.self)
-        try? modelContext.delete(model: PaymentMethod.self)
-        try? modelContext.delete(model: Tag.self)
-        try? modelContext.delete(model: TransactionSource.self)
-        try? modelContext.save()
-        Seed.bootstrapIfNeeded(modelContext)
-        let generator = UINotificationFeedbackGenerator()
-        generator.notificationOccurred(.success)
-    }
 }
 
 // MARK: - Export stub

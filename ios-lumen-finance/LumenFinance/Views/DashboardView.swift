@@ -13,7 +13,7 @@ struct DashboardView: View {
     @Environment(FeatureFlags.self) private var flags
     @Query(sort: \Transaction.transaction_date, order: .reverse) private var transactions: [Transaction]
 
-    private var summary: DashboardSummary { Analytics.summary(transactions) }
+    private var summary: DashboardSummary { Analytics.summary(transactions, currency: appState.currencyCode) }
 
     private var recent: [Transaction] {
         Array(Analytics.active(transactions).prefix(5))
@@ -25,6 +25,7 @@ struct DashboardView: View {
                 header
 
                 netFlowCard
+                aggregateNote
 
                 statRow
 
@@ -41,6 +42,11 @@ struct DashboardView: View {
         }
         .background(Theme.canvas)
         .scrollIndicators(.hidden)
+    }
+
+    private var aggregateNote: some View {
+        Text("\(appState.currencyCode) only · includes pending and legacy review-needed records. In includes refunds; transfers do not affect flow. \(summary.excludedCurrencyCount) other-currency records and \(summary.invalidAmountCount) invalid amounts excluded. Weeks use transaction dates.")
+            .font(.footnote).foregroundStyle(Theme.inkSecondary)
     }
 
     // MARK: - Header
@@ -133,7 +139,7 @@ struct DashboardView: View {
         HStack(spacing: Theme.s3) {
             statTile(
                 value: "\(summary.countThisWeek)",
-                label: "Logged this week",
+                label: "Dated this week",
                 icon: "calendar",
                 tint: Theme.info
             )
@@ -184,7 +190,7 @@ struct DashboardView: View {
                 Text("This week's rhythm")
                     .font(.system(size: 13, weight: .medium))
                     .foregroundStyle(Theme.inkSecondary)
-                Text("You've logged \(appState.format(summary.loggedThisWeek)) so far.")
+                Text("\(appState.format(summary.loggedThisWeek)) in expenses dated this week.")
                     .font(.system(size: 16, weight: .semibold))
                     .foregroundStyle(Theme.ink)
                     .fixedSize(horizontal: false, vertical: true)

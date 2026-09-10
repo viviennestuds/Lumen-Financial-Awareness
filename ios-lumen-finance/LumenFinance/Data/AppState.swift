@@ -41,14 +41,7 @@ final class AppState {
             ?? TimeZone.current.identifier
     }
 
-    func format(_ amount: Double, signed: Bool = false) -> String {
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .currency
-        formatter.currencyCode = currencyCode
-        formatter.maximumFractionDigits = 2
-        let value = signed ? amount : abs(amount)
-        let base = formatter.string(from: NSNumber(value: value)) ?? "\(value)"
-        if signed && amount > 0 { return "+\(base)" }
-        return base
+    func format(_ amount: Double, signed: Bool = false, currency: String? = nil) -> String {
+        Money.format(amount, currency: currency ?? currencyCode, signed: signed)
     }
 }

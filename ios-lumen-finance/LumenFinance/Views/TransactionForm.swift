@@ -26,10 +26,26 @@ final class TransactionDraft {
     var source: TransactionSource? = nil
     var confidence_score: Double? = nil
 
-    var amount: Double { Double(amountText.replacingOccurrences(of: ",", with: ".")) ?? 0 }
+    private(set) var isEditingExisting: Bool = false
+    private var originalAmount: Double?
+    private var originalAmountText: String?
+
+    var amount: Double {
+        if amountText == originalAmountText, let originalAmount { return originalAmount }
+        return Double(amountText.trimmingCharacters(in: .whitespacesAndNewlines)
+            .replacingOccurrences(of: ",", with: ".")) ?? 0
+    }
 
     var isValid: Bool {
-        amount > 0 && !merchant_name.trimmingCharacters(in: .whitespaces).isEmpty && category != nil
+        amount.isFinite && amount > 0 && Money.magnitude(amount) != nil
+            && Locale.commonISOCurrencyCodes.contains(currency)
+            && !merchant_name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            && category != nil
+    }
+
+    var canConfirm: Bool { isValid && (status == .pending || status == .posted) }
+    var availableStatuses: [TransactionStatus] {
+        isEditingExisting ? TransactionStatus.allCases : [.pending, .posted]
     }
 
     init() {}
@@ -37,7 +53,10 @@ final class TransactionDraft {
     /// Build a draft from an existing transaction (for editing).
     init(from txn: Transaction) {
         transaction_type = txn.transaction_type
-        amountText = String(format: "%.2f", txn.amount)
+        isEditingExisting = true
+        amountText = String(txn.amount)
+        originalAmount = txn.amount
+        originalAmountText = amountText
         currency = txn.currency
         merchant_name = txn.merchant_name
         transaction_date = txn.transaction_date
@@ -51,31 +70,48 @@ final class TransactionDraft {
         confidence_score = txn.confidence_score
     }
 
-    func makeTransaction(allTags: [Tag]) -> Transaction {
-        Transaction(
+    /// Call only inside the confirmed write boundary: relationships may attach to a context.
+    func makeTransaction(allTags: [Tag]) throws -> Transaction {
+        guard canConfirm else { throw LedgerWriteError.invalidDraft }
+        return Transaction(
             amount: abs(amount),
             currency: currency,
             transaction_type: transaction_type,
-            merchant_name: merchant_name.trimmingCharacters(in: .whitespaces),
+            merchant_name: merchant_name.trimmingCharacters(in: .whitespacesAndNewlines),
             transaction_date: transaction_date,
             posted_date: status == .posted ? (posted_date ?? .now) : posted_date,
             status: status,
             notes: notes.isEmpty ? nil : notes,
-            confidence_score: confidence_score,
-            source: source,
+            confidence_score: nil,
+            source: confirmationSource(),
             category: category,
             payment_method: payment_method,
             tags: allTags.filter { tagIDs.contains($0.id) }
         )
     }
 
-    func apply(to txn: Transaction, allTags: [Tag]) {
+    /// Copy transient upload metadata so a failed insert/rollback never invalidates the draft's source.
+    private func confirmationSource() -> TransactionSource? {
+        guard let source else { return nil }
+        return TransactionSource(
+            id: source.id, source_type: source.source_type,
+            original_filename: source.original_filename, stored_file_uri: source.stored_file_uri,
+            compressed_file_uri: source.compressed_file_uri, file_size_bytes: source.file_size_bytes,
+            mime_type: source.mime_type, uploaded_at: source.uploaded_at, captured_at: source.captured_at,
+            source_timezone: source.source_timezone, metadata_json: source.metadata_json,
+            raw_extracted_text: source.raw_extracted_text, parse_status: source.parse_status,
+            source_hash: source.source_hash, created_at: source.created_at
+        )
+    }
+
+    func apply(to txn: Transaction, allTags: [Tag]) throws {
+        guard isValid else { throw LedgerWriteError.invalidDraft }
         txn.transaction_type = transaction_type
         txn.amount = abs(amount)
         txn.currency = currency
-        txn.merchant_name = merchant_name.trimmingCharacters(in: .whitespaces)
+        txn.merchant_name = merchant_name.trimmingCharacters(in: .whitespacesAndNewlines)
         txn.transaction_date = transaction_date
-        txn.posted_date = status == .posted ? (posted_date ?? .now) : posted_date
+        txn.posted_date = status == .posted && txn.status != .posted ? (posted_date ?? .now) : posted_date
         txn.status = status
         txn.category = category
         txn.payment_method = payment_method
@@ -109,6 +145,7 @@ struct TransactionFormFields: View {
     let categories: [Category]
     let paymentMethods: [PaymentMethod]
     let tags: [Tag]
+    @FocusState private var focusedField: String?
 
     var body: some View {
         VStack(spacing: Theme.s4) {
@@ -117,6 +154,16 @@ struct TransactionFormFields: View {
             classificationCard
             tagsCard
             notesCard
+            if !draft.isValid {
+                Text("Enter a positive finite amount, a currency, a merchant, and a category. Use a decimal separator, not thousands separators.")
+                    .font(.footnote).foregroundStyle(Theme.inkSecondary)
+            }
+        }
+        .toolbar {
+            ToolbarItemGroup(placement: .keyboard) {
+                Spacer()
+                Button("Done") { focusedField = nil }
+            }
         }
     }
 
@@ -149,6 +196,9 @@ struct TransactionFormFields: View {
                     .font(.system(size: 34, weight: .semibold, design: .serif))
                     .foregroundStyle(Theme.ink)
                     .keyboardType(.decimalPad)
+                    .focused($focusedField, equals: "amount")
+                    .accessibilityLabel("Amount")
+                    .accessibilityIdentifier("transactionAmount")
             }
             .padding(.top, 4)
         }
@@ -160,6 +210,8 @@ struct TransactionFormFields: View {
                 TextField("e.g. DoorDash", text: $draft.merchant_name)
                     .font(.system(size: 16))
                     .autocorrectionDisabled()
+                    .focused($focusedField, equals: "merchant")
+                    .accessibilityIdentifier("transactionMerchant")
             }
             Divider().background(Theme.hairline)
             DatePicker("Transaction date", selection: $draft.transaction_date, displayedComponents: .date)
@@ -192,8 +244,14 @@ struct TransactionFormFields: View {
 
     private var classificationCard: some View {
         FormCard(title: "Classification") {
+            pickerRow(label: "Currency", value: draft.currency, tint: Theme.inkSecondary) {
+                ForEach(["USD", "EUR", "GBP", "CAD", "AUD", "JPY", "KWD"], id: \.self) { currency in
+                    Button(currency) { draft.currency = currency }
+                }
+            }
+            Divider().background(Theme.hairline)
             pickerRow(label: "Status", value: draft.status.label, tint: draft.status.tint) {
-                ForEach(TransactionStatus.allCases) { s in
+                ForEach(draft.availableStatuses) { s in
                     Button(s.label) { draft.status = s }
                 }
             }
@@ -251,6 +309,7 @@ struct TransactionFormFields: View {
             TextField("Add a gentle note for context…", text: $draft.notes, axis: .vertical)
                 .font(.system(size: 15))
                 .lineLimit(2...5)
+                .focused($focusedField, equals: "notes")
         }
     }
 

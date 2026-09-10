@@ -23,7 +23,7 @@ final class FeatureFlags {
     var enableTransactionDetail: Bool = true
     var enableExportStub: Bool = true
     var enableReceiptItemizationStub: Bool = true
-    var enableDebugDataPanel: Bool = true
+    var enableDebugDataPanel: Bool = false
 
     /// Ordered list for rendering the debug toggle panel.
     var all: [(String, Bool)] {

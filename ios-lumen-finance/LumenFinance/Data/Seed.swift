@@ -2,8 +2,8 @@
 //  Seed.swift
 //  LumenFinance
 //
-//  Seeds default categories, payment methods, tags, and realistic
-//  sample transactions on first launch so the app feels alive.
+//  Initializes reference defaults without inventing financial history.
+//  Sample transactions below are for explicitly isolated tests/diagnostics only.
 //
 
 import Foundation
@@ -11,25 +11,20 @@ import SwiftData
 
 @MainActor
 enum Seed {
-    /// Runs once: if no categories exist we treat the store as fresh.
-    static func bootstrapIfNeeded(_ context: ModelContext) {
-        let categoryCount = (try? context.fetchCount(FetchDescriptor<Category>())) ?? 0
-        guard categoryCount == 0 else { return }
-
-        let categories = seedCategories()
-        categories.forEach { context.insert($0) }
-
-        let methods = seedPaymentMethods()
-        methods.forEach { context.insert($0) }
-
-        let tags = seedTags()
-        tags.forEach { context.insert($0) }
-
-        if (try? context.fetchCount(FetchDescriptor<Transaction>())) == 0 {
-            seedTransactions(categories: categories, methods: methods, tags: tags, context: context)
+    /// Fetch failures are never interpreted as an empty store. All defaults commit together.
+    static func bootstrapIfNeeded(
+        _ context: ModelContext,
+        commit: ((ModelContext) throws -> Void)? = nil
+    ) throws {
+        let needsCategories = try context.fetchCount(FetchDescriptor<Category>()) == 0
+        let needsMethods = try context.fetchCount(FetchDescriptor<PaymentMethod>()) == 0
+        let needsTags = try context.fetchCount(FetchDescriptor<Tag>()) == 0
+        guard needsCategories || needsMethods || needsTags else { return }
+        try LedgerWrite.perform(in: context, commit: commit) {
+            if needsCategories { seedCategories().forEach { context.insert($0) } }
+            if needsMethods { seedPaymentMethods().forEach { context.insert($0) } }
+            if needsTags { seedTags().forEach { context.insert($0) } }
         }
-
-        try? context.save()
     }
 
     // MARK: - Categories

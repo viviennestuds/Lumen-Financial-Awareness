@@ -21,6 +21,7 @@ struct UploadView: View {
     @State private var isParsing = false
     @State private var goReviewUpload = false
     @State private var showCSV = false
+    @State private var uploadError: Bool = false
 
     var body: some View {
         NavigationStack {
@@ -43,13 +44,14 @@ struct UploadView: View {
                             optionContent(
                                 icon: "camera.viewfinder",
                                 title: "Upload Screenshot / Receipt",
-                                subtitle: isParsing ? "Reading your receipt…" : "Pick a photo and we'll draft it for you.",
+                                subtitle: isParsing ? "Loading photo…" : "Preview stub: sample fields, not extracted data.",
                                 tint: Theme.info,
                                 badge: "OCR stub",
                                 loading: isParsing
                             )
                         }
                         .buttonStyle(PressableStyle())
+                        .disabled(isParsing)
                     }
 
                     if flags.enableCSVJSONImportStub {
@@ -78,6 +80,7 @@ struct UploadView: View {
                     Button { dismiss() } label: {
                         Image(systemName: "xmark").fontWeight(.semibold).foregroundStyle(Theme.inkSecondary)
                     }
+                    .accessibilityLabel("Close add activity")
                 }
             }
             .navigationDestination(isPresented: $goManual) {
@@ -89,9 +92,14 @@ struct UploadView: View {
                 }
             }
             .sheet(isPresented: $showCSV) { CSVImportStubView() }
-            .onChange(of: photoItem) { _, newValue in
-                guard newValue != nil else { return }
-                handlePickedPhoto()
+            .task(id: photoItem) {
+                guard let item = photoItem else { return }
+                await handlePickedPhoto(item)
+            }
+            .alert("Photo could not be loaded", isPresented: $uploadError) {
+                Button("OK", role: .cancel) { }
+            } message: {
+                Text("Nothing was saved. Try another photo or use Manual Entry.")
             }
         }
     }
@@ -143,7 +151,7 @@ struct UploadView: View {
     private var privacyNote: some View {
         HStack(spacing: Theme.s2) {
             Image(systemName: "lock.shield").foregroundStyle(Theme.accent)
-            Text("Photos are processed on-device in this build. Real OCR arrives later.")
+            Text("No OCR runs in this preview. Photos stay local in temporary storage and may be removed by the system. Check every sample field before saving.")
                 .font(.system(size: 12))
                 .foregroundStyle(Theme.inkSecondary)
         }
@@ -152,57 +160,56 @@ struct UploadView: View {
 
     // MARK: - Stubbed parse
 
-    private func handlePickedPhoto() {
+    private func handlePickedPhoto(_ item: PhotosPickerItem) async {
         isParsing = true
-        Task {
-            // Persist the picked image bytes so a real file URI exists for the source.
-            var fileURI: String? = nil
-            var sizeBytes: Int? = nil
-            if let item = photoItem, let data = try? await item.loadTransferable(type: Data.self) {
-                sizeBytes = data.count
-                let url = FileManager.default.temporaryDirectory
-                    .appendingPathComponent("upload_\(UUID().uuidString).jpg")
-                try? data.write(to: url)
-                fileURI = url.absoluteString
+        defer { isParsing = false }
+        do {
+            guard let data = try await item.loadTransferable(type: Data.self), !data.isEmpty else {
+                uploadError = true
+                return
             }
-            // Simulated parser latency.
-            try? await Task.sleep(for: .seconds(1.1))
-            parsedDraft = Self.makeStubbedDraft(fileURI: fileURI, sizeBytes: sizeBytes)
-            isParsing = false
-            photoItem = nil
+            try Task.checkCancellation()
+            let type = item.supportedContentTypes.first
+            let filename = "upload_\(UUID().uuidString).\(type?.preferredFilenameExtension ?? "data")"
+            let url = FileManager.default.temporaryDirectory.appendingPathComponent(filename)
+            try data.write(to: url, options: .atomic)
+            let draft = Self.makeStubbedDraft(fileURI: url.absoluteString, sizeBytes: data.count)
+            draft.source?.original_filename = nil
+            draft.source?.mime_type = type?.preferredMIMEType
+            parsedDraft = draft
             goReviewUpload = true
+            photoItem = nil
+        } catch is CancellationError {
+            return
+        } catch {
+            uploadError = true
+            photoItem = nil
         }
     }
 
-    /// Produces a realistic stubbed parser result so Review feels real.
+    /// Explicit demonstration only; these values are never represented as extracted truth.
     static func makeStubbedDraft(fileURI: String?, sizeBytes: Int?) -> TransactionDraft {
-        let samples: [(String, Double)] = [
-            ("Whole Foods Market", 63.41),
-            ("Starbucks", 8.75),
-            ("Target", 47.18),
-            ("Shell Gas", 38.20),
-        ]
-        let pick = samples.randomElement() ?? ("Receipt", 19.99)
+        let pick = ("Preview receipt", 19.99)
         let source = TransactionSource(
             source_type: .receipt_photo,
-            original_filename: "IMG_\(Int.random(in: 1000...9999)).jpg",
+            original_filename: nil,
             stored_file_uri: fileURI,
             file_size_bytes: sizeBytes,
-            mime_type: "image/jpeg",
+            mime_type: nil,
             uploaded_at: .now,
-            captured_at: .now,
+            captured_at: nil,
             source_timezone: TimeZone.current.identifier,
-            raw_extracted_text: "\(pick.0)\nTOTAL  $\(String(format: "%.2f", pick.1))",
-            parse_status: .parsed,
-            source_hash: UUID().uuidString
+            raw_extracted_text: "PREVIEW STUB — no text was extracted from the photo.",
+            parse_status: .manual_review,
+            source_hash: nil
         )
         let draft = TransactionDraft()
         draft.transaction_type = .expense
         draft.amountText = String(format: "%.2f", pick.1)
         draft.merchant_name = pick.0
-        draft.status = .review_needed
+        draft.status = .pending
         draft.source = source
-        draft.confidence_score = Double.random(in: 0.68...0.94)
+        draft.confidence_score = nil
         return draft
     }
 }

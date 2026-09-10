@@ -24,13 +24,14 @@ struct TransactionDetailView: View {
     @State private var editing = false
     @State private var draft: TransactionDraft?
     @State private var showDeleteConfirm = false
+    @State private var writeError: String?
 
     var body: some View {
         ScrollView {
             VStack(spacing: Theme.s4) {
                 hero
 
-                if transaction.status == .pending {
+                if transaction.status == .pending && !editing {
                     pendingControls
                 }
 
@@ -56,19 +57,32 @@ struct TransactionDetailView: View {
         }
         .background(Theme.canvas)
         .scrollIndicators(.hidden)
+        .scrollDismissesKeyboard(.interactively)
+        .alert("Change not saved", isPresented: Binding(
+            get: { writeError != nil }, set: { if !$0 { writeError = nil } }
+        )) { Button("OK", role: .cancel) { writeError = nil } } message: {
+            Text(writeError ?? "Please try again.")
+        }
         .navigationTitle("Transaction")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                if editing {
+                    Button("Cancel edit") { draft = nil; editing = false }
+                }
+            }
             ToolbarItem(placement: .topBarTrailing) {
                 Button(editing ? "Done" : "Edit") {
                     if editing { commitEdits() } else { startEditing() }
                 }
                 .fontWeight(.semibold)
+                .disabled(editing && draft?.isValid != true)
             }
         }
         .safeAreaInset(edge: .bottom) {
             if editing {
                 PrimaryButton(title: "Save changes", icon: "checkmark") { commitEdits() }
+                    .disabled(draft?.isValid != true)
                     .padding(.horizontal, Theme.s5)
                     .padding(.vertical, Theme.s3)
                     .background(.ultraThinMaterial)
@@ -76,9 +90,10 @@ struct TransactionDetailView: View {
         }
         .confirmationDialog("Delete this transaction?", isPresented: $showDeleteConfirm, titleVisibility: .visible) {
             Button("Delete", role: .destructive) {
-                modelContext.delete(transaction)
-                try? modelContext.save()
-                dismiss()
+                do {
+                    try LedgerWrite.perform(in: modelContext) { modelContext.delete(transaction) }
+                    dismiss()
+                } catch { reportWriteFailure(error) }
             }
         }
     }
@@ -93,7 +108,7 @@ struct TransactionDetailView: View {
                 .font(.system(size: 22, weight: .semibold, design: .serif))
                 .foregroundStyle(Theme.ink)
                 .multilineTextAlignment(.center)
-            Text(appState.format(transaction.signedAmount, signed: true))
+            Text(appState.format(transaction.signedAmount, signed: transaction.transaction_type != .transfer, currency: transaction.currency))
                 .font(.system(size: 38, weight: .semibold, design: .serif))
                 .foregroundStyle(transaction.transaction_type.isOutflow ? Theme.ink : Theme.income)
                 .monospacedDigit()
@@ -136,7 +151,7 @@ struct TransactionDetailView: View {
     private var fieldsCard: some View {
         FormCard(title: "Details") {
             DetailRow(label: "Type", value: transaction.transaction_type.label, valueColor: transaction.transaction_type.tint)
-            DetailRow(label: "Amount", value: appState.format(transaction.amount), mono: true)
+            DetailRow(label: "Amount", value: appState.format(transaction.amount, currency: transaction.currency), mono: true)
             DetailRow(label: "Currency", value: transaction.currency)
             DetailRow(label: "Category", value: transaction.category?.name ?? "—")
             DetailRow(label: "Payment method", value: transaction.payment_method?.name ?? "—")
@@ -160,8 +175,8 @@ struct TransactionDetailView: View {
                 DetailRow(label: "Filename", value: name, mono: true)
             }
             DetailRow(label: "Parse status", value: source.parse_status.label, valueColor: source.parse_status.tint)
-            if let confidence = transaction.confidence_score {
-                DetailRow(label: "Confidence", value: "\(Int(confidence * 100))%")
+            if let confidence = transaction.confidence_score, confidence.isFinite, (0...1).contains(confidence) {
+                DetailRow(label: "Legacy parser confidence", value: "\(Int(confidence * 100))%")
             }
             if let uploaded = source.uploaded_at {
                 DetailRow(label: "Uploaded", value: uploaded.formatted(date: .abbreviated, time: .shortened))
@@ -237,23 +252,29 @@ struct TransactionDetailView: View {
     }
 
     private func commitEdits() {
-        if let draft { draft.apply(to: transaction, allTags: tags) }
-        try? modelContext.save()
-        withAnimation { editing = false }
-        let generator = UINotificationFeedbackGenerator()
-        generator.notificationOccurred(.success)
+        guard let draft else { return }
+        do {
+            try LedgerWrite.perform(in: modelContext) { try draft.apply(to: transaction, allTags: tags) }
+            withAnimation { editing = false }
+            self.draft = nil
+            UINotificationFeedbackGenerator().notificationOccurred(.success)
+        } catch { reportWriteFailure(error) }
     }
 
     private func setStatus(_ status: TransactionStatus) {
-        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-            transaction.status = status
-            if status == .posted && transaction.posted_date == nil {
-                transaction.posted_date = .now
+        guard !editing else { return }
+        do {
+            try LedgerWrite.perform(in: modelContext) {
+                transaction.status = status
+                if status == .posted && transaction.posted_date == nil { transaction.posted_date = .now }
+                transaction.updated_at = .now
             }
-            transaction.updated_at = .now
-        }
-        try? modelContext.save()
-        let generator = UIImpactFeedbackGenerator(style: .light)
-        generator.impactOccurred()
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        } catch { reportWriteFailure(error) }
+    }
+
+    private func reportWriteFailure(_ error: Error) {
+        writeError = (error as? LedgerWriteError)?.errorDescription
+            ?? "The change could not be saved to this device. The previous saved record has been kept. Check available storage and try again."
     }
 }

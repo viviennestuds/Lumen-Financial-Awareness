@@ -38,19 +38,16 @@ struct TransactionRow: View {
                         .font(.system(size: 12))
                         .foregroundStyle(Theme.inkSecondary)
                         .lineLimit(1)
-                    if txn.status == .pending {
-                        Circle().fill(Theme.pending).frame(width: 4, height: 4)
-                        Text("Pending")
-                            .font(.system(size: 12, weight: .medium))
-                            .foregroundStyle(Theme.pending)
-                    }
+                    Text(txn.status.label)
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(txn.status.tint)
                 }
             }
 
             Spacer(minLength: Theme.s2)
 
             VStack(alignment: .trailing, spacing: 3) {
-                Text(appState.format(txn.signedAmount, signed: true))
+                Text(appState.format(txn.signedAmount, signed: txn.transaction_type != .transfer, currency: txn.currency))
                     .font(.system(size: 15, weight: .semibold))
                     .foregroundStyle(txn.transaction_type.isOutflow ? Theme.ink : Theme.income)
                     .monospacedDigit()

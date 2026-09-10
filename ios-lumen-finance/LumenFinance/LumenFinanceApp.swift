@@ -1,42 +1,47 @@
-//
-//  LumenFinanceApp.swift
-//  LumenFinance
-//
-
 import SwiftUI
 import SwiftData
 
 @main
 struct LumenFinanceApp: App {
-    @State private var appState = AppState()
-    @State private var flags = FeatureFlags()
-
-    let sharedModelContainer: ModelContainer = {
-        let schema = Schema([
-            Transaction.self,
-            TransactionSource.self,
-            Category.self,
-            PaymentMethod.self,
-            Tag.self,
-            UserProfile.self,
-        ])
-        let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
-        do {
-            return try ModelContainer(for: schema, configurations: [modelConfiguration])
-        } catch {
-            // Fall back to an in-memory store so the app still launches.
-            let fallback = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
-            return try! ModelContainer(for: schema, configurations: [fallback])
-        }
-    }()
+    @State private var appState: AppState = AppState()
+    @State private var flags: FeatureFlags = FeatureFlags()
+    @State private var container: ModelContainer?
+    @State private var didFailToOpen: Bool = false
 
     var body: some Scene {
         WindowGroup {
-            RootView()
-                .environment(appState)
-                .environment(flags)
-                .tint(Theme.accent)
+            Group {
+                if let container {
+                    RootView()
+                        .modelContainer(container)
+                        .environment(appState)
+                        .environment(flags)
+                } else if didFailToOpen {
+                    ContentUnavailableView {
+                        Label("Your ledger couldn’t open", systemImage: "externaldrive.badge.exclamationmark")
+                    } description: {
+                        Text("Lumen hasn’t replaced or reset your ledger. Free up device storage if needed, then retry. Do not delete the app to recover your data.")
+                    } actions: {
+                        Button("Retry opening ledger") { openLedger() }
+                    }
+                } else {
+                    ProgressView("Opening your local ledger…")
+                }
+            }
+            .tint(Theme.accent)
+            .task { if container == nil && !didFailToOpen { openLedger() } }
         }
-        .modelContainer(sharedModelContainer)
+    }
+
+    private func openLedger() {
+        do {
+            let opened = try LedgerStore.open()
+            try Seed.bootstrapIfNeeded(opened.mainContext)
+            container = opened
+            didFailToOpen = false
+        } catch {
+            // Do not expose file paths or private financial content in errors.
+            didFailToOpen = true
+        }
     }
 }

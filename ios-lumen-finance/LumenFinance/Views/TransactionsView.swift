@@ -36,21 +36,8 @@ struct TransactionsView: View {
 
     private var filtered: [Transaction] {
         transactions.filter { txn in
-            switch filter {
-            case .all: break
-            case .expenses: if txn.transaction_type != .expense { return false }
-            case .income: if !(txn.transaction_type == .income || txn.transaction_type == .refund) { return false }
-            case .pending: if txn.status != .pending { return false }
-            case .posted: if txn.status != .posted { return false }
-            case .ignored: if txn.status != .ignored { return false }
-            }
-            if let categoryFilter, txn.category?.name != categoryFilter { return false }
-            if let sourceFilter, txn.source?.source_type != sourceFilter { return false }
-            if !search.isEmpty {
-                let hay = "\(txn.merchant_name) \(txn.category?.name ?? "") \(txn.notes ?? "")"
-                if !hay.localizedStandardContains(search) { return false }
-            }
-            return true
+            TransactionSearch.matches(txn, text: search, filter: filter,
+                                      category: categoryFilter, source: sourceFilter)
         }
     }
 
@@ -88,6 +75,7 @@ struct TransactionsView: View {
             }
             .background(Theme.canvas)
             .scrollIndicators(.hidden)
+            .scrollDismissesKeyboard(.interactively)
             .navigationTitle("Activity")
             .navigationBarTitleDisplayMode(.large)
             .navigationDestination(for: Transaction.self) { txn in
@@ -106,7 +94,9 @@ struct TransactionsView: View {
             if !search.isEmpty {
                 Button { search = "" } label: {
                     Image(systemName: "xmark.circle.fill").foregroundStyle(Theme.muted)
+                        .frame(width: 44, height: 44)
                 }
+                .accessibilityLabel("Clear search")
             }
         }
         .padding(.horizontal, Theme.s4)

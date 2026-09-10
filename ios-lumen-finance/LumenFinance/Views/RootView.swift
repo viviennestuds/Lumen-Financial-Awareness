@@ -29,7 +29,6 @@ struct RootView: View {
             }
         }
         .animation(.spring(response: 0.5, dampingFraction: 0.85), value: appState.hasOnboarded)
-        .onAppear { Seed.bootstrapIfNeeded(modelContext) }
         .sheet(isPresented: $appState.showUpload) {
             UploadView()
         }
@@ -128,6 +127,8 @@ struct LumenTabBar: View {
             .offset(y: -14)
         }
         .buttonStyle(PressableStyle())
+        .accessibilityLabel("Add activity")
+        .accessibilityIdentifier("addActivity")
         .frame(maxWidth: .infinity)
     }
 }

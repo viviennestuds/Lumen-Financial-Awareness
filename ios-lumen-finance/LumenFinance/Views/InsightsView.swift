@@ -14,9 +14,9 @@ struct InsightsView: View {
     @Environment(FeatureFlags.self) private var flags
     @Query private var transactions: [Transaction]
 
-    private var summary: DashboardSummary { Analytics.summary(transactions) }
+    private var summary: DashboardSummary { Analytics.summary(transactions, currency: appState.currencyCode) }
     private var categoryTotals: [CategoryTotal] {
-        Analytics.categoryTotals(Analytics.active(transactions).filter { Analytics.isInCurrentMonth($0.transaction_date) })
+        Analytics.categoryTotals(transactions.filter { Analytics.isInCurrentMonth($0.transaction_date) }, currency: appState.currencyCode)
     }
     private var maxCategory: Double { categoryTotals.first?.amount ?? 1 }
 
@@ -25,6 +25,8 @@ struct InsightsView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: Theme.s5) {
                     statRow
+                    Text("\(appState.currencyCode) only. Includes pending and legacy review-needed records; ignored and duplicate records are excluded. \(summary.excludedCurrencyCount) other-currency records and \(summary.invalidAmountCount) invalid amounts excluded. No currency conversion.")
+                        .font(.footnote).foregroundStyle(Theme.inkSecondary)
 
                     SectionHeader(title: "Spending by category")
                     if categoryTotals.isEmpty {
@@ -51,7 +53,7 @@ struct InsightsView: View {
 
     private var statRow: some View {
         HStack(spacing: Theme.s3) {
-            insightStat(value: appState.format(summary.loggedThisWeek), label: "Logged this week", tint: Theme.accent)
+            insightStat(value: appState.format(summary.loggedThisWeek), label: "Expenses dated this week", tint: Theme.accent)
             insightStat(value: "\(summary.countThisWeek)", label: "Transactions", tint: Theme.info)
         }
     }
@@ -103,7 +105,7 @@ struct InsightsView: View {
                 Spacer()
                 SoftTag(text: "Radar soon", tint: Theme.pending)
             }
-            RadarPreview(values: Analytics.groupTotals(transactions))
+            RadarPreview(values: Analytics.groupTotals(transactions, currency: appState.currencyCode))
                 .frame(height: 200)
             Text("A radar view of where your money flows across life areas. Coming in a later update.")
                 .font(.system(size: 12)).foregroundStyle(Theme.inkSecondary)

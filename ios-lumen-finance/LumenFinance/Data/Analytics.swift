@@ -1,27 +1,20 @@
-//
-//  Analytics.swift
-//  LumenFinance
-//
-//  Pure, derived computations over local transactions. Everything here
-//  is computed on demand from SwiftData — no separate persisted totals.
-//
-
 import Foundation
 
-/// A small bundle of dashboard figures derived from stored transactions.
 struct DashboardSummary {
     var totalSpending: Double = 0
     var totalIncome: Double = 0
     var netFlow: Double = 0
     var countThisWeek: Int = 0
     var loggedThisWeek: Double = 0
+    var excludedCurrencyCount: Int = 0
+    var invalidAmountCount: Int = 0
     var topCategoryName: String?
     var topCategoryAmount: Double = 0
     var topCategoryColor: String = "#2F6B57"
 }
 
 struct CategoryTotal: Identifiable {
-    var id: String { name }
+    let id: String
     let name: String
     let color: String
     let amount: Double
@@ -29,80 +22,94 @@ struct CategoryTotal: Identifiable {
 }
 
 enum Analytics {
-    /// Transactions that count toward spending/insights — exclude ignored & duplicate.
+    /// Compatibility policy: legacy review_needed records may already have been user-confirmed.
+    /// Preserve their inclusion until an authentic-store-tested status migration is available.
     static func active(_ txns: [Transaction]) -> [Transaction] {
         txns.filter { $0.status != .ignored && $0.status != .duplicate }
     }
 
-    static func isInCurrentMonth(_ date: Date) -> Bool {
-        Calendar.current.isDate(date, equalTo: .now, toGranularity: .month)
+    static func scoped(_ txns: [Transaction], currency: String) -> [Transaction] {
+        active(txns).filter { $0.currency == currency && Money.magnitude($0.amount) != nil }
     }
 
-    static func isInCurrentWeek(_ date: Date) -> Bool {
-        Calendar.current.isDate(date, equalTo: .now, toGranularity: .weekOfYear)
+    static func isInCurrentMonth(_ date: Date, now: Date = .now, calendar: Calendar = .current) -> Bool {
+        calendar.isDate(date, equalTo: now, toGranularity: .month)
     }
 
-    static func summary(_ txns: [Transaction]) -> DashboardSummary {
-        var s = DashboardSummary()
+    static func isInCurrentWeek(_ date: Date, now: Date = .now, calendar: Calendar = .current) -> Bool {
+        calendar.isDate(date, equalTo: now, toGranularity: .weekOfYear)
+    }
+
+    private static func sum(_ txns: [Transaction]) -> Decimal {
+        txns.reduce(Decimal.zero) { $0 + (Money.magnitude($1.amount) ?? .zero) }
+    }
+
+    private static func displayValue(_ value: Decimal) -> Double {
+        NSDecimalNumber(decimal: value).doubleValue
+    }
+
+    /// Expenses are gross spending. Income includes refunds. Transfers affect neither total.
+    /// Weekly activity uses transaction_date, not the time the record was created.
+    static func summary(_ txns: [Transaction], currency: String, now: Date = .now,
+                        calendar: Calendar = .current) -> DashboardSummary {
+        var result = DashboardSummary()
         let active = active(txns)
-
-        let monthly = active.filter { isInCurrentMonth($0.transaction_date) }
-        s.totalSpending = monthly
-            .filter { $0.transaction_type == .expense }
-            .reduce(0) { $0 + abs($1.amount) }
-        s.totalIncome = monthly
-            .filter { $0.transaction_type == .income || $0.transaction_type == .refund }
-            .reduce(0) { $0 + abs($1.amount) }
-        s.netFlow = s.totalIncome - s.totalSpending
-
-        let weekly = active.filter { isInCurrentWeek($0.transaction_date) }
-        s.countThisWeek = weekly.count
-        s.loggedThisWeek = weekly
-            .filter { $0.transaction_type == .expense }
-            .reduce(0) { $0 + abs($1.amount) }
-
-        let totals = categoryTotals(monthly.filter { $0.transaction_type == .expense })
-        if let top = totals.first {
-            s.topCategoryName = top.name
-            s.topCategoryAmount = top.amount
-            s.topCategoryColor = top.color
+        result.excludedCurrencyCount = active.filter { $0.currency != currency }.count
+        result.invalidAmountCount = active.filter { Money.magnitude($0.amount) == nil }.count
+        let eligible = scoped(txns, currency: currency)
+        let monthly = eligible.filter { isInCurrentMonth($0.transaction_date, now: now, calendar: calendar) }
+        let spending = sum(monthly.filter { $0.transaction_type == .expense })
+        let incoming = sum(monthly.filter { $0.transaction_type == .income || $0.transaction_type == .refund })
+        result.totalSpending = displayValue(spending)
+        result.totalIncome = displayValue(incoming)
+        result.netFlow = displayValue(incoming - spending)
+        let weekly = eligible.filter { isInCurrentWeek($0.transaction_date, now: now, calendar: calendar) }
+        result.countThisWeek = weekly.count
+        result.loggedThisWeek = displayValue(sum(weekly.filter { $0.transaction_type == .expense }))
+        if let top = categoryTotals(monthly, currency: currency).first {
+            result.topCategoryName = top.name
+            result.topCategoryAmount = top.amount
+            result.topCategoryColor = top.color
         }
-        return s
+        return result
     }
 
-    /// Expense totals grouped by category, sorted high → low.
-    static func categoryTotals(_ txns: [Transaction]) -> [CategoryTotal] {
-        var buckets: [String: (color: String, amount: Double, count: Int)] = [:]
-        for t in txns where t.transaction_type == .expense {
-            let name = t.category?.name ?? "Uncategorized"
-            let color = t.category?.color ?? "#94A09A"
-            let existing = buckets[name] ?? (color, 0, 0)
-            buckets[name] = (color, existing.amount + abs(t.amount), existing.count + 1)
-        }
-        return buckets
-            .map { CategoryTotal(name: $0.key, color: $0.value.color, amount: $0.value.amount, count: $0.value.count) }
-            .sorted { $0.amount > $1.amount }
+    static func categoryTotals(_ txns: [Transaction], currency: String) -> [CategoryTotal] {
+        let expenses = scoped(txns, currency: currency).filter { $0.transaction_type == .expense }
+        let groups = Dictionary(grouping: expenses) { $0.category?.id ?? "uncategorized" }
+        return groups.map { id, records in
+            CategoryTotal(id: id, name: records.first?.category?.name ?? "Uncategorized",
+                          color: records.first?.category?.color ?? "#94A09A",
+                          amount: displayValue(sum(records)), count: records.count)
+        }.sorted { $0.amount == $1.amount ? $0.id < $1.id : $0.amount > $1.amount }
     }
 
-    /// Spending per group (Fixed, Investments, etc.) for the radar placeholder.
-    static func groupTotals(_ txns: [Transaction]) -> [(group: CategoryGroup, amount: Double)] {
-        var buckets: [CategoryGroup: Double] = [:]
-        for t in active(txns) where t.transaction_type == .expense {
-            let group = t.category?.group ?? .custom
-            buckets[group, default: 0] += abs(t.amount)
+    static func groupTotals(_ txns: [Transaction], currency: String) -> [(group: CategoryGroup, amount: Double)] {
+        let expenses = scoped(txns, currency: currency).filter { $0.transaction_type == .expense }
+        return CategoryGroup.allCases.filter { $0 != .income }.map { group in
+            (group, displayValue(sum(expenses.filter { ($0.category?.group ?? .custom) == group })))
         }
-        return CategoryGroup.allCases
-            .filter { $0 != .income }
-            .map { ($0, buckets[$0] ?? 0) }
     }
 
-    /// Naive duplicate detection used for the review warning placeholder.
-    static func similarTransaction(to candidate: Transaction, in txns: [Transaction]) -> Transaction? {
-        txns.first { other in
-            other.id != candidate.id
-                && other.merchant_name.lowercased() == candidate.merchant_name.lowercased()
-                && abs(other.amount - candidate.amount) < 0.01
-                && abs(other.transaction_date.timeIntervalSince(candidate.transaction_date)) < 60 * 60 * 24 * 3
-        }
+    /// Advisory financial-event similarity, not evidence identity. No models are created here.
+    static func similarTransaction(to candidate: TransactionDraft, in txns: [Transaction],
+                                   excludingID: String? = nil) -> Transaction? {
+        guard let amount = Money.magnitude(candidate.amount), candidate.amount > 0 else { return nil }
+        let merchant = candidate.merchant_name.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !merchant.isEmpty else { return nil }
+        return active(txns).filter { other in
+            other.id != excludingID
+                && other.currency == candidate.currency
+                && other.transaction_type == candidate.transaction_type
+                && other.merchant_name.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == merchant
+                && Money.magnitude(other.amount) == amount
+                && (other.payment_method == nil || candidate.payment_method == nil
+                    || other.payment_method?.id == candidate.payment_method?.id)
+                && abs(other.transaction_date.timeIntervalSince(candidate.transaction_date)) < 3 * 24 * 60 * 60
+        }.sorted {
+            let a = abs($0.transaction_date.timeIntervalSince(candidate.transaction_date))
+            let b = abs($1.transaction_date.timeIntervalSince(candidate.transaction_date))
+            return a == b ? $0.id < $1.id : a < b
+        }.first
     }
 }

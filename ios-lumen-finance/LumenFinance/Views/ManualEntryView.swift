@@ -11,12 +11,14 @@ import SwiftData
 
 struct ManualEntryView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(AppState.self) private var appState
     @Query(sort: \Category.name) private var categories: [Category]
     @Query(sort: \PaymentMethod.name) private var paymentMethods: [PaymentMethod]
     @Query(sort: \Tag.name) private var tags: [Tag]
 
     @State private var draft = TransactionDraft()
     @State private var goReview = false
+    @State private var didInitialize: Bool = false
 
     /// Optional dismissal hook so parent flows can close the whole stack on save.
     var onSaved: (() -> Void)? = nil
@@ -37,6 +39,7 @@ struct ManualEntryView: View {
         }
         .background(Theme.canvas)
         .scrollIndicators(.hidden)
+        .scrollDismissesKeyboard(.interactively)
         .navigationTitle("Manual Entry")
         .navigationBarTitleDisplayMode(.inline)
         .safeAreaInset(edge: .bottom) {
@@ -56,6 +59,10 @@ struct ManualEntryView: View {
             }
         }
         .onAppear {
+            if !didInitialize {
+                draft.currency = appState.currencyCode
+                didInitialize = true
+            }
             if draft.category == nil {
                 draft.category = categories.first { $0.group == .guilt_free_spending }
             }

@@ -22,16 +22,18 @@ struct ReviewTransactionView: View {
     @Query private var allTransactions: [Transaction]
 
     @State private var editing = false
+    @State private var saveError: String?
+    @State private var hasSaved: Bool = false
 
     private var duplicate: Transaction? {
-        let candidate = draft.makeTransaction(allTags: tags)
-        return Analytics.similarTransaction(to: candidate, in: allTransactions)
+        Analytics.similarTransaction(to: draft, in: allTransactions)
     }
 
     var body: some View {
         ScrollView {
             VStack(spacing: Theme.s4) {
                 if let source = draft.source {
+                    StubBanner(title: "Preview stub — not OCR", message: "These sample fields were not read from your photo. Check every field before confirming.")
                     sourceCard(source)
                 }
                 if let dup = duplicate {
@@ -59,6 +61,12 @@ struct ReviewTransactionView: View {
         .navigationTitle("Review")
         .navigationBarTitleDisplayMode(.inline)
         .safeAreaInset(edge: .bottom) { bottomBar }
+        .scrollDismissesKeyboard(.interactively)
+        .alert("Transaction not saved", isPresented: Binding(
+            get: { saveError != nil }, set: { if !$0 { saveError = nil } }
+        )) { Button("OK", role: .cancel) { saveError = nil } } message: {
+            Text(saveError ?? "Please try again.")
+        }
     }
 
     // MARK: - Summary
@@ -106,10 +114,7 @@ struct ReviewTransactionView: View {
     }
 
     private var formattedAmount: String {
-        let f = NumberFormatter()
-        f.numberStyle = .currency
-        f.currencyCode = draft.currency
-        return f.string(from: NSNumber(value: draft.amount)) ?? "\(draft.amount)"
+        Money.format(draft.amount, currency: draft.currency)
     }
 
     // MARK: - Source / parse card
@@ -132,7 +137,7 @@ struct ReviewTransactionView: View {
                 if let uploaded = source.uploaded_at {
                     DetailRow(label: "Uploaded", value: uploaded.formatted(date: .abbreviated, time: .shortened))
                 }
-                if let confidence = draft.confidence_score {
+                if let confidence = draft.confidence_score, confidence.isFinite, (0...1).contains(confidence) {
                     confidenceRow(confidence)
                 }
                 if let raw = source.raw_extracted_text {
@@ -195,19 +200,24 @@ struct ReviewTransactionView: View {
 
     private var bottomBar: some View {
         VStack(spacing: Theme.s2) {
-            PrimaryButton(title: "Save transaction", icon: "checkmark") {
+            PrimaryButton(title: duplicate == nil ? "Save transaction" : "Save anyway", icon: "checkmark") {
                 save()
             }
-            .disabled(!draft.isValid)
-            .opacity(draft.isValid ? 1 : 0.5)
+            .disabled(!draft.canConfirm || hasSaved)
+            .opacity(draft.canConfirm && !hasSaved ? 1 : 0.5)
+            .accessibilityIdentifier("confirmTransaction")
+            if !draft.canConfirm {
+                Text("Edit fields to choose a category, valid amount, and pending or posted status.")
+                    .font(.footnote).foregroundStyle(Theme.inkSecondary)
+            }
 
             HStack(spacing: Theme.s2) {
                 secondaryButton(editing ? "Done editing" : "Edit fields", icon: "slider.horizontal.3") {
                     withAnimation { editing.toggle() }
                 }
-                secondaryButton("Mark ignored", icon: "eye.slash") {
-                    draft.status = .ignored
-                    save()
+                secondaryButton("Discard draft", icon: "eye.slash") {
+                    // Discard is not a canonical financial write.
+                    onSave()
                 }
             }
             Button("Cancel") { dismiss() }
@@ -236,13 +246,24 @@ struct ReviewTransactionView: View {
     }
 
     private func save() {
-        if let source = draft.source { modelContext.insert(source) }
-        let txn = draft.makeTransaction(allTags: tags)
-        if duplicate != nil { txn.duplicate_fingerprint = "soft-match" }
-        modelContext.insert(txn)
-        try? modelContext.save()
-        let generator = UINotificationFeedbackGenerator()
-        generator.notificationOccurred(.success)
-        onSave()
+        guard !hasSaved else { return }
+        guard draft.canConfirm else {
+            saveError = "Check the amount, merchant, currency, category, and financial status."
+            return
+        }
+        let hasDuplicate = duplicate != nil
+        do {
+            try LedgerWrite.perform(in: modelContext) {
+                let txn = try draft.makeTransaction(allTags: tags)
+                if hasDuplicate { txn.duplicate_fingerprint = "soft-match" }
+                modelContext.insert(txn)
+            }
+            hasSaved = true
+            UINotificationFeedbackGenerator().notificationOccurred(.success)
+            onSave()
+        } catch {
+            saveError = (error as? LedgerWriteError)?.errorDescription
+                ?? "The transaction could not be saved to this device. Your draft is still here. Check available storage and try again."
+        }
     }
 }
