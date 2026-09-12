@@ -171,6 +171,43 @@ final class LumenFinanceUITests: XCTestCase {
         probeTextFocus(app.textFields["transactionAmount"], name: "amount", text: "12.34", in: app, coordinate: true)
     }
 
+    // Run 6 B1-A: literal canonical prefix through Review; deliberately no Done, Confirm or relaunch.
+    @MainActor
+    func testB1ACanonicalPrefixReachesReview() throws {
+        // Unique test-owned record only; never resets or deletes another user's history.
+        let merchant = "Ledger test \(UUID().uuidString.prefix(8))"
+        let app = XCUIApplication()
+        app.launch()
+        checkpoint("1 application launched")
+        if app.buttons["Get Started"].waitForExistence(timeout: 3) { app.buttons["Get Started"].tap() }
+        let add = app.buttons["addActivity"]
+        XCTAssertTrue(add.waitForExistence(timeout: 10))
+        checkpoint("2 initial ledger available")
+        add.tap()
+        app.buttons.containing(.staticText, identifier: "Manual Entry").firstMatch.tap()
+        let amount = app.textFields["transactionAmount"]
+        XCTAssertTrue(amount.waitForExistence(timeout: 10))
+        checkpoint("3 Manual Entry opened")
+        captureGeometry("amount", of: amount)
+        captureGeometry("merchant", of: app.textFields["transactionMerchant"])
+        captureGeometry("income", of: app.buttons["Income"])
+        diagnosticStage = "amount semantic tap requested"
+        amount.tap()
+        checkpoint("3a amount focused")
+        amount.typeText("12.34")
+        checkpoint("3b amount entered")
+        let name = app.textFields["transactionMerchant"]
+        name.tap()
+        checkpoint("3c merchant focused")
+        name.typeText(merchant)
+        checkpoint("4 transaction fields entered")
+        app.buttons["Review transaction"].tap()
+        let save = app.buttons["confirmTransaction"]
+        XCTAssertTrue(save.waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts[merchant].exists)
+        checkpoint("5 Review reached")
+    }
+
     @MainActor
     func testManualReviewSaveRelaunchInspectEditStatusAndDelete() throws {
         // Unique test-owned record only; never resets or deletes another user's history.
