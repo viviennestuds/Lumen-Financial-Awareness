@@ -4,11 +4,24 @@ final class LumenFinanceUITests: XCTestCase {
     private var lastCheckpoint: String = "not launched"
     private var diagnosticStage: String = "not started"
     private var geometryObservations: [String] = []
+    private var stateObservations: [String] = []
+    private var characterizationMerchant: String?
+    private var invalidFrameIssueCount: Int = 0
 
     override func setUpWithError() throws { continueAfterFailure = false }
 
     override func record(_ issue: XCTIssue) {
+        if issue.compactDescription.contains("Invalid frame dimension (negative or non-finite)") {
+            invalidFrameIssueCount += 1
+        }
         var annotated = issue
+        annotated.compactDescription += " [test: \(name)]"
+        if !stateObservations.isEmpty {
+            annotated.compactDescription += " [state: \(stateObservations.joined(separator: " | "))]"
+        }
+        if let characterizationMerchant {
+            annotated.compactDescription += " [test-owned merchant: \(characterizationMerchant)]"
+        }
         annotated.compactDescription += " [last completed: \(lastCheckpoint)]"
         annotated.compactDescription += " [diagnostic stage: \(diagnosticStage)]"
         if !geometryObservations.isEmpty {
@@ -28,6 +41,25 @@ final class LumenFinanceUITests: XCTestCase {
             annotated.compactDescription += " [stack: \(symbols.joined(separator: " | "))]"
         }
         super.record(annotated)
+    }
+
+    // No UI queries: persist only already-observed test telemetry in the test result.
+    override func tearDownWithError() throws {
+        if !stateObservations.isEmpty {
+            let summary = "test=\(name); \(stateObservations.joined(separator: "; ")); merchant=\(characterizationMerchant ?? "none"); invalidFrameIssues=\(invalidFrameIssueCount); furthest=\(lastCheckpoint); stage=\(diagnosticStage); geometry=\(geometryObservations.joined(separator: " | "))"
+            print("LUMEN_UI_CHARACTERIZATION \(summary)")
+            let attachment = XCTAttachment(string: summary)
+            attachment.name = "Lumen Run 6.1 characterization"
+            attachment.lifetime = .keepAlways
+            add(attachment)
+        }
+        try super.tearDownWithError()
+    }
+
+    private func observeState(_ key: String, _ value: String) {
+        let observation = "\(key)=\(value)"
+        stateObservations.append(observation)
+        print("LUMEN_UI_STATE \(observation)")
     }
 
     private func checkpoint(_ name: String) {
@@ -171,17 +203,56 @@ final class LumenFinanceUITests: XCTestCase {
         probeTextFocus(app.textFields["transactionAmount"], name: "amount", text: "12.34", in: app, coordinate: true)
     }
 
+    @MainActor
+    func testB2IsolatedOnboardingRelaunch() {
+        let app = XCUIApplication()
+        app.launch()
+        checkpoint("B2 initial launch returned")
+        let onboardingWasPresented = app.buttons["Get Started"].waitForExistence(timeout: 3)
+        observeState("Get Started initially observed", onboardingWasPresented ? "YES" : "NO")
+        observeState("B2 evidence level", onboardingWasPresented ? "FULL" : "PARTIAL")
+        if onboardingWasPresented {
+            app.buttons["Get Started"].tap()
+            checkpoint("B2 Get Started tap returned")
+        }
+        let mainShellBefore = app.buttons["Activity"].waitForExistence(timeout: 10)
+        observeState("main shell before terminate", mainShellBefore ? "YES" : "NO")
+        XCTAssertTrue(mainShellBefore, "B2 Activity must be available before termination")
+        checkpoint("B2 main shell available before terminate")
+        app.terminate()
+        checkpoint("B2 termination returned")
+        app.launch()
+        checkpoint("B2 relaunch returned")
+        let mainShellAfter = app.buttons["Activity"].waitForExistence(timeout: 10)
+        let onboardingAfter = app.buttons["Get Started"].exists
+        observeState("main shell after relaunch", mainShellAfter ? "YES" : "NO")
+        observeState("Get Started after relaunch", onboardingAfter ? "YES" : "NO")
+        XCTAssertTrue(mainShellAfter, "B2 Activity must survive termination/relaunch without repeating onboarding")
+        XCTAssertFalse(onboardingAfter, "B2 Get Started must remain absent after relaunch")
+        checkpoint("B2 isolated relaunch contract completed")
+    }
+
     // Run 6 B1-A: literal canonical prefix through Review; deliberately no Done, Confirm or relaunch.
     @MainActor
     func testB1ACanonicalPrefixReachesReview() throws {
         // Unique test-owned record only; never resets or deletes another user's history.
         let merchant = "Ledger test \(UUID().uuidString.prefix(8))"
+        characterizationMerchant = merchant
         let app = XCUIApplication()
         app.launch()
         checkpoint("1 application launched")
-        if app.buttons["Get Started"].waitForExistence(timeout: 3) { app.buttons["Get Started"].tap() }
+        let onboardingWasPresented = app.buttons["Get Started"].waitForExistence(timeout: 3)
+        observeState("Get Started initially observed", onboardingWasPresented ? "YES" : "NO")
+        if onboardingWasPresented {
+            app.buttons["Get Started"].tap()
+            observeState("onboarding completed this invocation", "YES")
+        } else {
+            observeState("onboarding completed this invocation", "NO")
+        }
         let add = app.buttons["addActivity"]
-        XCTAssertTrue(add.waitForExistence(timeout: 10))
+        let mainShellAvailable = add.waitForExistence(timeout: 10)
+        observeState("main shell became available", mainShellAvailable ? "YES" : "NO")
+        XCTAssertTrue(mainShellAvailable)
         checkpoint("2 initial ledger available")
         add.tap()
         app.buttons.containing(.staticText, identifier: "Manual Entry").firstMatch.tap()
@@ -212,12 +283,22 @@ final class LumenFinanceUITests: XCTestCase {
     func testManualReviewSaveRelaunchInspectEditStatusAndDelete() throws {
         // Unique test-owned record only; never resets or deletes another user's history.
         let merchant = "Ledger test \(UUID().uuidString.prefix(8))"
+        characterizationMerchant = merchant
         let app = XCUIApplication()
         app.launch()
         checkpoint("1 application launched")
-        if app.buttons["Get Started"].waitForExistence(timeout: 3) { app.buttons["Get Started"].tap() }
+        let onboardingWasPresented = app.buttons["Get Started"].waitForExistence(timeout: 3)
+        observeState("Get Started initially observed", onboardingWasPresented ? "YES" : "NO")
+        if onboardingWasPresented {
+            app.buttons["Get Started"].tap()
+            observeState("onboarding completed this invocation", "YES")
+        } else {
+            observeState("onboarding completed this invocation", "NO")
+        }
         let add = app.buttons["addActivity"]
-        XCTAssertTrue(add.waitForExistence(timeout: 10))
+        let mainShellAvailable = add.waitForExistence(timeout: 10)
+        observeState("main shell became available", mainShellAvailable ? "YES" : "NO")
+        XCTAssertTrue(mainShellAvailable)
         checkpoint("2 initial ledger available")
         add.tap()
         app.buttons.containing(.staticText, identifier: "Manual Entry").firstMatch.tap()

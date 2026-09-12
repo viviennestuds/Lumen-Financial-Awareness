@@ -633,3 +633,95 @@ Evidence-access limits: `rork-agent logs runtime --errors --limit 100` returned 
 **PHASE 1A NOT YET COMPLETE.** No money/status/date migration, cloud work, evidence redesign or Phase 1B work began.
 
 Smallest next diagnostic blocker: obtain a sequence-controlled explanation of the keyboard-toolbar focus transition in which C's amount semantic tap fails while the standalone amount probe succeeds. Keep Defect A and closed Run 3 recovery intact. The experimental first-relaunch onboarding result remains recorded, not silently fixed or certified in this pass.
+
+## Run 6.1 — frozen-production B1/B2 characterization — 2026-09-12
+
+### Starting state and Run 6 interpretation
+
+- Owner-supplied expected GitHub checkpoint: `58f9b5aa13edc03dad758ddeeb98a9f00954d053`. Internal starting HEAD: `e9365f22f2113259592fb582b2fa1eeaaa6b7bba`; working tree initially clean, with no pre-existing modifications.
+- Read-only `git ls-remote origin HEAD refs/heads/main` returned `e9365f22f2113259592fb582b2fa1eeaaa6b7bba` for both. This establishes the configured origin's advertised refs, not independent identification of canonical GitHub. Locally cached origin refs initially still pointed at `ea333ab48fa0e08e3a3182acf453e534bcb47bcd`.
+- The supplied checkpoint object exists locally. App/tests/docs match it except for the absent generated `LumenFinance/Config.swift` placeholder in the internal snapshot. No complete-tree/SHA equivalence is claimed. Relevant Run 3 recovery, Run 5 FlowLayout correction, retained keyboard toolbar, original canonical test and Run 6 B1-A prefix were present.
+- **B1-A EXTRACTION FIDELITY — VALID.** Side-by-side source inspection confirms the literal canonical sequence through Review, without Done, Confirm or relaunch.
+- **B1-A BEFORE-FIX REPRODUCTION GATE — NOT SATISFIED IN RUN 6.** The prior unchanged-production PASS did not make the extraction structurally invalid; it made B1-A unsuitable as a guaranteed-red regression at that time.
+- Production was frozen throughout Run 6.1. No toolbar, FocusState, AppState, onboarding, LedgerWrite, persisted model/schema/migration, money, duplicate-semantic or architecture change was attempted.
+
+### Baseline and execution surface
+
+All XCTest invocations were individual, sequential `swiftTest` calls with `appPath: "ios-lumen-finance"`. No source edits preceded this baseline:
+
+| Check | Exact selector | Result |
+|---|---|---|
+| FlowLayout | `LumenFinanceTests/FlowLayoutTests/testFlowLayoutReturnsFiniteMeasuredSize` | 1/1 PASS, 15s |
+| Persistence | `LumenFinanceTests/LedgerPersistenceTests` | 20/20 PASS, 12s |
+| Domain | `LumenFinanceTests/LumenFinanceTests` | 9/9 PASS, 14s |
+| Whole non-UI | `LumenFinanceTests` | 30/30 PASS, 14s |
+| Simulator application build | `runChecks({"appPath":"ios-lumen-finance"})` | PASS |
+
+Repository scheme: `LumenFinance`, Debug TestAction, both test targets nonparallelizable. Actual runner command, effective scheme/destination, runtime/Xcode version, device/UDID, container identity and numeric test exit status were not exposed. These repository settings are not independently observed runner metadata. Device/App Store Release validation was not performed.
+
+### Retained passive UI-test instrumentation
+
+- Reuse each strict method's existing Get Started wait result to log the onboarding branch; no duplicate wait. Reuse the existing Add Activity wait result for main-shell telemetry.
+- Keep generated merchant identifiers in test-local memory for issue annotation. Add test name and previously observed state to the existing issue record, still forwarding every issue to `super.record`.
+- Reuse the unchanged geometry capture and action checkpoints. Store/print a post-test summary and XCTest attachment, without new UI queries.
+- No new strict pre-Amount waits, geometry/keyboard queries, focus interactions, navigation, Done taps, sleeps, launch arguments, environment markers or resets. Global `continueAfterFailure = false` remains intact.
+- Keyboard before/after Amount: **UNAVAILABLE IN STRICT SEQUENCE**. Explicit initial launch from terminated state: **UNAVAILABLE**; the strict methods do not explicitly terminate first, and runner behavior was not exposed.
+- Existing standalone probes were neither changed nor executed. Their pre-existing keyboard queries were not inserted into either strict method.
+
+### Fixed strict B1 matrix
+
+A = `LumenFinanceUITests/LumenFinanceUITests/testB1ACanonicalPrefixReachesReview`.
+C = `LumenFinanceUITests/LumenFinanceUITests/testManualReviewSaveRelaunchInspectEditStatusAndDelete`.
+
+| Invocation | Selector | Result | Get Started initially / onboarding completed / main shell | Test-owned merchant |
+|---|---|---|---|---|
+| 1: B1-A strict #1 | A | 0 passed / 1 failed | YES / YES / YES | Ledger test 99A6985C |
+| 2: B1-A strict #2 | A | 0 passed / 1 failed | YES / YES / YES | Ledger test 01632BE7 |
+| 3: canonical strict, once only | C | 0 passed / 1 failed | YES / YES / YES | Ledger test D6F399CA |
+| 4: B1-A strict #3, post-canonical | A | 0 passed / 1 failed | YES / YES / YES | Ledger test CD079732 |
+
+Every strict response surfaced `Invalid frame dimension (negative or non-finite).`, last completed `3 Manual Entry opened`, diagnostic stage `amount semantic tap requested`. Amount existed, was hittable, finite and positive; semantic tap was requested but the amount-focused checkpoint was not reached. Amount typing, Merchant tap/typing and Review were not reached. This describes strict execution termination, not proof the physical UI was incapable of continuing.
+
+All four returned the same Amount rectangle: x=64.33333333333333, y=240.0, width=297.66666666666663, height=41.0; null=false, empty=false. Merchant and Income geometry were likewise finite, positive and hittable in all four. No duplicate geometry queries were introduced.
+
+State continuity consistent with persistence: **INDETERMINATE** for all four. The first has no preceding Run 6.1 UI observation; each subsequent invocation again showed Get Started despite the preceding onboarding action. No visible carried-forward onboarded state was demonstrated, but container reuse versus reset versus persistence failure cannot be distinguished from these observations.
+
+Observed: B1-A failed in all three strict executions, and C failed at the same boundary. No within-matrix pass/fail instability or method/context split was observed. All failures co-occurred with onboarding completion; without an already-onboarded comparison this is not a discriminating onboarding-state correlation and does not establish causation. Run 6's earlier PASS remains valid evidence. Runtime/state sensitivity and possible timing perturbation from even passive logging remain hypotheses, not established causes. Toolbar involvement remains supported by prior evidence, not proven deterministic by this frozen-production matrix.
+
+### Canonical transaction accounting
+
+Canonical merchant: `Ledger test D6F399CA`. Review/Confirm were not reached; no Transaction was created by this invocation. Normal delete cleanup and final absence assertion were NOT REACHED. No new canonical-test residue is indicated; old possible Run 5 residue was not inspected or cleaned. B1-A #3 ran against the resulting post-canonical state with no normalization or special cleanup.
+
+### Single optional issue-continuation diagnostic
+
+- Authorized by all three strict B1-A reproductions. The actual B1-A selector was invoked once more, separately as a diagnostic, after the fixed strict matrix; the canonical method was not rerun.
+- Temporarily enabled `continueAfterFailure` locally inside B1-A with deferred restoration, keeping all existing UI actions through Review and every original issue forwarded. A temporary post-Review zero-issue-count assertion was intended only to expose final progress in the failure summary, not to make this an acceptance test.
+- Result: 0 passed / 1 failed, same invalid-frame issue and last reported checkpoint/stage as the strict cases; merchant `Ledger test 0E2FE2C4`, onboarding YES/YES, main shell YES, same valid geometry.
+- No later progress or post-Review count assertion was exposed by the response. Actual continuation, tap return, usable focus/keyboard, typing, Merchant interaction and Review completion are **UNAVAILABLE / NOT DEMONSTRATED** in the returned evidence. Do not conclude the physical interaction was impossible merely from the summary, or claim issue/function separability.
+- All temporary continuation and terminal-count assertion changes were removed before B2. Strict issue handling was restored byte-for-byte to the pre-diagnostic instrumented source. No strict FAIL was converted to PASS.
+- The supplied full-test-log path `/tmp/rork-swift-test-ios-lumen-finance.log` was checked once after strict invocation 1 and was absent locally. No repeated access attempts, xcresult/internal-stack chasing or external research occurred. Post-test attachments/full console output were not exposed to the agent.
+
+### Independent B2 diagnostic
+
+Selector: `LumenFinanceUITests/LumenFinanceUITests/testB2IsolatedOnboardingRelaunch`, invoked once after temporary continuation removal. No fresh-container facility was used or assumed; the actual encountered state was tested. No production reset seam was added.
+
+- Initial Get Started: **YES**. **B2 EVIDENCE LEVEL — FULL**.
+- Existing Get Started action returned; main shell/Activity before termination: **YES**.
+- Explicit `terminate()` returned: **YES**. Relaunch returned: **YES**.
+- Activity after relaunch, following a 10-second wait: **NO**. Get Started after relaunch: **YES**.
+- Result: **0 passed / 1 failed**. Exact assertion: `XCTAssertTrue failed - B2 Activity must survive termination/relaunch without repeating onboarding`; last checkpoint `B2 relaunch returned`, source line 230 in the executed UI test.
+- Both after-relaunch observations were captured before the strict assertion aborted. The subsequent Get Started absence assertion was not reached; presence is nevertheless independently recorded by the existing B2 observation.
+- Financial Transaction mutation: **NO**. Intentional canonical-ledger mutation: **NO**. No Manual Entry, keyboard, Review/Confirm, status/edit/delete or LedgerWrite interaction. Normal production startup/reference initialization remained untouched.
+- **B2 — ONBOARDING/RELAUNCH FAILURE REPRODUCED IN ISOLATION.** This separates its reproduction from transaction creation and keyboard behavior. It does not identify an AppState/UserDefaults/framework/runner cause or certify broader lifecycle behavior.
+
+### Final retained state and disposition
+
+- Final simulator application `runChecks`: **PASS** after removal of the temporary diagnostic changes. Lower suites were not repeated: production, project configuration and non-UI infrastructure remained frozen.
+- Retained UI-test diff: `LumenFinanceUITests.swift` +85/-4, consisting of passive telemetry and the isolated B2 test. Existing B1-A remains; original strict actions/assertions and canonical continuation remain unchanged. The four replaced lines are the two onboarding branches and two Add Activity wait assertions, now reusing their results for logging.
+- Evidence diff: this appended audit section only. Production diff: **zero**. All other docs, governance, non-UI tests, project/scheme and configuration remain unchanged. Protected-path comparison and whitespace checks passed before this append and are repeated at finalization. No manual Git staging, commit, push or history rewrite.
+- **FIRECRAWL — NOT USED IN RUN 6.1. EXTERNAL RESEARCH — NOT USED IN RUN 6.1.** No new external question was pursued.
+- **B1 — REPRODUCED CONSISTENTLY IN RUN 6.1.** No production correction authorized or attempted; no validated B1 fix claimed. Consistency is bounded to this four-invocation strict matrix, not universal reproducibility.
+- **B2 — ONBOARDING/RELAUNCH FAILURE REPRODUCED IN ISOLATION.** Unresolved; no production correction attempted.
+- **RUNTIME VALIDATION NOT YET COMPLETE.**
+- **PHASE 1A HARDENING CHECKPOINT NOT YET ACCEPTED.**
+- **PHASE 1A NOT YET COMPLETE.** No clean-store, full-lifecycle, compatibility, migration or Phase 1B certification/work began.
