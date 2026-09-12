@@ -2,12 +2,18 @@ import XCTest
 
 final class LumenFinanceUITests: XCTestCase {
     private var lastCheckpoint: String = "not launched"
+    private var diagnosticStage: String = "not started"
+    private var geometryObservations: [String] = []
 
     override func setUpWithError() throws { continueAfterFailure = false }
 
     override func record(_ issue: XCTIssue) {
         var annotated = issue
         annotated.compactDescription += " [last completed: \(lastCheckpoint)]"
+        annotated.compactDescription += " [diagnostic stage: \(diagnosticStage)]"
+        if !geometryObservations.isEmpty {
+            annotated.compactDescription += " [geometry: \(geometryObservations.joined(separator: " | "))]"
+        }
         if let location = issue.sourceCodeContext.location {
             annotated.compactDescription += " [source: \(location.fileURL.lastPathComponent):\(location.lineNumber)]"
         }
@@ -26,7 +32,27 @@ final class LumenFinanceUITests: XCTestCase {
 
     private func checkpoint(_ name: String) {
         lastCheckpoint = name
+        diagnosticStage = "after \(name)"
         print("LUMEN_UI_CHECKPOINT \(name)")
+    }
+
+    @MainActor
+    private func captureGeometry(_ name: String, of element: XCUIElement) {
+        diagnosticStage = "query \(name).exists"
+        let exists = element.exists
+        guard exists else {
+            geometryObservations.append("\(name): exists=false")
+            return
+        }
+        diagnosticStage = "query \(name).frame"
+        let frame = element.frame
+        let finite = [frame.origin.x, frame.origin.y, frame.width, frame.height].allSatisfy(\.isFinite)
+        diagnosticStage = "query \(name).isHittable"
+        let hittable = element.isHittable
+        let result = "\(name): exists=\(exists), hittable=\(hittable), x=\(frame.origin.x), y=\(frame.origin.y), width=\(frame.width), height=\(frame.height), finite=\(finite), positive=\(frame.width > 0 && frame.height > 0), null=\(frame.isNull), empty=\(frame.isEmpty)"
+        geometryObservations.append(result)
+        print("LUMEN_UI_GEOMETRY \(result)")
+        diagnosticStage = "\(name) geometry captured"
     }
 
     @MainActor
@@ -39,6 +65,9 @@ final class LumenFinanceUITests: XCTestCase {
 
     @MainActor
     private func inspect(_ merchant: String, in app: XCUIApplication) {
+        diagnosticStage = "inspect: waiting for Activity; Get Started exists=\(app.buttons["Get Started"].exists)"
+        XCTAssertTrue(app.buttons["Activity"].waitForExistence(timeout: 10),
+                      "Activity must become available after launch without repeating onboarding")
         app.buttons["Activity"].tap()
         let search = app.textFields["Search merchant, category, notes"]
         XCTAssertTrue(search.waitForExistence(timeout: 10))
@@ -48,6 +77,98 @@ final class LumenFinanceUITests: XCTestCase {
         XCTAssertTrue(row.waitForExistence(timeout: 10))
         row.tap()
         XCTAssertTrue(app.navigationBars["Transaction"].waitForExistence(timeout: 10))
+    }
+
+    @MainActor
+    private func openManualEntryForProbe() -> XCUIApplication {
+        let app = XCUIApplication()
+        app.launch()
+        if app.buttons["Get Started"].waitForExistence(timeout: 3) { app.buttons["Get Started"].tap() }
+        let add = app.buttons["addActivity"]
+        XCTAssertTrue(add.waitForExistence(timeout: 10))
+        add.tap()
+        app.buttons.containing(.staticText, identifier: "Manual Entry").firstMatch.tap()
+        XCTAssertTrue(app.textFields["transactionAmount"].waitForExistence(timeout: 10))
+        checkpoint("probe Manual Entry opened")
+        return app
+    }
+
+    @MainActor
+    private func probeTextFocus(_ field: XCUIElement, name: String, text: String,
+                                in app: XCUIApplication, coordinate: Bool = false) {
+        XCTAssertTrue(field.exists)
+        captureGeometry(name, of: field)
+        XCTAssertTrue(field.isHittable)
+        let frame = field.frame
+        XCTAssertTrue([frame.origin.x, frame.origin.y, frame.width, frame.height].allSatisfy(\.isFinite))
+        XCTAssertGreaterThan(frame.width, 0)
+        XCTAssertGreaterThan(frame.height, 0)
+        diagnosticStage = "\(name) pre-tap keyboard query"
+        let keyboardBefore = app.keyboards.firstMatch.exists
+        checkpoint("\(name) pre-tap keyboard=\(keyboardBefore)")
+        diagnosticStage = "\(name) \(coordinate ? "coordinate" : "semantic") tap requested"
+        if coordinate {
+            field.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+        } else {
+            field.tap()
+        }
+        checkpoint("\(name) tap returned")
+        diagnosticStage = "\(name) waiting for keyboard"
+        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5))
+        checkpoint("\(name) keyboard observed")
+        diagnosticStage = "\(name) typing into focused field"
+        field.typeText(text)
+        checkpoint("\(name) typeText returned")
+        // A vertical field loses its placeholder-based identity after text entry.
+        let enteredField = name == "notes"
+            ? app.descendants(matching: .any).matching(NSPredicate(format: "value == %@", text)).firstMatch
+            : field
+        XCTAssertEqual(enteredField.value as? String, text)
+        checkpoint("\(name) local draft text observed; nothing saved")
+    }
+
+    @MainActor
+    func testProbeAmountSemanticTap() {
+        let app = openManualEntryForProbe()
+        probeTextFocus(app.textFields["transactionAmount"], name: "amount", text: "12.34", in: app)
+    }
+
+    @MainActor
+    func testProbeMerchantSemanticTap() {
+        let app = openManualEntryForProbe()
+        probeTextFocus(app.textFields["transactionMerchant"], name: "merchant", text: "Focus probe", in: app)
+    }
+
+    @MainActor
+    func testProbeNotesSemanticTap() {
+        let app = openManualEntryForProbe()
+        let placeholder = "Add a gentle note for context…"
+        let field = app.textFields[placeholder].exists ? app.textFields[placeholder] : app.textViews[placeholder]
+        XCTAssertTrue(field.exists)
+        diagnosticStage = "reveal notes without focus"
+        reveal(field, in: app)
+        checkpoint("notes reveal completed")
+        probeTextFocus(field, name: "notes", text: "Focus probe", in: app)
+    }
+
+    @MainActor
+    func testProbeNonTextControlTap() {
+        let app = openManualEntryForProbe()
+        let control = app.buttons["Income"]
+        captureGeometry("income", of: control)
+        XCTAssertTrue(control.isHittable)
+        diagnosticStage = "income semantic tap requested"
+        control.tap()
+        checkpoint("income tap returned")
+        XCTAssertTrue(app.textFields["transactionAmount"].exists)
+        XCTAssertFalse(app.keyboards.firstMatch.exists)
+        checkpoint("non-text interaction completed without keyboard; nothing saved")
+    }
+
+    @MainActor
+    func testProbeAmountCoordinateTap() {
+        let app = openManualEntryForProbe()
+        probeTextFocus(app.textFields["transactionAmount"], name: "amount", text: "12.34", in: app, coordinate: true)
     }
 
     @MainActor
@@ -66,6 +187,10 @@ final class LumenFinanceUITests: XCTestCase {
         let amount = app.textFields["transactionAmount"]
         XCTAssertTrue(amount.waitForExistence(timeout: 10))
         checkpoint("3 Manual Entry opened")
+        captureGeometry("amount", of: amount)
+        captureGeometry("merchant", of: app.textFields["transactionMerchant"])
+        captureGeometry("income", of: app.buttons["Income"])
+        diagnosticStage = "amount semantic tap requested"
         amount.tap()
         checkpoint("3a amount focused")
         amount.typeText("12.34")

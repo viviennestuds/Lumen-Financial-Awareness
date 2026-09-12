@@ -523,3 +523,113 @@ Run 4 capability statuses: canonical baseline Apple execution — UNKNOWN; basel
 **PHASE 1A HARDENING CHECKPOINT NOT YET ACCEPTED.** State 1: runtime validation incomplete.
 
 **PHASE 1A NOT YET COMPLETE.** No later roadmap work began. Resume from the green lower-layer baseline and the localized failing UI action, not from a broad audit or a LedgerWrite redesign.
+
+## Run 5 — independent FlowLayout fix and functional UI isolation — 2026-09-12
+
+### Starting source, authority and scope
+
+- Owner-supplied canonical chain: baseline `dbc28ed9649d4930b45e2dcc44a7462729dfcf11` → hardening `45207849da53cd67eb3f33d2e7cd8f1d1d6bba91` → Run 2 `1917d358f9b89018c73386534a42f0c39cf859c7` → Run 3 `0845a5c09f7fc3e33d5096a4d363e784bed4f0ee` → Run 4 `c33e1c58553ca3c7ff34bbcc09e7816d08fa8103`. Accepted as supplied; no identity reconciliation was attempted.
+- Actual starting HEAD: `e02711218c76199f38f9de66b429e1dbfe704c82`, parent `2988d5400a4734f1ac2b610632fd55957cba2f52`. Starting modifications were confined to two pre-existing history records: `00mtv8wmmg000_i9a273jbmauf2597a2fim_assistant.json` and `00mtvjiovm000_dcn8imxva4azx74vrck00_assistant.json`. App, tests and docs were initially clean.
+- Direct production diff against Run 4's local starting checkpoint `2988d5400a4734f1ac2b610632fd55957cba2f52` was empty. App/docs delta comprised exactly Run 4's audit +95, FlowLayoutTests +54, and UI-test diagnostics +44 lines. Expected Run 4 production, Run 3 LedgerWrite recovery, and Run 4 diagnostics/regression were present. Commit-message wording was not used as validation evidence; exact canonical GitHub tree equivalence is not independently claimed.
+- Read all four governing documents and the full prior audit with bounded reads. No governance changes or broad audit. Read the requested form/manual/UI/FlowLayout tests; related inspection was limited to shared form focus/toolbar references, theme/card layout, RootView/Upload navigation ancestors, and AppState/Onboarding/app startup after executable evidence exposed onboarding at the first relaunch. No persisted models, LedgerWrite, schema, or default-data behavior changed.
+- Run 5 admits two independent tracks. Defect A's retention no longer depends on Defect B passing. Fresh-store certification, lifecycle certification, authentic compatibility, migrations and later phases remain out of scope.
+
+### Serial execution chronology
+
+All XCTest calls used `swiftTest` with `appPath: "ios-lumen-finance"`. Abbreviations below are exact selectors: P=`LumenFinanceTests/LedgerPersistenceTests`; D=`LumenFinanceTests/LumenFinanceTests`; U=`LumenFinanceTests`; F=`LumenFinanceTests/FlowLayoutTests/testFlowLayoutReturnsFiniteMeasuredSize`; C=`LumenFinanceUITests/LumenFinanceUITests/testManualReviewSaveRelaunchInspectEditStatusAndDelete`. Probe methods are in `LumenFinanceUITests/LumenFinanceUITests`: `testProbeAmountSemanticTap`, `testProbeMerchantSemanticTap`, `testProbeNotesSemanticTap`, `testProbeNonTextControlTap`, `testProbeAmountCoordinateTap`.
+
+1. Unchanged production: P — **20 executed / 20 passed / 0 failed**, 26 seconds.
+2. Unchanged production: D — **9 executed / 9 passed / 0 failed**, 12 seconds. UI correction began only after both baselines passed.
+3. Unchanged production: U — **30 executed / 29 passed / 1 failed**. Sole failed case F: `XCTAssertTrue failed - FlowLayout.sizeThatFits proposal=unspecified returned (inf, 36.33333333333333)`. The complete non-UI target is reliably executable in this run.
+4. Explicit requested isolated reproduction before editing: F — **1 executed / 0 passed / 1 failed**, same assertion/result.
+5. Minimal finite-width FlowLayout correction: F — **1/1 PASS**, 8 seconds.
+6. Same corrected production: P — **20/20 PASS**, 18 seconds.
+7. Same corrected production: D — **9/9 PASS**, 11 seconds.
+8. Same corrected production: U — **30/30 PASS**, 16 seconds.
+9. `runChecks({"appPath":"ios-lumen-finance"})` — **PASS**, simulator application build. Defect A's independent acceptance chain is complete; correction retained.
+10. Added test-only pre-tap geometry capture, preserving canonical taps/actions/assertions. C — **0 passed / 1 failed**, invalid frame at `3 Manual Entry opened`, diagnostic stage `amount semantic tap requested`. Geometry returned below.
+11. Five independently reportable interaction probes on FlowLayout-only production — **4 passed / 1 failed**. Only Notes failed: same invalid-frame issue, last checkpoint `notes pre-tap keyboard=false`, stage `notes semantic tap requested`. Amount semantic/coordinate, Merchant and non-text Income probes passed. Successful text probes assert keyboard appearance and exact local draft text; no probe saves a Transaction.
+12. One Defect B production hypothesis: move the existing Done action from a keyboard ToolbarItemGroup to a navigation trailing ToolbarItem, visible only when focusedField is non-nil; preserve all focused modifiers/state and surrounding layout. C + Notes probe — **0 passed / 2 failed**. C no longer failed at amount focus: fields, Review, Confirm and first terminate/relaunch completed; it failed to find Activity because the returned UI contained Get Started. Notes completed tap/keyboard presentation and typed `Focus probe`, then its placeholder-based value query failed after the placeholder disappeared; the response also noted SwiftUI vertical TextField/TextView automation-type mismatch.
+13. Improved test-only localization: retain all canonical actions, add a strict 10-second Activity existence assertion before the existing tap (never re-complete onboarding); query Notes' entered value independently of its vanished placeholder. Same toolbar experiment, C + Notes — **1 passed / 1 failed**. Notes PASS. C still failed: `XCTAssertTrue failed - Activity must become available after launch without repeating onboarding [last completed: 9 first relaunch completed] [diagnostic stage: inspect: waiting for Activity; Get Started exists=true]`, source `LumenFinanceUITests.swift:69` at execution. No onboarding or persistence production correction was attempted.
+14. Reverted the entire Defect B toolbar experiment; retained only Defect A. C + all five corrected probes — **5 passed / 1 failed**. Sole failure C: original invalid-frame error at `3 Manual Entry opened`, stage `amount semantic tap requested`, same finite pre-tap geometry. All five standalone probes, including Notes, passed in this final invocation.
+15. Final retained production: F — **1/1 PASS**, 10 seconds.
+16. Final retained production: P — **20/20 PASS**, 9 seconds.
+17. Final retained production: D — **9/9 PASS**, 12 seconds.
+18. Final retained production: U — **30/30 PASS**, 15 seconds.
+19. Final `runChecks` — **PASS**, simulator application build. Device/App Store Release validation is not established.
+
+Counts are per invocation, not summed retries. No skips or separate skip inventory were returned. The complete unit target does not include the UI target. Launch/screenshot tests were not executed. Tests were not run in parallel. No execution-credit interruption occurred.
+
+### Defect A — independent validated correction
+
+**FLOWLAYOUT DEFECT — VALIDATED FIX.**
+
+Production path: `ios-lumen-finance/LumenFinance/Views/TransactionForm.swift`, FlowLayout.sizeThatFits. Replaced the one-line return with:
+
+```swift
+let measuredWidth = max(0, (rows.max() ?? 0) - spacing)
+let width = maxWidth.isFinite ? max(0, maxWidth) : measuredWidth
+return CGSize(width: width, height: totalHeight)
+```
+
+Valid finite proposals retain their width; unspecified/infinite proposals report measured row content without trailing spacing, rather than infinity. Row construction, heights, placement and tag UI are unchanged. The unchanged hosted regression checks unspecified, infinite, zero and finite proposals, including finite/nonnegative output and measured unconstrained content width. It failed before and passed after; P, D, U and build also passed. This fix is independently retainable despite C remaining red.
+
+### Pre-tap geometry and differential interaction evidence
+
+Captured through XCUI test APIs, not production telemetry. All reported rectangles below existed, were hittable, finite, positive-sized, non-null and non-empty:
+
+| Element | x | y | width | height |
+|---|---:|---:|---:|---:|
+| Amount | 64.33333333333333 | 240.0 | 297.66666666666663 | 41.0 |
+| Merchant | 40.0 | 383.0 | 322.0 | 22.0 |
+| Income control | 122.66666666666667 | 190.33333333333334 | 74.33333333333333 | 33.66666666666666 |
+| Notes, after scrolling, initial failed probe | 40.0 | 536.3333333333333 | 322.0 | 35.66666666666663 |
+
+Amount/Merchant/Income values were returned in both pre-experiment and final canonical failures. Notes geometry is from its initial failed probe, not an independently returned final-pass snapshot. The runner returns failed-case diagnostics, not each passing probe's console transcript.
+
+| Probe | FlowLayout-only initial | Toolbar experiment | Final, toolbar restored |
+|---|---|---|---|
+| Amount semantic | PASS | Reached/passed in C before later failure | PASS standalone; C FAIL during tap |
+| Merchant semantic | PASS | Reached/passed in C before later failure | PASS |
+| Notes semantic | FAIL during tap | Tap/keyboard reached; query error, then corrected probe PASS | PASS |
+| Income non-text semantic | PASS | Not separately rerun | PASS |
+| Amount coordinate | PASS | Not separately rerun | PASS |
+
+Coordinate tapping is diagnostic only; C always retains amount.tap(). Income PASS proves the interaction returned, the amount field remained present and no keyboard appeared; it is not a claim that selected-color rendering was separately verified. Notes' initial failure and final restored-toolbar PASS show that its behavior is not a deterministic toolbar-on failure in every invocation. No universal semantic-versus-coordinate defect, amount-specific defect, or failure of all TextFields is established.
+
+### Defect B — hypothesis, outcome and limits
+
+**PRIMARY UI ROOT CAUSE — NOT YET ESTABLISHED.** Narrowest useful localization: the canonical sequence's shared text-focus/presentation path, with keyboard-toolbar presentation strongly implicated by the production experiment. Pre-focus XCUI geometry is valid; discovery and pre-tap queries succeed. The available evidence does not distinguish the precise instant of responder change, keyboard presentation, accessory measurement or keyboard-safe-area recomputation.
+
+Supporting research, not substitute execution evidence: [keyboard-toolbar exact-warning reproduction without any Spacer](https://stackoverflow.com/questions/79325386/swiftui-warning-with-toolbar-item-placement-keyboard) and [matching Spacer/Done toolbar plus the exact warning and zero-width toolbar constraints](https://stackoverflow.com/questions/79728378/swiftui-toolbarplacement-keyboard-not-showing-buttons-on-first-appearance). These are community reports on other environments, not Apple confirmation or proof of this runner's internals. They motivated testing toolbar placement rather than clamping unrelated frames.
+
+One production hypothesis was attempted. With keyboard accessory placement removed but Done/focus handling preserved, C advanced beyond the original boundary twice; restoring the toolbar brought back the original C failure. This materially improves localization, but does not prove the bare Spacer alone caused the issue, eliminate invocation-order/state effects, or yield a passing canonical workflow. No second materially different hypothesis was attempted; the two-failed-hypothesis anti-thrashing threshold was not triggered. Work stopped rather than broadening into onboarding/lifecycle fixes.
+
+The experimental first-relaunch failure persisted after a 10-second Activity wait; Get Started was observed. Source inspection found the existing onboarding setter/read in AppState and Get Started mutation intact. Why onboarding reappeared is unresolved; no conclusion about transaction durability or runner-only fault follows. The two experimental C executions passed Confirm and could have left their uniquely named test-owned Transactions. They never completed inspect/delete; exact names/IDs were not returned, and no arbitrary ledger cleanup/reset was attempted.
+
+**No validated Defect B production correction retained.** The navigation-Done experiment was reverted because C never passed, despite demonstrated progress through focus. Final C is **FAIL**, furthest final-source checkpoint `3 Manual Entry opened`. Furthest experimental checkpoint was `9 first relaunch completed`; it must not be represented as a final-tree or full lifecycle PASS.
+
+Evidence-access limits: `rork-agent logs runtime --errors --limit 100` returned no runtime logs; `/tmp/rork-swift-test-ios-lumen-finance.log` was absent locally. Current runner responses exposed no downloadable xcresult, exact runtime/Xcode version, destination UDID or numeric exit status. The added issue override still forwards every original issue; it neither suppresses invalid frames nor changes failures to skips. No production logs, test reset seam or screenshot-infrastructure changes were introduced.
+
+### Final retained diff and validation boundary
+
+- **PRODUCTION — DEFECT A:** TransactionForm.swift **+3/-1 lines**, only the finite-size return above; independently validated.
+- **PRODUCTION — DEFECT B:** none. Keyboard toolbar restored byte-for-byte to starting implementation.
+- **TESTS:** LumenFinanceUITests.swift **+125/-0 lines**: pre-tap geometry/interaction-stage reporting, five isolated unsaved-draft probes, Notes' placeholder-independent value verification, and the additional strict Activity readiness assertion. Original canonical actions and assertions remain; no semantic tap replacement, direct Transaction insertion, skipped Review/Confirm or loosened persistence check. FlowLayout, persistence and domain test sources are unchanged.
+- **EVIDENCE:** this appended Run 5 section. Pre-existing history records remain outside the authored diff.
+- Production outside TransactionForm, all model/data sources including LedgerWrite, project/scheme, governance and existing non-UI test sources match starting HEAD. Final production diff contains only the FlowLayout correction. Whitespace/protected-path comparisons passed before the evidence append; final static checks are repeated at completion. No manual staging, commit, push, checkout or history rewrite.
+- Final matrix: P **20/20**, D **9/9**, F **1/1**, complete non-UI U **30/30**, standalone UI probes **5/5**, canonical UI **0/1**, simulator build **PASS**. These are not an all-UI-target PASS.
+
+### Run 5 disposition and exact next step
+
+**FLOWLAYOUT DEFECT — VALIDATED FIX.**
+
+**PRIMARY UI AMOUNT-FOCUS DEFECT — NOT YET RESOLVED.** Localization improved; full-workflow retention criterion unmet.
+
+**RUNTIME VALIDATION NOT YET COMPLETE.** The UI runtime gate is not cleared.
+
+**PHASE 1A HARDENING CHECKPOINT NOT YET ACCEPTED.** Genuine clean-store initialization, lifecycle certification and authentic pre-hardening compatibility remain unvalidated and intentionally unattempted here. No compatibility capability probe was performed. Migration validation is NOT APPLICABLE; no schema or persisted semantics changed.
+
+**PHASE 1A NOT YET COMPLETE.** No money/status/date migration, cloud work, evidence redesign or Phase 1B work began.
+
+Smallest next diagnostic blocker: obtain a sequence-controlled explanation of the keyboard-toolbar focus transition in which C's amount semantic tap fails while the standalone amount probe succeeds. Keep Defect A and closed Run 3 recovery intact. The experimental first-relaunch onboarding result remains recorded, not silently fixed or certified in this pass.
