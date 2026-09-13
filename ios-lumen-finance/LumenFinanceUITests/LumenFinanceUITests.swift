@@ -366,4 +366,123 @@ final class LumenFinanceUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["No transactions found"].waitForExistence(timeout: 10))
         checkpoint("18 test-owned Transaction confirmed absent")
     }
+
+    // Run 6.2 preference control uses only the existing Settings menu.
+    @MainActor
+    private func controlCurrencyMenu(in app: XCUIApplication) -> XCUIElement {
+        app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "Default currency")).firstMatch
+    }
+
+    @MainActor
+    private func readControlCurrency(in app: XCUIApplication) throws -> String {
+        let menu = controlCurrencyMenu(in: app)
+        XCTAssertTrue(menu.waitForExistence(timeout: 10), "Existing currency menu must be observable")
+        let supported = Set(["USD", "EUR", "GBP", "CAD", "AUD", "JPY"])
+        let text = "\(menu.label) \(menu.value as? String ?? "")"
+        let codes = Set(text.components(separatedBy: CharacterSet.alphanumerics.inverted)).intersection(supported)
+        XCTAssertEqual(codes.count, 1, "Read one supported currency without assuming USD")
+        return try XCTUnwrap(codes.first)
+    }
+
+    @MainActor
+    private func selectControlCurrency(_ code: String, in app: XCUIApplication) {
+        controlCurrencyMenu(in: app).tap()
+        let option = app.buttons[code]
+        XCTAssertTrue(option.waitForExistence(timeout: 5), "Existing supported currency option must appear")
+        option.tap()
+    }
+
+    @MainActor
+    private func restoreControlCurrency(_ original: String, in app: XCUIApplication) throws {
+        let current = try readControlCurrency(in: app)
+        if current != original {
+            selectControlCurrency(original, in: app)
+        }
+        let restored = try readControlCurrency(in: app)
+        observeState("control restoration selected value", restored)
+        observeState("control restoration required write", current != original ? "YES" : "NO")
+        XCTAssertEqual(restored, original, "Restore the original visible currency, after evidence capture")
+    }
+
+    // Diagnostic control, not a ledger test. Capture both relaunch results before
+    // recovery onboarding or restoration, and restore currency before result assertions.
+    @MainActor
+    func testB2CurrencyPreferenceRelaunchControl() throws {
+        let app = XCUIApplication()
+        app.launch()
+        checkpoint("control initial launch returned")
+        let onboardingBefore = app.buttons["Get Started"].waitForExistence(timeout: 3)
+        observeState("control Get Started initially", onboardingBefore ? "YES" : "NO")
+        if onboardingBefore { app.buttons["Get Started"].tap() }
+        XCTAssertTrue(app.buttons["Activity"].waitForExistence(timeout: 10))
+        app.buttons["Settings"].tap()
+        let original = try readControlCurrency(in: app)
+        let changed = original == "USD" ? "EUR" : "USD"
+        observeState("control original currency", original)
+        observeState("control test-owned currency", changed)
+        // Failure-safe cleanup is registered before the first preference mutation.
+        addTeardownBlock { @MainActor () async throws in
+            try self.restoreControlCurrency(original, in: app)
+        }
+        selectControlCurrency(changed, in: app)
+        let selectedBefore = try readControlCurrency(in: app)
+        observeState("control selected currency before terminate", selectedBefore)
+        XCTAssertEqual(selectedBefore, changed)
+        checkpoint("control changed currency visibly verified")
+        app.terminate()
+        checkpoint("control termination returned")
+        app.launch()
+        checkpoint("control relaunch returned")
+        let mainShellAfter = app.buttons["Activity"].waitForExistence(timeout: 10)
+        let onboardingAfter = app.buttons["Get Started"].exists
+        observeState("control main shell after relaunch before recovery", mainShellAfter ? "YES" : "NO")
+        observeState("control Get Started after relaunch before recovery", onboardingAfter ? "YES" : "NO")
+        if onboardingAfter {
+            app.buttons["Get Started"].tap()
+            checkpoint("control recovery onboarding only to inspect currency")
+        }
+        XCTAssertTrue(app.buttons["Activity"].waitForExistence(timeout: 10))
+        app.buttons["Settings"].tap()
+        let selectedAfter = try readControlCurrency(in: app)
+        observeState("control currency after relaunch", selectedAfter)
+        observeState("control currency retained test-owned value", selectedAfter == changed ? "YES" : "NO")
+        checkpoint("control relaunch evidence captured before restoration")
+        try restoreControlCurrency(original, in: app)
+        checkpoint("control original visible currency restored or already restored")
+        XCTAssertEqual(selectedAfter, changed, "Currency control must retain its changed value across relaunch")
+        XCTAssertTrue(mainShellAfter, "Control observed Activity before any recovery onboarding")
+        XCTAssertFalse(onboardingAfter, "Control observed Get Started before any recovery onboarding")
+    }
+
+    // Run 6.2 B2-B: diagnostic only. The sole sequence variable versus B2-A is
+    // a fixed 2.0-second test-process settle before termination, not a product remedy.
+    @MainActor
+    func testB2SettledOnboardingRelaunchDiagnostic() {
+        let app = XCUIApplication()
+        app.launch()
+        checkpoint("B2 initial launch returned")
+        let onboardingWasPresented = app.buttons["Get Started"].waitForExistence(timeout: 3)
+        observeState("Get Started initially observed", onboardingWasPresented ? "YES" : "NO")
+        observeState("B2 evidence level", onboardingWasPresented ? "FULL" : "PARTIAL")
+        if onboardingWasPresented {
+            app.buttons["Get Started"].tap()
+            checkpoint("B2 Get Started tap returned")
+        }
+        let mainShellBefore = app.buttons["Activity"].waitForExistence(timeout: 10)
+        observeState("main shell before terminate", mainShellBefore ? "YES" : "NO")
+        XCTAssertTrue(mainShellBefore, "B2 Activity must be available before termination")
+        checkpoint("B2 main shell available before terminate")
+        Thread.sleep(forTimeInterval: 2.0)
+        app.terminate()
+        checkpoint("B2 termination returned")
+        app.launch()
+        checkpoint("B2 relaunch returned")
+        let mainShellAfter = app.buttons["Activity"].waitForExistence(timeout: 10)
+        let onboardingAfter = app.buttons["Get Started"].exists
+        observeState("main shell after relaunch", mainShellAfter ? "YES" : "NO")
+        observeState("Get Started after relaunch", onboardingAfter ? "YES" : "NO")
+        XCTAssertTrue(mainShellAfter, "B2 Activity must survive termination/relaunch without repeating onboarding")
+        XCTAssertFalse(onboardingAfter, "B2 Get Started must remain absent after relaunch")
+        checkpoint("B2 isolated relaunch contract completed")
+    }
 }

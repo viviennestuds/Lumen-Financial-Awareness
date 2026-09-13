@@ -725,3 +725,65 @@ Selector: `LumenFinanceUITests/LumenFinanceUITests/testB2IsolatedOnboardingRelau
 - **RUNTIME VALIDATION NOT YET COMPLETE.**
 - **PHASE 1A HARDENING CHECKPOINT NOT YET ACCEPTED.**
 - **PHASE 1A NOT YET COMPLETE.** No clean-store, full-lifecycle, compatibility, migration or Phase 1B certification/work began.
+
+## Run 6.2 — B2 preferences/relaunch diagnosis — 2026-09-13
+
+### Starting state and baseline
+
+- Expected checkpoint supplied by owner: `5d1cd509e79f3335d0f8aa00b5f7923ce41211dd`. Internal HEAD: `448982ca0b29e68e08d750b7e51a5f7693ef93f8`; initially clean index/worktree. Configured origin HEAD/main and cached origin refs advertised the same internal SHA. Canonical GitHub identity/equivalence was not independently established.
+- The expected SHA could not be resolved: `git cat-file -t` returned `not our ref` / `could not get object info` through the configured origin. No direct expected-SHA tree comparison is claimed. Comparison with the recorded Run 6.1 starting snapshot `e9365f22f2113259592fb582b2fa1eeaaa6b7bba` established unchanged production, project, original non-UI tests and governance; retained UI-test +85/-4 and audit +92/-0 matched Run 6.1 evidence. Additional committed conversation-history files were metadata, not source changes. No pre-existing worktree changes.
+- All baseline checks preceded test additions. Separate sequential `swiftTest` calls, `appPath: "ios-lumen-finance"`: `LumenFinanceTests/FlowLayoutTests/testFlowLayoutReturnsFiniteMeasuredSize` **1/1 PASS, 19s**; `LumenFinanceTests/LedgerPersistenceTests` **20/20 PASS, 9s**; `LumenFinanceTests/LumenFinanceTests` **9/9 PASS, 11s**; `LumenFinanceTests` **30/30 PASS, 12s**. Simulator application `runChecks` **PASS**.
+- Repository scheme `LumenFinance`: Debug TestAction, both test targets `parallelizable="NO"`; inherited launch arguments/environment enabled but no custom arguments/environment or pre/post actions declared. LaunchAction has `ignoresPersistentStateOnLaunch="NO"`. These are static settings, not observed effective runner settings. Exact command, destination/device/UDID, runtime/Xcode version and process/container identities were not exposed. UI failure responses exposed annotated issues and a full-log path, not durations or full telemetry attachments; no inaccessible-log chasing occurred.
+
+### Source audit and static hosting context
+
+- Searched the app and test source for onboarding keys/properties, UserDefaults/AppStorage/CFPreferences, suites, registration/removal/reset paths, launch arguments/environment, initialization and setup/teardown.
+- Key: `lumen_has_onboarded`. Requested store: `UserDefaults.standard`; no explicit suite name or domain string. Reader: `AppState.init`, `bool(forKey:)` at AppState.swift:38. Writer: `hasOnboarded.didSet`, `set(_:forKey:)` at line 26. Get Started invokes `appState.hasOnboarded = true` inside `withAnimation` after haptic feedback at OnboardingView.swift:66-69.
+- Launch path: `LumenFinanceApp` creates `@State AppState()` and `FeatureFlags()`; ledger opening/reference bootstrap precedes mounting RootView with that state in the environment. RootView.swift:23 gates on `flags.enableOnboarding && !appState.hasOnboarded`. No preference writes in ledger opening/bootstrap. Flag initialization defaults onboarding to enabled; the in-memory debug flag setter does not write `hasOnboarded`, and the debug panel defaults off.
+- Second production onboarding writer: **NO found**. Reset/remove path: **NO found**. Startup overwrite/default registration: **NO found**; initializer reads false for absent onboarding and USD for absent currency. Existing UI setup only disables continuation; teardown records telemetry. Existing launch test launches/screenshots without preference modification. No source-configured test launch behavior altering onboarding was found. Effective runner-injected behavior remains unknown.
+- Comparable currency: **YES**. `AppState.currencyCode.didSet` writes `lumen_currency` through `UserDefaults.standard` (line 30); initializer reads `.string(forKey:) ?? "USD"` (line 39). Existing Settings menu assigns the property (SettingsView.swift:46-47); supported values USD/EUR/GBP/CAD/AUD/JPY. The UI control changes a display preference, not stored Transaction currency or financial data.
+- Static production bundle ID, Debug/Release: `app.rork.8m36zsug0ex00d13e28li`. Unit-test ID: `app.rork.8m36zsug0ex00d13e28li.tests`; `BUNDLE_LOADER = "$(TEST_HOST)"`; `TEST_HOST = "$(BUILT_PRODUCTS_DIR)/LumenFinance.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/LumenFinance"`; target dependency/TestTargetID point to LumenFinance. UI-test ID: `app.rork.8m36zsug0ex00d13e28li.uitests`; `TEST_TARGET_NAME = LumenFinance`, with corresponding dependency/TestTargetID.
+- Effective unit hosting identity: **UNKNOWN**. Effective unit defaults-domain identity: **UNKNOWN**. Effective UI-app defaults-domain identity: **UNKNOWN**. Unit/UI defaults-domain and container equivalence: **NOT ESTABLISHED**. No runtime bundle/domain instrumentation was introduced. Source-level concrete production defect identified: **NO**.
+
+### Same-process compiled AppState probe
+
+- Added `LumenFinanceTests/AppStatePersistenceTests/testOnboardingReadWriteWithinSameProcessRestoresOriginalPreference`; executed once through `swiftTest`: **1/1 PASS, 12s**.
+- Captures original object and existence without Boolean coercion; registers `defer` before mutation; removes only the onboarding test-process key; verifies absence and false initialization; sets compiled AppState true; verifies immediate same-key read and a second AppState reading true. Deferred restoration sets the captured object or removes the originally absent key, then asserts value/existence restoration. No synchronization or other preference mutation.
+- Original preference was preserved/restored by passing assertions; its concrete initial value/existence was not exposed in the runner summary. This is a **COMPILED CODE-PATH SANITY CHECK**, not proof about the UI-app preference container or cross-process durability. It does not prove that AppState is universally correct or that the runner is defective.
+
+### Fixed B2-A / B2-B comparison
+
+UI selectors share prefix `LumenFinanceUITests/LumenFinanceUITests/`. Each ran once, separately, in this order; no rerun until red/green:
+
+| Diagnostic | Method | Result | Initial Get Started / evidence | Onboarding action / Activity before / termination / relaunch | Activity after / Get Started after | Furthest checkpoint |
+|---|---|---|---|---|---|---|
+| B2-A unchanged Run 6.1 test | `testB2IsolatedOnboardingRelaunch` | **0 passed / 1 failed** | YES / FULL | YES / YES / YES / YES | NO / YES | `B2 relaunch returned` |
+| B2-B fixed settle | `testB2SettledOnboardingRelaunchDiagnostic` | **0 passed / 1 failed** | YES / FULL | YES / YES / YES / YES | NO / YES | `B2 relaunch returned` |
+
+- B2-A source/actions/waits/assertions remained unchanged. It is a strict immediate-termination reproducer, not an accepted real-world product lifecycle contract.
+- B2-B is the same sequence except `Thread.sleep(forTimeInterval: 2.0)` in the UI-test process immediately before termination after visible Activity. Exactly **2.0 seconds requested**; actual scheduler/wall-clock interval was not measured. No production delay, retries, increasing windows, or flush calls.
+- Both failed `XCTAssertTrue failed - B2 Activity must survive termination/relaunch without repeating onboarding`. Activity was absent after the existing 10-second wait and Get Started was observed before assertion. B2-A executed source line 230; B2-B executed line 397 before the later control helpers were added (now line 484). The subsequent absence assertion was not reached in either test.
+- Comparison: the single short settle did not change the outcome; simple short write-flush latency is substantially less convincing, not eliminated. No timing-sensitivity success was observed. Neither result establishes a UserDefaults, production, runner or container defect.
+
+### Required second preference control
+
+- Required: **YES**, because same-process PASS + B2-A FAIL + B2-B FAIL. Safely executable through existing Settings; no production changes required. Executed once: `LumenFinanceUITests/LumenFinanceUITests/testB2CurrencyPreferenceRelaunchControl`.
+- Initial Get Started: **YES**; completed onboarding and reached Activity/Settings. Observed initial currency **USD**, selected different supported value **EUR**, and verified **EUR** before termination. No initial-value assumption and no additional settle period.
+- Termination/relaunch returned. Before recovery onboarding: Activity **NO** after 10-second wait; Get Started **YES**. These observations were recorded first. Completed onboarding only to inspect Settings; currency after relaunch **USD**, retained EUR **NO**.
+- Restoration verification occurred after evidence capture and before the failing result assertion: original visible currency **USD**, already restored, restoration write required **NO**. A teardown cleanup block was registered before mutation as a fallback. No manual restoration write was needed; exact underlying key presence versus fallback USD cannot be inferred from UI. Post-teardown telemetry was not separately exposed.
+- Result **0 passed / 1 failed**: `XCTAssertEqual failed: ("USD") is not equal to ("EUR") - Currency control must retain its changed value across relaunch` (executed line 452). Furthest checkpoint `control original visible currency restored or already restored`. Later onboarding assertions were not reached; their underlying observations were already recorded.
+- Onboarding reappeared and currency reverted in the same control invocation. This makes broader app-defaults/container lifecycle behavior more plausible and an onboarding-only defect less compelling. This is discrimination/correlation, not root-cause proof. No financial Transaction creation/edit/delete, Manual Entry, keyboard, draft/Review/Confirm, or intentional ledger mutation occurred. Normal production reference bootstrap was not altered.
+
+### Causality, retained changes and final disposition
+
+- **PRODUCTION CAUSALITY THRESHOLD — NOT MET. PRODUCTION WAS NOT CHANGED.** No mismatched key/suite, second writer/reset, startup overwrite, failing compiled read/write logic, or demonstrated production lifecycle error was established. Production correction: **NOT ATTEMPTED — CAUSALITY THRESHOLD NOT MET**.
+- Intentionally retained diagnostics: new 34-line AppState unit test; 119 appended UI-test lines for B2-B, currency control and its UI helpers. Existing B2-A, all B1 tests, original issue forwarding and global strict continuation setting remain unchanged. No temporary production experiment/reversion occurred. The 2.0-second wait is expressly diagnostic-only; no production sleep, synchronization, AppStorage rewrite, new launch behavior, reset seam or persistence workaround was introduced.
+- Final simulator application build: **PASS** after all test changes. Source/protected-path comparison and `git diff --check` passed before this audit append; finalization repeats integrity checks including this evidence append. Production/project/original non-UI test files/governance remain unchanged. No post-fix lower-suite sweep applies because no fix was attempted; baseline 30/30 and isolated new unit test 1/1 are separate results, not a claimed combined 31-test execution. Red UI diagnostics remain red.
+- **B2 — BROADER APP-DEFAULTS / RUNNER-LIFECYCLE BEHAVIOR SUSPECTED; PRODUCTION CAUSE NOT ESTABLISHED.** The mechanism remains unresolved; same effective preferences domain and same container across relaunch were not established. Diagnosis-only Run 6.2 completed its fixed evidence plan without a speculative correction.
+- Owner-reported ordinary manual keyboard/focus and Review/save/navigation/filter/derived-view usability is preserved as **MANUAL PRODUCT EVIDENCE**, not re-executed or treated as proof of B1 automation invalidity or B2 relaunch durability.
+- Deferred question only: what observable process/domain/container continuity and preference-service behavior does the testing environment provide across `XCUIApplication.terminate()` / `launch()`? No external investigation was performed.
+- **FIRECRAWL — NOT USED IN RUN 6.2. APPLE MCP — NOT USED IN RUN 6.2. EXTERNAL RESEARCH — NOT USED IN RUN 6.2.** No `docs/knowledge` bootstrap.
+- **B1 — NOT MODIFIED IN RUN 6.2; POST-B2 RECHECK STILL REQUIRED.**
+- **RUNTIME VALIDATION NOT YET COMPLETE.**
+- **PHASE 1A HARDENING CHECKPOINT NOT YET ACCEPTED.**
+- **PHASE 1A NOT YET COMPLETE.**
