@@ -80,7 +80,7 @@ Current examples:
 
 Lumen currently retains useful known-red hosted diagnostics from Phase 1A.
 
-Future automation must not silently fold intentionally known-red characterizations/probes into a generic "all tests must be green" acceptance gate.
+Future automation must not silently fold intentionally retained known-red characterizations/probes into a generic "all tests must be green" acceptance gate.
 
 If CI or another automated gate is introduced later, known-red diagnostic tests must either:
 
@@ -180,7 +180,7 @@ As of the bootstrap evidence:
 
 - lower-layer FlowLayout, persistence, and domain checks have green retained baselines;
 - the same-process AppState probe is green;
-- B2 hosted relaunch characterization/probes are red by design as unresolved evidence;
+- B2 hosted relaunch characterization/probes are retained as known-red unresolved evidence;
 - B1 hosted focus characterization remains open;
 - runtime validation is not complete;
 - the Phase 1A hardening checkpoint is not yet accepted.
