@@ -80,7 +80,7 @@ No concrete production-side reset, key/domain mismatch, second writer, startup o
 
 **Inference:** the currency result weakens an onboarding-key-specific explanation because a second `UserDefaults.standard`-backed preference exhibited the same hosted relaunch loss.
 
-**Current interpretation:** broader defaults-domain/container/hosted-lifecycle behavior is more plausible than an onboarding-specific production defect, but the exact mechanism remains unknown.
+**Current interpretation:** broader defaults-domain / hosted-lifecycle behavior is more plausible than an onboarding-specific production defect, but the exact mechanism remains unknown. Application-container scope has not yet been characterized.
 
 **Current interpretation:** Run 6.2 does not prove that Rork resets the whole app container, that `UserDefaults` itself is defective, or that ordinary iPhone lifecycle persistence fails.
 
@@ -121,7 +121,7 @@ The hosted UI diagnostics are intentionally useful while red. Their failures are
 
 Do not make persistence-layer changes solely to satisfy the hosted relaunch diagnostics. Do not add production timing workarounds or stylistic persistence rewrites without a demonstrated production-side mechanism.
 
-A production persistence correction requires evidence of a concrete production-side cause or contradictory product-level evidence.
+Contradictory or corroborating product-level evidence may justify reopening or expanding production diagnosis. A retained production persistence correction still requires an evidence-backed production mechanism and a correction tied to that mechanism.
 
 Do not call B2 wholly resolved merely because a future physical-device test passes. Product scope, hosted preferences scope, and hosted container scope are separate questions.
 
