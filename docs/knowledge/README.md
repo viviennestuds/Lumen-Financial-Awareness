@@ -71,7 +71,8 @@ Keep front matter small and retrieval-friendly.
 - Framework names use official casing, such as `SwiftUI`, `Foundation`, and `XCTest`.
 - API symbols use code spelling, such as `UserDefaults` or `XCUIApplication.terminate`.
 - Confidence values are only `low`, `medium`, or `high`.
-- Confidence dimensions may vary by investigation; do not invent numeric precision.
+- Confidence dimensions may vary by investigation, but each dimension should read as confidence in a proposition, not as a severity score. Prefer names such as `user_facing_defect_evidence` or `broader_defaults_lifecycle_hypothesis` over ambiguous labels such as `impact`.
+- Do not invent numeric confidence precision.
 - `superseded_by` is optional and used only when applicable.
 
 Do not add environment, test-role, evidence paths, sources, or commit SHAs to front matter until repeated use demonstrates that they belong there. Those details currently have clearer homes in note bodies.
@@ -98,7 +99,7 @@ Evidence is question-relative.
 
 No evidence category silently substitutes for another.
 
-Every causal statement should be distinguishable as **observation**, **inference**, or **current interpretation**.
+Every causal statement should be distinguishable as **observation**, **inference**, or **current interpretation**. Where a diagnostic or causal claim could otherwise blur those categories, use explicit prefixes such as `**Observation:**`, `**Inference:**`, and `**Current interpretation:**`.
 
 Never rewrite a historical observation merely because the current interpretation changed. Change the interpretation; preserve the evidence.
 
@@ -117,9 +118,11 @@ Every investigation using evidence IDs must resolve them in a body-level `## Evi
 - navigable repository evidence, such as an audit section and test selector;
 - what the evidence establishes;
 - what it does **not** establish;
-- the observed repository revision when that historical source state materially matters and can be stated accurately.
+- repository revision context when it materially matters and can be stated accurately.
 
-Revision information is optional, not ceremonial. Use it when later source evolution could otherwise make historical evidence ambiguous.
+Revision information is optional, not ceremonial. When included, label what the revision represents. Do not silently equate an internal runner snapshot, an expected checkpoint, and the canonical GitHub commit that later retained the evidence.
+
+For example, a note may separately identify an execution state recorded by the audit and the canonical GitHub revision that currently retains the resulting tests/audit evidence.
 
 ## Investigation Contract
 
