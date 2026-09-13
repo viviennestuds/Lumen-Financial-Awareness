@@ -6,7 +6,7 @@ status: unresolved
 confidence:
   reproduction: high
   root_cause: low
-  broader_defaults_lifecycle_involvement: medium
+  broader_defaults_lifecycle_hypothesis: medium
 created: 2026-09-13
 reviewed: 2026-09-13
 last_verified: 2026-09-13
@@ -72,11 +72,15 @@ No concrete production-side reset, key/domain mismatch, second writer, startup o
 
 **Observation:** B2-A immediate terminate/relaunch failed with FULL evidence: Activity was available before termination; after relaunch Activity was absent and Get Started was present.
 
-**Observation:** B2-B repeated the sequence with a fixed 2.0-second pre-termination settle period and failed the same way. A short simple write-flush latency explanation became less compelling but was not eliminated.
+**Observation:** B2-B repeated the sequence with a fixed 2.0-second pre-termination settle period and failed the same way.
+
+**Inference:** a simple short write-flush latency explanation became less compelling after B2-B, but was not eliminated.
 
 **Observation:** the independent currency control visibly changed USD to EUR before termination, then after relaunch observed Get Started again and currency USD. The changed EUR value did not survive the tested boundary.
 
-**Current interpretation:** an onboarding-specific production defect is less compelling after the independent currency result. Broader defaults-domain/container/hosted-lifecycle behavior is more plausible, but the exact mechanism remains unknown.
+**Inference:** the currency result weakens an onboarding-key-specific explanation because a second `UserDefaults.standard`-backed preference exhibited the same hosted relaunch loss.
+
+**Current interpretation:** broader defaults-domain/container/hosted-lifecycle behavior is more plausible than an onboarding-specific production defect, but the exact mechanism remains unknown.
 
 **Current interpretation:** Run 6.2 does not prove that Rork resets the whole app container, that `UserDefaults` itself is defective, or that ordinary iPhone lifecycle persistence fails.
 
@@ -84,19 +88,23 @@ No concrete production-side reset, key/domain mismatch, second writer, startup o
 
 | Evidence ID | Role | Repository evidence | Establishes | Does not establish |
 |---|---|---|---|---|
-| `phase1a.run6_1` | runtime characterization | `docs/PHASE_1A_AUDIT.md` → Run 6.1; `testB2IsolatedOnboardingRelaunch` | Isolated hosted terminate/relaunch reproduced onboarding reappearance independently of Manual Entry, keyboard, transaction creation, or ledger mutation | AppState/UserDefaults/framework/runner cause; broader preference scope; physical-device behavior |
-| `phase1a.run6_2` | runtime diagnosis | `docs/PHASE_1A_AUDIT.md` → Run 6.2; `AppStatePersistenceTests.swift`; B2-A/B2-B/currency selectors in `LumenFinanceUITests.swift` | Same-process AppState/defaults probe passed; immediate and 2-second-settled hosted relaunch lost onboarding; independent changed currency also failed to persist; no concrete production cause found | Cause of reset; whole-container reset; SwiftData behavior across the boundary; ordinary installed-device behavior; a Rork defect |
+| `phase1a.run6_1` | runtime characterization | `docs/PHASE_1A_AUDIT.md` → `Run 6.1 — frozen-production B1/B2 characterization`; `LumenFinanceUITests.testB2IsolatedOnboardingRelaunch` | Isolated hosted terminate/relaunch reproduced onboarding reappearance independently of Manual Entry, keyboard, transaction creation, or ledger mutation | AppState/UserDefaults/framework/runner cause; broader preference scope; physical-device behavior |
+| `phase1a.run6_2` | runtime diagnosis | `docs/PHASE_1A_AUDIT.md` → `Run 6.2 — B2 preferences/relaunch diagnosis`; `AppStatePersistenceTests.testOnboardingReadWriteWithinSameProcessRestoresOriginalPreference`; B2-A/B2-B/currency selectors in `LumenFinanceUITests.swift` | Same-process AppState/defaults probe passed; immediate and 2-second-settled hosted relaunch lost onboarding; independent changed currency also failed to persist; no concrete production cause found | Cause of reset; whole-container reset; SwiftData behavior across the boundary; ordinary installed-device behavior; a Rork defect |
 
-Observed canonical GitHub repository state for the retained Run 6.2 evidence: `66663d6bff208299d0849b5cd276382e53881711`. The audit itself records Rork's internal execution snapshot distinctions; this GitHub SHA identifies the retained evidence now being summarized, not the internal runner HEAD used during execution.
+Revision context:
+
+- Canonical GitHub state currently retaining the Run 6.2 audit/tests summarized here: `66663d6bff208299d0849b5cd276382e53881711`.
+- The Run 6.2 audit separately records internal Rork execution HEAD `448982ca0b29e68e08d750b7e51a5f7693ef93f8` and its inability to establish direct equivalence to the expected GitHub checkpoint during that run.
+- These SHAs represent different evidence contexts and must not be silently treated as the same revision.
 
 ## Lumen Executable Evidence
 
 The retained diagnostic surface includes:
 
-- `AppStatePersistenceTests/testOnboardingReadWriteWithinSameProcessRestoresOriginalPreference` — primary role: **probe**.
-- `LumenFinanceUITests/testB2IsolatedOnboardingRelaunch` — primary role: **characterization**.
-- `LumenFinanceUITests/testB2SettledOnboardingRelaunchDiagnostic` — primary role: **probe**.
-- `LumenFinanceUITests/testB2CurrencyPreferenceRelaunchControl` — primary role: **probe**.
+- `LumenFinanceTests/AppStatePersistenceTests.swift` → `testOnboardingReadWriteWithinSameProcessRestoresOriginalPreference` — primary role: **probe**.
+- `LumenFinanceUITests/LumenFinanceUITests.swift` → `testB2IsolatedOnboardingRelaunch` — primary role: **characterization**.
+- `LumenFinanceUITests/LumenFinanceUITests.swift` → `testB2SettledOnboardingRelaunchDiagnostic` — primary role: **probe**.
+- `LumenFinanceUITests/LumenFinanceUITests.swift` → `testB2CurrencyPreferenceRelaunchControl` — primary role: **probe**.
 
 The hosted UI diagnostics are intentionally useful while red. Their failures are evidence about the hosted lifecycle boundary; they are not, by themselves, authorization to modify production.
 
