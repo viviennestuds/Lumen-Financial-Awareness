@@ -28,11 +28,13 @@ It is intentionally not a general Foundation reference and does not claim a comp
 
 ## Current Lumen Usage
 
-`ios-lumen-finance/LumenFinance/Data/AppState.swift` currently stores three user-facing preferences through `UserDefaults.standard`:
+`ios-lumen-finance/LumenFinance/Data/AppState.swift` currently persists three values through `UserDefaults.standard`: onboarding state, currency code, and `timezoneIdentifier`.
 
 - `lumen_has_onboarded` through `AppState.hasOnboarded`;
 - `lumen_currency` through `AppState.currencyCode`;
 - `lumen_timezone` through `AppState.timezoneIdentifier`.
+
+Onboarding and currency currently participate directly in user-facing application state. `timezoneIdentifier` remains persisted in `AppState`, while the current Settings UI displays the device timezone rather than exposing that stored value as a configurable preference.
 
 The same `AppState` initializer reads those keys from `UserDefaults.standard` when a new instance is created.
 
@@ -95,7 +97,7 @@ The currency probe changed the visible preference from USD to EUR before termina
 
 **Inference:** because two separate `UserDefaults.standard`-backed values exhibited the hosted relaunch loss, an onboarding-key-specific explanation is less compelling.
 
-**Current interpretation:** broader defaults-domain/container/hosted-lifecycle behavior is plausible, but the exact mechanism and production relevance remain unresolved.
+**Current interpretation:** broader defaults-domain / hosted-lifecycle behavior is plausible, but the exact mechanism and production relevance remain unresolved. Application-container scope has not yet been characterized.
 
 ## Environment Boundary
 
