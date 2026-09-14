@@ -1,0 +1,263 @@
+name: Build Lumen Unsigned Device IPA
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-ios-device:
+    name: Build unsigned iPhone IPA
+    runs-on: macos-26
+    timeout-minutes: 30
+
+    env:
+      PROJECT_PATH: ios-lumen-finance/LumenFinance.xcodeproj
+      SCHEME: LumenFinance
+      CONFIGURATION: Release
+      EXPECTED_BUNDLE_ID: app.rork.8m36zsug0ex00d13e28li
+      DERIVED_DATA: ${{ runner.temp }}/LumenDerivedData
+      OUTPUT_DIR: ${{ github.workspace }}/artifacts
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Prepare output directory
+        run: mkdir -p "$OUTPUT_DIR"
+
+      - name: Record build environment
+        run: |
+          set -euo pipefail
+
+          {
+            echo "=== Xcode ==="
+            xcodebuild -version
+            echo
+            echo "=== iPhoneOS SDK ==="
+            xcrun --sdk iphoneos --show-sdk-version
+            echo
+            echo "=== Selected developer directory ==="
+            xcode-select -p
+            echo
+            echo "=== macOS ==="
+            sw_vers
+            echo
+            echo "=== Runner ==="
+            echo "RUNNER_OS=${RUNNER_OS}"
+            echo "RUNNER_ARCH=${RUNNER_ARCH}"
+            echo "ImageOS=${ImageOS:-unknown}"
+            echo "ImageVersion=${ImageVersion:-unknown}"
+          } | tee "$OUTPUT_DIR/toolchain.txt"
+
+      - name: Build unsigned iPhone app
+        run: |
+          set -euo pipefail
+          set -o pipefail
+
+          xcodebuild build \
+            -project "$PROJECT_PATH" \
+            -scheme "$SCHEME" \
+            -configuration "$CONFIGURATION" \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath "$DERIVED_DATA" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            DEVELOPMENT_TEAM="" \
+            2>&1 | tee "$OUTPUT_DIR/xcodebuild.log"
+
+      - name: Validate unsigned iPhone device app
+        run: |
+          set -euo pipefail
+
+          APP_PATH="$DERIVED_DATA/Build/Products/Release-iphoneos/LumenFinance.app"
+          INFO_PLIST="$APP_PATH/Info.plist"
+
+          if [ ! -d "$APP_PATH" ]; then
+            echo "Expected Release-iphoneos app bundle was not found:"
+            echo "$APP_PATH"
+            exit 1
+          fi
+
+          if [ ! -f "$INFO_PLIST" ]; then
+            echo "Built app Info.plist was not found:"
+            echo "$INFO_PLIST"
+            exit 1
+          fi
+
+          BUNDLE_ID=$(/usr/libexec/PlistBuddy \
+            -c 'Print :CFBundleIdentifier' \
+            "$INFO_PLIST")
+
+          EXECUTABLE_NAME=$(/usr/libexec/PlistBuddy \
+            -c 'Print :CFBundleExecutable' \
+            "$INFO_PLIST")
+
+          EXECUTABLE_PATH="$APP_PATH/$EXECUTABLE_NAME"
+
+          if [ "$BUNDLE_ID" != "$EXPECTED_BUNDLE_ID" ]; then
+            echo "Unexpected source bundle identifier."
+            echo "Expected: $EXPECTED_BUNDLE_ID"
+            echo "Actual:   $BUNDLE_ID"
+            exit 1
+          fi
+
+          if [ ! -f "$EXECUTABLE_PATH" ]; then
+            echo "App executable was not found:"
+            echo "$EXECUTABLE_PATH"
+            exit 1
+          fi
+
+          ARCHS=$(lipo -archs "$EXECUTABLE_PATH")
+
+          if [[ "$ARCHS" != *"arm64"* ]]; then
+            echo "arm64 device architecture was not produced."
+            echo "Architectures: $ARCHS"
+            exit 1
+          fi
+
+          BUILD_PLATFORM=$(xcrun vtool -show-build "$EXECUTABLE_PATH")
+          echo "$BUILD_PLATFORM"
+
+          if echo "$BUILD_PLATFORM" \
+            | grep -Eq '^[[:space:]]*platform IOSSIMULATOR$'; then
+            echo "Executable contains an iOS Simulator platform stamp."
+            exit 1
+          fi
+
+          if ! echo "$BUILD_PLATFORM" \
+            | grep -Eq '^[[:space:]]*platform IOS$'; then
+            echo "Executable is not stamped as an IOS device binary."
+            exit 1
+          fi
+
+          if [ -d "$APP_PATH/_CodeSignature" ]; then
+            echo "Unexpected app-level code signature found."
+            exit 1
+          fi
+
+          if [ -f "$APP_PATH/embedded.mobileprovision" ]; then
+            echo "Unexpected embedded provisioning profile found."
+            exit 1
+          fi
+
+          echo "Validated unsigned iPhone device build:"
+          echo "Bundle ID:     $BUNDLE_ID"
+          echo "Executable:    $EXECUTABLE_NAME"
+          echo "Architectures: $ARCHS"
+          echo "Mach-O:        IOS"
+          echo "Provisioning:  none"
+          echo "App signature: none"
+
+      - name: Package unsigned IPA
+        run: |
+          set -euo pipefail
+
+          APP_PATH="$DERIVED_DATA/Build/Products/Release-iphoneos/LumenFinance.app"
+          PACKAGE_DIR="$RUNNER_TEMP/LumenPackage"
+
+          rm -rf "$PACKAGE_DIR"
+          mkdir -p "$PACKAGE_DIR/Payload"
+
+          cp -R "$APP_PATH" "$PACKAGE_DIR/Payload/"
+
+          cd "$PACKAGE_DIR"
+          /usr/bin/zip -qry \
+            "$OUTPUT_DIR/LumenFinance-unsigned.ipa" \
+            Payload
+
+      - name: Write build provenance
+        run: |
+          set -euo pipefail
+
+          APP_PATH="$DERIVED_DATA/Build/Products/Release-iphoneos/LumenFinance.app"
+          INFO_PLIST="$APP_PATH/Info.plist"
+
+          BUNDLE_ID=$(/usr/libexec/PlistBuddy \
+            -c 'Print :CFBundleIdentifier' \
+            "$INFO_PLIST")
+
+          EXECUTABLE_NAME=$(/usr/libexec/PlistBuddy \
+            -c 'Print :CFBundleExecutable' \
+            "$INFO_PLIST")
+
+          EXECUTABLE_PATH="$APP_PATH/$EXECUTABLE_NAME"
+
+          APP_VERSION=$(/usr/libexec/PlistBuddy \
+            -c 'Print :CFBundleShortVersionString' \
+            "$INFO_PLIST")
+
+          BUILD_NUMBER=$(/usr/libexec/PlistBuddy \
+            -c 'Print :CFBundleVersion' \
+            "$INFO_PLIST")
+
+          MINIMUM_OS=$(/usr/libexec/PlistBuddy \
+            -c 'Print :MinimumOSVersion' \
+            "$INFO_PLIST")
+
+          ARCHS=$(lipo -archs "$EXECUTABLE_PATH")
+          CHECKED_OUT_SHA=$(git rev-parse HEAD)
+          SDK_VERSION=$(xcrun --sdk iphoneos --show-sdk-version)
+          XCODE_VERSION=$(xcodebuild -version | tr '\n' ' ')
+          MACOS_VERSION=$(sw_vers -productVersion)
+
+          cat > "$OUTPUT_DIR/build-metadata.txt" <<EOF
+          repository=${GITHUB_REPOSITORY}
+          commit_sha=${CHECKED_OUT_SHA}
+          git_ref=${GITHUB_REF}
+          workflow_run_id=${GITHUB_RUN_ID}
+          workflow_run_number=${GITHUB_RUN_NUMBER}
+          runner_os=${RUNNER_OS}
+          runner_arch=${RUNNER_ARCH}
+          runner_image_os=${ImageOS:-unknown}
+          runner_image_version=${ImageVersion:-unknown}
+          macos_version=${MACOS_VERSION}
+          configuration=${CONFIGURATION}
+          platform=iphoneos
+          mach_o_platform=IOS
+          xcode=${XCODE_VERSION}
+          sdk_version=${SDK_VERSION}
+          source_bundle_identifier=${BUNDLE_ID}
+          bundle_executable=${EXECUTABLE_NAME}
+          app_version=${APP_VERSION}
+          build_number=${BUILD_NUMBER}
+          minimum_os_version=${MINIMUM_OS}
+          executable_architectures=${ARCHS}
+          signing=unsigned
+          embedded_provisioning_profile=absent
+          app_code_signature=absent
+          built_at_utc=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          EOF
+
+          (
+            cd "$OUTPUT_DIR"
+            shasum -a 256 LumenFinance-unsigned.ipa \
+              > LumenFinance-unsigned.ipa.sha256
+          )
+
+          cat "$OUTPUT_DIR/build-metadata.txt"
+          cat "$OUTPUT_DIR/LumenFinance-unsigned.ipa.sha256"
+
+      - name: Upload device-build artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: LumenFinance-unsigned-device-${{ github.run_number }}
+          path: |
+            artifacts/LumenFinance-unsigned.ipa
+            artifacts/build-metadata.txt
+            artifacts/toolchain.txt
+            artifacts/LumenFinance-unsigned.ipa.sha256
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload build log on failure
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: LumenFinance-device-build-failure-${{ github.run_number }}
+          path: artifacts/xcodebuild.log
+          if-no-files-found: ignore
+          retention-days: 7
