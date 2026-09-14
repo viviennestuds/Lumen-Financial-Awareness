@@ -17,7 +17,6 @@ jobs:
       SCHEME: LumenFinance
       CONFIGURATION: Release
       EXPECTED_BUNDLE_ID: app.rork.8m36zsug0ex00d13e28li
-      DERIVED_DATA: ${{ runner.temp }}/LumenDerivedData
       OUTPUT_DIR: ${{ github.workspace }}/artifacts
 
     steps:
@@ -26,6 +25,10 @@ jobs:
 
       - name: Prepare output directory
         run: mkdir -p "$OUTPUT_DIR"
+
+      - name: Configure runner paths
+        run: |
+          echo "DERIVED_DATA=$RUNNER_TEMP/LumenDerivedData" >> "$GITHUB_ENV"
 
       - name: Record build environment
         run: |
