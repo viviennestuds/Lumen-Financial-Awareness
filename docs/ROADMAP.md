@@ -864,6 +864,24 @@ Implement or harden:
 - safe development reseed utilities;
 - import validation infrastructure.
 
+### Future Domain Direction — Specific Payment Instruments
+
+Generic payment-method reference values may later evolve toward user-managed **specific payment instruments** where product value warrants it.
+
+Potential Phase 1C-adjacent responsibilities include:
+
+- instrument identity and user-facing management;
+- active/archive behavior;
+- safe ownership/export/import semantics;
+- association between Transactions and specific instruments;
+- analytical identity without storing payment credentials.
+
+Effective-dated reward/program rules, benefit/reimbursement context, derived reward or eligibility evaluations, realized outcomes, and downstream awareness remain later-domain work unless the Roadmap explicitly assigns them.
+
+See `docs/architecture/PAYMENT_INSTRUMENTS_REWARDS_BENEFITS_VISION.md` for the preserved future-domain invariants and open constraints.
+
+This future direction does **not** commit the entire subsystem to Phase 1C.
+
 ---
 
 ## Explicitly Deferred From Phase 1C
