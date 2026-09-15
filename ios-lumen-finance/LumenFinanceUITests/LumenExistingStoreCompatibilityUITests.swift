@@ -32,11 +32,12 @@ final class LumenExistingStoreCompatibilityUITests: XCTestCase {
 
     @MainActor
     private func openActivity(in app: XCUIApplication) {
-        if app.navigationBars["Activity"].exists { return }
+        let search = app.textFields["Search merchant, category, notes"]
+        if search.exists { return }
         let activity = app.buttons["Activity"]
         XCTAssertTrue(activity.waitForExistence(timeout: 10))
         activity.tap()
-        XCTAssertTrue(app.navigationBars["Activity"].waitForExistence(timeout: 10))
+        XCTAssertTrue(search.waitForExistence(timeout: 10))
     }
 
     @MainActor
@@ -96,7 +97,7 @@ final class LumenExistingStoreCompatibilityUITests: XCTestCase {
         let back = nav.buttons.firstMatch
         XCTAssertTrue(back.exists)
         back.tap()
-        XCTAssertTrue(app.navigationBars["Activity"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.textFields["Search merchant, category, notes"].waitForExistence(timeout: 10))
     }
 
     @MainActor
