@@ -43,7 +43,7 @@ Lumen follows these implementation principles:
 
 The current production priority is:
 
-**Phase 1A — Core Ledger Hardening**
+**Phase 1B — Evidence & Provenance Foundation**
 
 ---
 
@@ -72,6 +72,14 @@ The Extraction Lab is not a numbered production phase and must not block the cor
 ---
 
 # Phase 1A — Core Ledger Hardening
+
+## Status
+
+**Accepted / closed 2026-09-15.**
+
+The authoritative Phase 1A closure evidence and known deferrals are recorded in `docs/PHASE_1A_CLOSURE.md`.
+
+Phase 1A product behavior was validated through `8ce3fad0c449c433ca3c2fc7490a1a948c4f504a`. Later documentation-only closure commits do not imply untested production-behavior changes.
 
 ## Purpose
 
@@ -602,6 +610,12 @@ Which future phase owns them?
 ---
 
 # Phase 1B — Evidence & Provenance Foundation
+
+## Status
+
+**Active production phase.**
+
+Phase 1A closure is recorded in `docs/PHASE_1A_CLOSURE.md`. Phase 1B should begin with responsibility-boundary design before production evidence/provenance implementation expands.
 
 ## Purpose
 
