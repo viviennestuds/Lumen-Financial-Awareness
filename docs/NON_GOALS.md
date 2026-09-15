@@ -317,47 +317,50 @@ They require deliberate future product scope.
 
 ---
 
-# Phase 1A Non-Goals
+# Phase 1B Non-Goals
 
-**This section is operational and applies while Phase 1A is the active production phase. It must be reviewed and replaced or retired when the Roadmap formally advances to the next phase.**
+**This section is operational and applies while Phase 1B is the active production phase. It must be reviewed and replaced or retired when the Roadmap formally advances to the next phase.**
 
 The active phase is:
 
-**Phase 1A — Core Ledger Hardening**
+**Phase 1B — Evidence & Provenance Foundation**
 
-Phase 1A must not expand merely through implementation momentum into:
+Phase 1B must not expand merely through implementation momentum into:
 
-- Apple Vision OCR;
-- production OCR;
+- sophisticated production OCR;
 - cloud OCR or VLM integration;
-- persisted `Observation`;
-- persisted `FieldCandidate`;
-- persisted `ResolvedField`;
-- `ExtractionRun` infrastructure;
-- persisted `CorrectionEvent`;
+- automatic transaction creation;
 - merchant-learning systems;
 - barcode/product infrastructure;
 - receipt itemization;
-- production Budgets;
-- production CashflowPhases;
+- production Budgets or CashflowPhases;
 - advanced Insights;
 - Supabase synchronization;
 - cross-device synchronization;
 - user-facing cloud accounts;
 - family/shared functionality;
 - production model training;
-- a major visual redesign.
+- a major visual redesign;
+- specific payment instruments or a wallet/payment-accounts feature;
+- reward calculation or reward accounting;
+- reward-rule versioning or card-program automation;
+- realized reward tracking;
+- HSA/FSA eligibility logic or reimbursement automation;
+- EBT/SNAP eligibility logic;
+- issuer/network program-classification infrastructure;
+- generalized financial rules or a generalized rules engine.
 
-Phase 1A should also avoid architecture-only migrations such as:
+Phase 1B should also avoid architecture-only persistence changes such as:
 
 - renaming `TransactionSource` to `EvidenceArtifact` solely for terminology consistency;
-- renaming persisted snake_case Swift properties solely for stylistic preference;
-- implementing a complete `EvidenceLink` many-to-many model before a concrete requirement exists;
+- persisting every `Observation`, `FieldCandidate`, `ValidationSignal`, `ResolvedField`, or `ExtractionRun` merely because the concept exists;
+- implementing a complete `EvidenceLink` many-to-many graph before a concrete requirement exists;
+- materializing conceptual entities from `docs/architecture/PAYMENT_INSTRUMENTS_REWARDS_BENEFITS_VISION.md` as SwiftData models without a later Roadmap decision and migration contract;
 - introducing speculative services or repositories only because future phases might eventually need them.
 
-A deferred change may be pulled into Phase 1A only if it satisfies the Architecture Contract's Phase 1A change-admission rule.
+Phase 1B may preserve compatibility with future domains without implementing those domains.
 
-Capabilities already assigned to later phases should remain deferred until their canonical phase becomes active unless they independently satisfy that change-admission rule.
+Future issuer terms, statements, receipts, or other evidence may eventually feed program/rule/outcome domains through evidence and provenance. That architectural compatibility does not make those domains current Phase 1B scope.
 
 ---
 
@@ -469,33 +472,25 @@ If the capability is already assigned to a later phase:
 
 Current production priority:
 
-**Phase 1A — Core Ledger Hardening**
+**Phase 1B — Evidence & Provenance Foundation**
 
-The current engineering objective is not:
+The current engineering objective is not to build OCR, AI extraction, a wallet, reward accounting, benefits automation, cloud sync, or a generalized rules system.
 
-- OCR;
-- AI;
-- Supabase;
-- microservices;
-- budgeting;
-- barcode intelligence;
-- advanced Insights.
-
-It is establishing that Lumen's local financial ledger can safely evolve.
+It is to establish trustworthy responsibility boundaries for evidence and provenance without weakening the canonical Transaction boundary established in Phase 1A.
 
 Current priorities include:
 
-- persistence correctness;
-- save-failure correctness;
-- migration safety;
-- canonical Transaction semantics;
-- financial state versus ingestion-state clarity;
-- `Draft → Review → Confirm`;
-- CRUD correctness;
-- duplicate semantics;
-- analytics correctness;
-- money/currency/date semantics;
-- automated domain and persistence validation.
+- define the Phase 1B evidence/provenance responsibility contract before schema implementation;
+- audit what the current `TransactionSource` means and which responsibilities remain valid;
+- define evidence identity and metadata responsibilities;
+- define retention/deletion semantics for raw evidence and durable provenance;
+- preserve future one-to-many and many-to-many evidence relationships without prematurely implementing the full graph;
+- preserve `TransactionDraft → Review → Confirm` as the convergence boundary;
+- define the responsibilities of `Observation`, `FieldCandidate`, `ValidationSignal`, `ResolvedField`, and `ExtractionRun` before deciding what, if anything, persists;
+- define meaningful correction/provenance semantics;
+- require an explicit migration/compatibility story before the first Phase 1B persisted-model change.
+
+Future domains may inform compatibility constraints, but they do not become active scope merely because a vision document exists.
 
 Everything else must earn its place through the canonical Roadmap.
 
