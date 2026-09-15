@@ -1,0 +1,112 @@
+name: Phase 1A Existing Store Compatibility
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  existing-store-compatibility:
+    name: Validate historical SwiftData store continuity
+    runs-on: macos-26
+    timeout-minutes: 60
+
+    env:
+      BASELINE_SHA: dbc28ed9649d4930b45e2dcc44a7462729dfcf11
+      EXPECTED_BUNDLE_ID: app.rork.8m36zsug0ex00d13e28li
+      OUTPUT_DIR: ${{ github.workspace }}/artifacts
+      CURRENT_ROOT: ${{ github.workspace }}/current
+      BASELINE_ROOT: ${{ github.workspace }}/baseline
+
+    steps:
+      - name: Check out candidate revision
+        uses: actions/checkout@v7
+        with:
+          path: current
+
+      - name: Check out canonical pre-Phase-1A baseline
+        uses: actions/checkout@v7
+        with:
+          ref: dbc28ed9649d4930b45e2dcc44a7462729dfcf11
+          path: baseline
+
+      - name: Prepare evidence directory
+        run: mkdir -p "$OUTPUT_DIR"
+
+      - name: Record toolchain and source environment
+        run: |
+          set -euo pipefail
+          {
+            echo "repository=${GITHUB_REPOSITORY}"
+            echo "workflow_run_id=${GITHUB_RUN_ID}"
+            echo "workflow_run_number=${GITHUB_RUN_NUMBER}"
+            echo "workflow_ref=${GITHUB_WORKFLOW_REF}"
+            echo "candidate_github_sha=${GITHUB_SHA}"
+            echo "baseline_requested_sha=${BASELINE_SHA}"
+            echo "runner_os=${RUNNER_OS}"
+            echo "runner_arch=${RUNNER_ARCH}"
+            echo "runner_image_os=${ImageOS:-unknown}"
+            echo "runner_image_version=${ImageVersion:-unknown}"
+            echo "macos_version=$(sw_vers -productVersion)"
+            echo "xcode_path=$(xcode-select -p)"
+            echo "xcode=$(xcodebuild -version | tr '\n' ' ')"
+            echo "iphonesimulator_sdk=$(xcrun --sdk iphonesimulator --show-sdk-version)"
+            echo "recorded_at_utc=$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+          } | tee "$OUTPUT_DIR/toolchain.txt"
+
+      - name: Run Phase 1A existing-store compatibility validation
+        run: |
+          set -euo pipefail
+          chmod +x current/scripts/phase1a-existing-store-compatibility.sh
+          current/scripts/phase1a-existing-store-compatibility.sh
+
+      - name: Finalize fallback report if harness exited before initialization
+        if: always()
+        run: |
+          set -euo pipefail
+          if [ ! -f "$OUTPUT_DIR/compatibility-report.txt" ]; then
+            printf '%s\n' \
+              'baseline_sha=UNESTABLISHED' \
+              "candidate_sha=${GITHUB_SHA}" \
+              'bundle_identity=UNESTABLISHED' \
+              'candidate_financial_sample_reseeding_capability=UNESTABLISHED' \
+              'historical_store_materialized=NOT_REACHED' \
+              'historical_store_reopen_observed=NOT_REACHED' \
+              'xctest_harness_continuity=NOT_REACHED' \
+              'compatibility_test_execution=NOT_REACHED' \
+              'install_continuity=NOT_REACHED' \
+              'historical_sentinel_assertions=NOT_REACHED' \
+              'historical_financial_corpus_verified=NOT_REACHED' \
+              'candidate_logical_compatibility=NOT_REACHED' \
+              'current_mutation=NOT_REACHED' \
+              'post_mutation_relaunch=NOT_REACHED' \
+              'furthest_boundary=WORKFLOW_SETUP' \
+              'failed_boundary=HARNESS_INITIALIZATION' \
+              'phase1a_compatibility_gate=NOT_SATISFIED' \
+              'production_change_authorized=NO' \
+              > "$OUTPUT_DIR/compatibility-report.txt"
+          fi
+          cat "$OUTPUT_DIR/compatibility-report.txt"
+
+      - name: Upload compatibility evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: Lumen-Phase1A-existing-store-${{ github.run_number }}
+          path: artifacts/
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: Cleanup temporary simulators
+        if: always()
+        run: |
+          set +e
+          if [ -f "$OUTPUT_DIR/simulators.txt" ]; then
+            while IFS= read -r udid; do
+              [ -n "$udid" ] || continue
+              xcrun simctl shutdown "$udid" >/dev/null 2>&1 || true
+              xcrun simctl delete "$udid" >/dev/null 2>&1 || true
+            done < "$OUTPUT_DIR/simulators.txt"
+          fi
+          exit 0
