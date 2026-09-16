@@ -235,7 +235,7 @@ The current fields decompose as follows.
 | `Transaction.duplicate_fingerprint` | Financial-event duplicate marker | Transaction-similarity responsibility | Explicitly separate from evidence/content identity |
 | `Transaction.source` | Optional to-one relation from transaction | Compatibility-bearing origin/evidence association | Future cardinality unresolved |
 
-`MOVE CONCEPTUALLY` or conceptual separation never means "migrate this field in SwiftData now."
+Conceptual reassignment or separation never means "migrate this field in SwiftData now."
 
 ---
 
@@ -318,7 +318,9 @@ An `EvidenceArtifact` responsibility does **not** imply:
 
 ---
 
-# 9. Observation Responsibility
+# 9. Observation and Processing-Run Responsibilities
+
+## 9.1 Observation
 
 An `Observation` is:
 
@@ -338,7 +340,7 @@ Conceptually useful attributes may include:
 
 These are responsibility examples, not a persistence schema.
 
-## 9.1 Observations belong to their producing process/run
+### Observations belong to their producing process/run
 
 If extraction is performed twice:
 
@@ -353,6 +355,30 @@ OCR run B
 run B does not rewrite history to claim run A reported `$19.99`.
 
 Resolution may prefer run B. Whether either run or Observation is durably persisted is a separate admission decision.
+
+## 9.2 ExtractionRun
+
+An `ExtractionRun` is the conceptual execution context for a particular processing attempt over evidence.
+
+It answers questions such as:
+
+> Which process produced these Observations, under what processing configuration/version, and as part of which attempt?
+
+A future run responsibility may group:
+
+- the evidence/artifact processed;
+- processing method or provider;
+- provider/model/parser version where relevant;
+- start/completion/failure state;
+- run-level error context;
+- produced Observations;
+- processing configuration needed for meaningful reprocessing or audit.
+
+Those examples do not authorize a persisted `ExtractionRun` model.
+
+Current Lumen has no explicit processing-run identity/history; processing output such as `raw_extracted_text` and `parse_status` is flattened onto `TransactionSource`.
+
+Phase 1B therefore needs the responsibility boundary, not necessarily durable run history.
 
 ---
 
@@ -384,7 +410,9 @@ Candidate persistence is not authorized by this document.
 
 ---
 
-# 11. Resolution Responsibility
+# 11. Resolution, ValidationSignal, and ResolvedField Responsibilities
+
+## 11.1 Resolution
 
 `Resolution` answers:
 
@@ -401,13 +429,36 @@ Resolution may use:
 - explicit review interaction;
 - future validation signals.
 
-The existing Architecture Contract/Roadmap concepts such as `ValidationSignal` and `ResolvedField` may participate in this responsibility.
-
-This document does not require one persisted `Resolution`, `ResolvedField`, or `ValidationSignal` model.
-
 Most importantly:
 
 > **Resolution prepares a proposal; it does not replace Review/Confirm.**
+
+## 11.2 ValidationSignal
+
+A `ValidationSignal` is conceptual evidence used to support, reject, rank, or qualify a candidate or interpretation.
+
+Examples may include:
+
+- subtotal + tax approximately equals total;
+- date parses to a supported civil date;
+- text near a TOTAL anchor supports an amount candidate;
+- multiple extraction methods agree;
+- a merchant alias deterministically resolves;
+- a candidate conflicts with another deterministic constraint.
+
+A ValidationSignal does not establish canonical financial state and does not automatically deserve persistence.
+
+## 11.3 ResolvedField
+
+A `ResolvedField` is the conceptual result of field-level resolution before the financial proposal is adopted as canonical state.
+
+It may answer:
+
+> Which candidate/value is currently preferred for this proposed field, and what resolution context supports that choice?
+
+A ResolvedField remains upstream of `TransactionDraft → Review → Confirm`.
+
+This document does not require one persisted `Resolution`, `ResolvedField`, or `ValidationSignal` model.
 
 ---
 
@@ -427,7 +478,7 @@ Evidence itself may someday have an independent durable lifecycle before transac
 
 ---
 
-# 13. Confirmed-Field Provenance Responsibility
+# 13. Confirmed-Field Provenance and Correction Responsibilities
 
 The long-term provenance question is broader than:
 
@@ -512,6 +563,49 @@ Confirmed value: $19.99
 ```
 
 Lumen must not rewrite that story as though OCR or the resolver determined `$19.99`.
+
+## 13.3 CorrectionEvent semantics
+
+`CorrectionEvent` is a conceptual learning/provenance responsibility, not authorization for a persisted event table.
+
+A meaningful correction requires a distinguishable proposal and a distinguishable user-authorized result.
+
+Example:
+
+```text
+Machine proposal
+amount = $48.12
+        ↓
+Review
+user changes amount to $48.72
+        ↓
+Confirmed Transaction
+amount = $48.72
+```
+
+This may eventually constitute a meaningful correction signal because Lumen can compare what a machine/import process proposed with what the user ultimately authorized.
+
+By contrast:
+
+```text
+Manual Entry
+user types $48.12
+then changes it to $48.72 before confirmation
+```
+
+is not automatically a machine-correction event. It may be ordinary draft editing.
+
+Similarly, a later authorized edit to an existing Transaction is provenance-worthy history, but it must not automatically be treated as training feedback or a parser correction unless the product can establish what prior machine proposal is actually being corrected.
+
+Therefore Phase 1B preserves these rules:
+
+- correction semantics require identifiable proposal-vs-confirmed meaning;
+- ordinary keystrokes and draft edits are not automatically CorrectionEvents;
+- later canonical edits are not automatically machine-learning corrections;
+- persistent correction learning should not begin before meaningful machine proposals exist;
+- private correction history must not silently become shared/training data.
+
+The exact persisted representation, if any, remains unresolved.
 
 ---
 
@@ -1087,27 +1181,35 @@ No answer is implied by this document.
 - How should later authorized edits affect prior provenance?
 - What provenance should remain when raw evidence is deleted?
 
-## 27.6 Deletion semantics
+## 27.6 Correction semantics
+
+- What minimum proposal identity is required before Lumen can say a machine/import proposal was corrected?
+- Which fields deserve correction tracking once meaningful machine proposals exist?
+- How should corrections interact with reprocessing and provider/version changes?
+- Which correction facts are private provenance versus future learning input?
+- What user control is required before any private correction could contribute outside the user's local/private context?
+
+## 27.7 Deletion semantics
 
 - What does "Delete evidence" mean for raw content, derivatives, fingerprints, OCR text, observations, provenance, and semantic context?
 - What happens to unreferenced evidence after Transaction deletion?
 - Is orphan cleanup immediate, deferred, user-controlled, or retention-policy driven?
 - Should an ingestion session leave any durable trace after cancellation?
 
-## 27.7 Location and sensitive metadata
+## 27.8 Location and sensitive metadata
 
 - Should retained raw evidence preserve original EXIF exactly?
 - If precise location is present, should it be stripped, retained, separately controlled, or transformed?
 - When may a user-confirmed semantic place survive deletion of precise location evidence?
 - Which metadata is required for legitimate provenance versus merely available?
 
-## 27.8 Relationship cardinality
+## 27.9 Relationship cardinality
 
 - What relationship machinery does the first admitted capability actually require?
 - When, if ever, does one Transaction → multiple artifacts become a production requirement?
 - When does the current source-sharing behavior need an explicit inverse or relationship object?
 
-## 27.9 Ingestion outcomes
+## 27.10 Ingestion outcomes
 
 - Should Save, Discard, Cancel, Retry, and future Resume be represented as distinct ingestion-session outcomes?
 - What cleanup/retention action should each trigger?
@@ -1129,6 +1231,8 @@ Before accepting this responsibility contract, verify that it:
 - distinguishes durable metadata from durable evidence retention;
 - preserves independent ingestion/evidence/processing/transaction lifecycles;
 - preserves the possibility of future many-to-many evidence without authorizing it now;
+- defines `Observation`, `FieldCandidate`, `ExtractionRun`, `ValidationSignal`, `ResolvedField`, and `Resolution` as responsibilities without authorizing persistence;
+- distinguishes meaningful proposal correction from ordinary manual editing;
 - keeps processing-state persistence unresolved unless demonstrated value exists;
 - treats deletion and retention as explicit privacy/product responsibilities;
 - does not claim current raw images strip or retain structured location without evidence;
