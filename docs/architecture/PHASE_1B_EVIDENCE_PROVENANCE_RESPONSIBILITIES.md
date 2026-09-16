@@ -2,7 +2,7 @@
 
 ## Status
 
-**Draft for review. Documentation-only.**
+**Accepted. Documentation-only Phase 1B responsibility contract.**
 
 This document defines the responsibility boundaries Phase 1B should preserve before Lumen introduces new evidence/provenance persistence.
 
@@ -18,6 +18,8 @@ If this document conflicts with those governing sources, the higher-authority so
 **The responsibility contract itself does not authorize a SwiftData/schema change.**
 
 The conceptual entities and responsibility names in this document are not instructions to create one persisted model per noun.
+
+**Capitalized conceptual names in this contract identify responsibilities or information boundaries. They do not imply one Swift type, SwiftData model, table, or durable record per concept.**
 
 This document deliberately distinguishes three categories:
 
@@ -156,7 +158,7 @@ TransactionDraft
 
 # 4. Repository Baseline for This Responsibility Contract
 
-This draft is grounded in repository behavior observed at canonical main commit:
+This contract is grounded in repository behavior observed at canonical main commit:
 
 `284590911989baa15bdf61efac61c2de137b9f0c`
 
@@ -456,6 +458,8 @@ It may answer:
 
 > Which candidate/value is currently preferred for this proposed field, and what resolution context supports that choice?
 
+**`Resolution` is the decision process/context; `ResolvedField` is the resulting preferred field-level interpretation produced by that resolution.**
+
 A ResolvedField remains upstream of `TransactionDraft → Review → Confirm`.
 
 This document does not require one persisted `Resolution`, `ResolvedField`, or `ValidationSignal` model.
@@ -728,7 +732,7 @@ Two ingestion events may legitimately have different artifact IDs while referrin
 
 ## 16.2 Legacy `source_hash`
 
-> **The legacy `TransactionSource.source_hash` field has no defined cryptographic or content-identity contract. Existing values must not be reinterpreted as SHA-256 or any other content digest.**
+> **The legacy `TransactionSource.source_hash` field has no defined cryptographic or content-identity contract. Existing values must not be reinterpreted, recomputed, normalized, backfilled, or migrated as cryptographic content fingerprints without a separately admitted migration/compatibility contract.**
 
 If Phase 1B later requires byte-level duplicate detection, integrity comparison, or export verification, it must define:
 
@@ -807,6 +811,24 @@ Two rules are stable enough to govern Phase 1B:
 > **Deleting raw evidence must not silently delete or rewrite a confirmed Transaction.**
 
 > **Retaining a confirmed Transaction must not require indefinite retention of raw evidence.**
+
+> **Loss, deletion, corruption, or unavailability of non-canonical evidence must degrade provenance or explainability explicitly; it must not silently alter confirmed financial state.**
+
+For example:
+
+```text
+Before
+Amount: $19.99
+Receipt retained and inspectable
+
+After evidence loss/deletion
+Amount: $19.99
+Transaction remains canonical
+Receipt-based origin may remain known
+Raw supporting evidence: unavailable
+```
+
+The invariant does not require every form of provenance to survive evidence deletion. Derived provenance may itself be privacy-sensitive and subject to explicit retention/deletion policy. The requirement is that evidence loss be represented honestly rather than silently rewriting canonical ledger state or implying that unavailable evidence remains inspectable.
 
 "Delete evidence" is not one undifferentiated boolean. Phase 1B must reason independently about:
 
@@ -1037,7 +1059,9 @@ Persistence must be earned by demonstrated product, audit, recovery, debugging, 
 
 # 24. Phase 1B Persistence Admission Review
 
-Completion of this responsibility contract does **not** authorize the first Phase 1B persisted-model change.
+Completion or acceptance of this responsibility contract does **not** authorize the first Phase 1B persisted-model change.
+
+> **Contract acceptance ≠ Persistence Admission.**
 
 Before any new persisted model, relationship, property semantics, or migration is introduced for Phase 1B, conduct an explicit:
 
@@ -1065,6 +1089,13 @@ The review must answer:
 18. **What rollback/recovery strategy exists if the change fails in production?**
 
 If those questions cannot be answered credibly, the persistence change has not earned admission.
+
+The review must conclude with one of four dispositions:
+
+- **ADMITTED** — The exact persistence proposal reviewed is authorized for implementation. Admission applies only to that exact proposal and does not authorize adjacent models, relationships, migrations, or follow-on schema work.
+- **REVISE** — The capability is valid, but the persistence proposal does not yet satisfy this contract.
+- **DEFER** — The responsibility is real, but durable persistence has not yet earned its cost or necessity.
+- **REJECT** — The proposal conflicts with governing architecture, privacy, compatibility, or demonstrated product need.
 
 A migration justified primarily by:
 
@@ -1255,10 +1286,10 @@ Select one concrete Phase 1B capability
         ↓
 Phase 1B Persistence Admission Review
         ↓
-Approve, narrow, or reject persistence change
+ADMITTED / REVISE / DEFER / REJECT
         ↓
-Only if admitted:
-smallest implementation + migration/compatibility tests
+Only if ADMITTED:
+smallest exact admitted implementation + migration/compatibility tests
 ```
 
 No production/schema work should be inferred merely from acceptance of this document.
