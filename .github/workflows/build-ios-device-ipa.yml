@@ -1,4 +1,4 @@
-name: Build Lumen Unsigned Device IPA
+name: Build Lumen PhotosPicker Diagnostic IPA
 
 on:
   workflow_dispatch:
@@ -8,7 +8,7 @@ permissions:
 
 jobs:
   build-ios-device:
-    name: Build unsigned iPhone IPA
+    name: Build unsigned PhotosPicker diagnostic
     runs-on: macos-26
     timeout-minutes: 30
 
@@ -16,7 +16,7 @@ jobs:
       PROJECT_PATH: ios-lumen-finance/LumenFinance.xcodeproj
       SCHEME: LumenFinance
       CONFIGURATION: Release
-      EXPECTED_BUNDLE_ID: app.rork.8m36zsug0ex00d13e28li
+      EXPECTED_BUNDLE_ID: app.rork.8m36zsug0ex00d13e28li.pickerlab
       OUTPUT_DIR: ${{ github.workspace }}/artifacts
 
     steps:
@@ -54,7 +54,7 @@ jobs:
             echo "ImageVersion=${ImageVersion:-unknown}"
           } | tee "$OUTPUT_DIR/toolchain.txt"
 
-      - name: Build unsigned iPhone app
+      - name: Build unsigned iPhone diagnostic app
         run: |
           set -euo pipefail
           set -o pipefail
@@ -66,13 +66,16 @@ jobs:
             -sdk iphoneos \
             -destination 'generic/platform=iOS' \
             -derivedDataPath "$DERIVED_DATA" \
+            PRODUCT_BUNDLE_IDENTIFIER="$EXPECTED_BUNDLE_ID" \
+            INFOPLIST_KEY_CFBundleDisplayName="Lumen Picker Lab" \
+            OTHER_SWIFT_FLAGS="-DLUMEN_PHOTOS_DIAGNOSTIC" \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
             DEVELOPMENT_TEAM="" \
             2>&1 | tee "$OUTPUT_DIR/xcodebuild.log"
 
-      - name: Validate unsigned iPhone device app
+      - name: Validate unsigned iPhone device diagnostic
         run: |
           set -euo pipefail
 
@@ -102,7 +105,7 @@ jobs:
           EXECUTABLE_PATH="$APP_PATH/$EXECUTABLE_NAME"
 
           if [ "$BUNDLE_ID" != "$EXPECTED_BUNDLE_ID" ]; then
-            echo "Unexpected source bundle identifier."
+            echo "Unexpected diagnostic bundle identifier."
             echo "Expected: $EXPECTED_BUNDLE_ID"
             echo "Actual:   $BUNDLE_ID"
             exit 1
@@ -147,7 +150,7 @@ jobs:
             exit 1
           fi
 
-          echo "Validated unsigned iPhone device build:"
+          echo "Validated unsigned iPhone diagnostic build:"
           echo "Bundle ID:     $BUNDLE_ID"
           echo "Executable:    $EXECUTABLE_NAME"
           echo "Architectures: $ARCHS"
@@ -155,7 +158,7 @@ jobs:
           echo "Provisioning:  none"
           echo "App signature: none"
 
-      - name: Package unsigned IPA
+      - name: Package unsigned diagnostic IPA
         run: |
           set -euo pipefail
 
@@ -169,7 +172,7 @@ jobs:
 
           cd "$PACKAGE_DIR"
           /usr/bin/zip -qry \
-            "$OUTPUT_DIR/LumenFinance-unsigned.ipa" \
+            "$OUTPUT_DIR/LumenPickerDiagnostic-unsigned.ipa" \
             Payload
 
       - name: Write build provenance
@@ -221,6 +224,7 @@ jobs:
           configuration=${CONFIGURATION}
           platform=iphoneos
           mach_o_platform=IOS
+          diagnostic=LUMEN_PHOTOS_DIAGNOSTIC
           xcode=${XCODE_VERSION}
           sdk_version=${SDK_VERSION}
           source_bundle_identifier=${BUNDLE_ID}
@@ -237,22 +241,22 @@ jobs:
 
           (
             cd "$OUTPUT_DIR"
-            shasum -a 256 LumenFinance-unsigned.ipa \
-              > LumenFinance-unsigned.ipa.sha256
+            shasum -a 256 LumenPickerDiagnostic-unsigned.ipa \
+              > LumenPickerDiagnostic-unsigned.ipa.sha256
           )
 
           cat "$OUTPUT_DIR/build-metadata.txt"
-          cat "$OUTPUT_DIR/LumenFinance-unsigned.ipa.sha256"
+          cat "$OUTPUT_DIR/LumenPickerDiagnostic-unsigned.ipa.sha256"
 
-      - name: Upload device-build artifact
+      - name: Upload diagnostic device-build artifact
         uses: actions/upload-artifact@v7
         with:
-          name: LumenFinance-unsigned-device-${{ github.run_number }}
+          name: LumenPickerDiagnostic-unsigned-device-${{ github.run_number }}
           path: |
-            artifacts/LumenFinance-unsigned.ipa
+            artifacts/LumenPickerDiagnostic-unsigned.ipa
             artifacts/build-metadata.txt
             artifacts/toolchain.txt
-            artifacts/LumenFinance-unsigned.ipa.sha256
+            artifacts/LumenPickerDiagnostic-unsigned.ipa.sha256
           if-no-files-found: error
           retention-days: 7
 
@@ -260,7 +264,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v7
         with:
-          name: LumenFinance-device-build-failure-${{ github.run_number }}
+          name: LumenPickerDiagnostic-build-failure-${{ github.run_number }}
           path: artifacts/xcodebuild.log
           if-no-files-found: ignore
           retention-days: 7
