@@ -10,6 +10,9 @@ struct LumenFinanceApp: App {
 
     var body: some Scene {
         WindowGroup {
+#if LUMEN_PHOTOS_DIAGNOSTIC
+            PhotosPickerCharacterizationView()
+#else
             Group {
                 if let container {
                     RootView()
@@ -30,6 +33,7 @@ struct LumenFinanceApp: App {
             }
             .tint(Theme.accent)
             .task { if container == nil && !didFailToOpen { openLedger() } }
+#endif
         }
     }
 
