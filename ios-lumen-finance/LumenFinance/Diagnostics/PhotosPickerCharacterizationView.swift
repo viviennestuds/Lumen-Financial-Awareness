@@ -142,7 +142,7 @@ struct PhotosPickerCharacterizationView: View {
             .buttonStyle(.borderedProminent)
             .disabled(isLoading)
 
-            Text("Use the picker’s Options screen to set Location and Format as described above before selecting the asset.")
+            Text("Use the picker’s Options screen to set Location and Format as described above before selecting the asset. Lumen cannot programmatically read those per-selection option choices, so the scenario name is your test label rather than an OS-attested setting.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
         }
@@ -270,6 +270,8 @@ struct PhotosPickerCharacterizationView: View {
         var lines: [String] = [
             "LUMEN_PHOTOS_PICKER_CHARACTERIZATION_V1",
             "scenario=\(scenario)",
+            "scenario_is_user_selected_label=true",
+            "picker_option_values_read_programmatically=false",
             "captured_at_utc=\(timestamp)",
             "ios_version=\(UIDevice.current.systemVersion)",
             "transfer_request=item.loadTransferable(type: Data.self)",
@@ -291,7 +293,12 @@ struct PhotosPickerCharacterizationView: View {
         lines.append("imageio_decode=success")
         lines.append("imageio_frame_count=\(CGImageSourceGetCount(source))")
 
-        let decodedIdentifier = (CGImageSourceGetType(source) as String?) ?? "unknown"
+        let decodedIdentifier: String
+        if let sourceType = CGImageSourceGetType(source) {
+            decodedIdentifier = sourceType as String
+        } else {
+            decodedIdentifier = "unknown"
+        }
         let decodedType = UTType(decodedIdentifier)
         lines.append("decoded_type_identifier=\(decodedIdentifier)")
         lines.append("decoded_extension=\(decodedType?.preferredFilenameExtension ?? "unknown")")
@@ -334,12 +341,21 @@ struct PhotosPickerCharacterizationView: View {
         let cameraModel = tiff?[kCGImagePropertyTIFFModel] != nil
         let software = tiff?[kCGImagePropertyTIFFSoftware] != nil
 
+        let metadataKeyNames: [String] = [exif, gps, tiff, iptc, png, jfif]
+            .compactMap { $0 }
+            .flatMap { dictionary in dictionary.keys.map { String(describing: $0) } }
+        let captionLikeKeyPresent = metadataKeyNames.contains { key in
+            let lowered = key.lowercased()
+            return lowered.contains("caption") || lowered.contains("description") || lowered.contains("comment")
+        }
+
         lines.append("exif_datetime_original_present=\(yesNo(exifOriginalDate))")
         lines.append("exif_datetime_digitized_present=\(yesNo(exifDigitizedDate))")
         lines.append("tiff_datetime_present=\(yesNo(tiffDate))")
         lines.append("camera_make_field_present=\(yesNo(cameraMake))")
         lines.append("camera_model_field_present=\(yesNo(cameraModel))")
         lines.append("software_field_present=\(yesNo(software))")
+        lines.append("caption_or_description_like_metadata_key_present=\(yesNo(captionLikeKeyPresent))")
 
         // Deliberately report metadata existence/count only. Never serialize dictionary values.
         lines.append("exif_key_count=\(exif?.count ?? 0)")
