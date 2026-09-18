@@ -588,4 +588,219 @@ final class LedgerPersistenceTests: XCTestCase {
             context.rollback()
         }
     }
+
+    // MARK: - Phase 1B zero-reference TransactionSource characterization
+
+    @MainActor
+    private func fetchSource(_ id: String, in context: ModelContext) throws -> TransactionSource {
+        let rows = try context.fetch(FetchDescriptor<TransactionSource>())
+        return try XCTUnwrap(rows.first { $0.id == id })
+    }
+
+    @MainActor
+    private func assertCharacterizationSource(
+        _ source: TransactionSource,
+        id: String,
+        locator: String,
+        sourceType: SourceType,
+        originalFilename: String,
+        mimeType: String,
+        fileSize: Int,
+        rawText: String,
+        sourceHash: String
+    ) {
+        XCTAssertEqual(source.id, id)
+        XCTAssertEqual(source.stored_file_uri, locator)
+        XCTAssertEqual(source.source_type, sourceType)
+        XCTAssertEqual(source.original_filename, originalFilename)
+        XCTAssertEqual(source.mime_type, mimeType)
+        XCTAssertEqual(source.file_size_bytes, fileSize)
+        XCTAssertEqual(source.raw_extracted_text, rawText)
+        XCTAssertEqual(source.source_hash, sourceHash)
+    }
+
+    @MainActor
+    func testPhase1BCharacterizationUniqueSourceSurvivesAfterFinalTransactionDelete() throws {
+        try withStore { url in
+            let sourceID = "00000000-0000-4000-8000-0000000001B1"
+            let locator = "lumen-evidence://v1/\(sourceID)/payload"
+            let originalFilename = "characterization-original.heic"
+            let mimeType = "image/heic"
+            let fileSize = 1_409_711
+            let rawText = "phase1b-characterization-raw-text"
+            let sourceHash = "legacy-not-a-content-hash"
+
+            // Commit one Transaction -> one source and prove the graph survives a reopen first.
+            try autoreleasepool {
+                let store = try container(at: url)
+                defer { withExtendedLifetime(store) {} }
+                let context = store.mainContext
+                try LedgerWrite.perform(in: context) {
+                    let source = TransactionSource(
+                        id: sourceID,
+                        source_type: .receipt_photo,
+                        original_filename: originalFilename,
+                        stored_file_uri: locator,
+                        file_size_bytes: fileSize,
+                        mime_type: mimeType,
+                        uploaded_at: Date(timeIntervalSince1970: 1_700_000_000),
+                        captured_at: Date(timeIntervalSince1970: 1_699_999_000),
+                        source_timezone: "America/New_York",
+                        metadata_json: "{\"characterization\":true}",
+                        raw_extracted_text: rawText,
+                        parse_status: .manual_review,
+                        source_hash: sourceHash,
+                        created_at: Date(timeIntervalSince1970: 1_700_000_100)
+                    )
+                    context.insert(Transaction(
+                        id: "phase1b-zero-ref-unique-transaction",
+                        amount: 19.99,
+                        currency: "USD",
+                        merchant_name: "Phase 1B characterization",
+                        status: .posted,
+                        source: source
+                    ))
+                }
+            }
+
+            try autoreleasepool {
+                let store = try container(at: url)
+                defer { withExtendedLifetime(store) {} }
+                let context = store.mainContext
+                XCTAssertEqual(try context.fetchCount(FetchDescriptor<Transaction>()), 1)
+                XCTAssertEqual(try context.fetchCount(FetchDescriptor<TransactionSource>()), 1)
+                let txn = try fetchTransaction("phase1b-zero-ref-unique-transaction", in: context)
+                XCTAssertEqual(txn.source?.id, sourceID)
+                assertCharacterizationSource(
+                    try fetchSource(sourceID, in: context),
+                    id: sourceID,
+                    locator: locator,
+                    sourceType: .receipt_photo,
+                    originalFilename: originalFilename,
+                    mimeType: mimeType,
+                    fileSize: fileSize,
+                    rawText: rawText,
+                    sourceHash: sourceHash
+                )
+                try LedgerWrite.perform(in: context) { context.delete(txn) }
+                XCTAssertEqual(try context.fetchCount(FetchDescriptor<Transaction>()), 0)
+                print("LUMEN_PHASE1B_ZERO_REF unique_same_context_sources=\(try context.fetchCount(FetchDescriptor<TransactionSource>()))")
+            }
+
+            // This is the characterization boundary that the v1 reconciler design may depend on.
+            try autoreleasepool {
+                let store = try container(at: url)
+                defer { withExtendedLifetime(store) {} }
+                let context = store.mainContext
+                let sourceCount = try context.fetchCount(FetchDescriptor<TransactionSource>())
+                print("LUMEN_PHASE1B_ZERO_REF unique_reopened_transactions=\(try context.fetchCount(FetchDescriptor<Transaction>())) unique_reopened_sources=\(sourceCount)")
+                XCTAssertEqual(try context.fetchCount(FetchDescriptor<Transaction>()), 0)
+                XCTAssertEqual(sourceCount, 1, "A committed unique TransactionSource must survive the 1 -> 0 Transaction-reference transition for the proposed zero-schema commitment-marker strategy.")
+                assertCharacterizationSource(
+                    try fetchSource(sourceID, in: context),
+                    id: sourceID,
+                    locator: locator,
+                    sourceType: .receipt_photo,
+                    originalFilename: originalFilename,
+                    mimeType: mimeType,
+                    fileSize: fileSize,
+                    rawText: rawText,
+                    sourceHash: sourceHash
+                )
+            }
+        }
+    }
+
+    @MainActor
+    func testPhase1BCharacterizationSharedSourceSurvivesAfterLastTransactionDelete() throws {
+        try withStore { url in
+            let sourceID = "00000000-0000-4000-8000-0000000001B2"
+            let locator = "lumen-evidence://v1/\(sourceID)/payload"
+            let originalFilename = "shared-characterization.jpeg"
+            let mimeType = "image/jpeg"
+            let fileSize = 2_187_307
+            let rawText = "phase1b-shared-characterization"
+            let sourceHash = "legacy-shared-not-a-content-hash"
+
+            try autoreleasepool {
+                let store = try container(at: url)
+                defer { withExtendedLifetime(store) {} }
+                let context = store.mainContext
+                try LedgerWrite.perform(in: context) {
+                    let source = TransactionSource(
+                        id: sourceID,
+                        source_type: .receipt_photo,
+                        original_filename: originalFilename,
+                        stored_file_uri: locator,
+                        file_size_bytes: fileSize,
+                        mime_type: mimeType,
+                        raw_extracted_text: rawText,
+                        parse_status: .manual_review,
+                        source_hash: sourceHash
+                    )
+                    context.insert(Transaction(id: "phase1b-shared-A", amount: 10, merchant_name: "Shared A", source: source))
+                    context.insert(Transaction(id: "phase1b-shared-B", amount: 20, merchant_name: "Shared B", source: source))
+                }
+            }
+
+            // 2 -> 1 references: source must survive.
+            try autoreleasepool {
+                let store = try container(at: url)
+                defer { withExtendedLifetime(store) {} }
+                let context = store.mainContext
+                XCTAssertEqual(try context.fetchCount(FetchDescriptor<Transaction>()), 2)
+                XCTAssertEqual(try context.fetchCount(FetchDescriptor<TransactionSource>()), 1)
+                try LedgerWrite.perform(in: context) {
+                    context.delete(try fetchTransaction("phase1b-shared-A", in: context))
+                }
+            }
+
+            try autoreleasepool {
+                let store = try container(at: url)
+                defer { withExtendedLifetime(store) {} }
+                let context = store.mainContext
+                XCTAssertEqual(try context.fetchCount(FetchDescriptor<Transaction>()), 1)
+                XCTAssertEqual(try context.fetchCount(FetchDescriptor<TransactionSource>()), 1)
+                XCTAssertEqual(try fetchTransaction("phase1b-shared-B", in: context).source?.id, sourceID)
+                assertCharacterizationSource(
+                    try fetchSource(sourceID, in: context),
+                    id: sourceID,
+                    locator: locator,
+                    sourceType: .receipt_photo,
+                    originalFilename: originalFilename,
+                    mimeType: mimeType,
+                    fileSize: fileSize,
+                    rawText: rawText,
+                    sourceHash: sourceHash
+                )
+
+                // 1 -> 0 references: this is the critical transition.
+                try LedgerWrite.perform(in: context) {
+                    context.delete(try fetchTransaction("phase1b-shared-B", in: context))
+                }
+            }
+
+            try autoreleasepool {
+                let store = try container(at: url)
+                defer { withExtendedLifetime(store) {} }
+                let context = store.mainContext
+                let sourceCount = try context.fetchCount(FetchDescriptor<TransactionSource>())
+                print("LUMEN_PHASE1B_ZERO_REF shared_reopened_transactions=\(try context.fetchCount(FetchDescriptor<Transaction>())) shared_reopened_sources=\(sourceCount)")
+                XCTAssertEqual(try context.fetchCount(FetchDescriptor<Transaction>()), 0)
+                XCTAssertEqual(sourceCount, 1, "A committed shared TransactionSource must survive after the final reference is removed for the proposed zero-schema commitment-marker strategy.")
+                assertCharacterizationSource(
+                    try fetchSource(sourceID, in: context),
+                    id: sourceID,
+                    locator: locator,
+                    sourceType: .receipt_photo,
+                    originalFilename: originalFilename,
+                    mimeType: mimeType,
+                    fileSize: fileSize,
+                    rawText: rawText,
+                    sourceHash: sourceHash
+                )
+            }
+        }
+    }
+
 }
