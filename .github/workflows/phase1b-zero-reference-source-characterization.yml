@@ -1,0 +1,125 @@
+name: Phase 1B Zero-Reference Source Characterization
+
+on:
+  pull_request:
+    paths:
+      - 'ios-lumen-finance/LumenFinanceTests/LedgerPersistenceTests.swift'
+      - '.github/workflows/phase1b-zero-reference-source-characterization.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  characterize:
+    name: Characterize zero-reference TransactionSource persistence
+    runs-on: macos-26
+    timeout-minutes: 30
+
+    env:
+      PROJECT_PATH: ios-lumen-finance/LumenFinance.xcodeproj
+      SCHEME: LumenFinance
+      OUTPUT_DIR: ${{ github.workspace }}/artifacts
+
+    steps:
+      - name: Check out characterization branch
+        uses: actions/checkout@v7
+
+      - name: Prepare evidence directory
+        run: mkdir -p "$OUTPUT_DIR"
+
+      - name: Record environment
+        run: |
+          set -euo pipefail
+          {
+            echo "repository=${GITHUB_REPOSITORY}"
+            echo "commit_sha=${GITHUB_SHA}"
+            echo "git_ref=${GITHUB_REF}"
+            echo "workflow_run_id=${GITHUB_RUN_ID}"
+            echo "macos_version=$(sw_vers -productVersion)"
+            echo "xcode=$(xcodebuild -version | tr '\n' ' ')"
+            echo "iphonesimulator_sdk=$(xcrun --sdk iphonesimulator --show-sdk-version)"
+            echo "recorded_at_utc=$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+          } | tee "$OUTPUT_DIR/environment.txt"
+
+      - name: Create latest available iPhone simulator
+        run: |
+          set -euo pipefail
+
+          RUNTIME_ID=$(xcrun simctl list runtimes -j | python3 -c '
+          import json, sys
+          items = [r for r in json.load(sys.stdin)["runtimes"] if r.get("isAvailable") and "iOS" in r.get("name", "")]
+          if not items:
+              raise SystemExit("No available iOS simulator runtime")
+          def version(r):
+              return tuple(int(p) if p.isdigit() else 0 for p in r.get("version", "0").split("."))
+          print(max(items, key=version)["identifier"])
+          ')
+
+          DEVICE_TYPE_ID=$(xcrun simctl list devicetypes -j | python3 -c '
+          import json, sys
+          items = [d for d in json.load(sys.stdin)["devicetypes"] if d.get("name", "").startswith("iPhone")]
+          if not items:
+              raise SystemExit("No iPhone simulator device type")
+          preferred = ["iPhone 16 Pro", "iPhone 16", "iPhone 15 Pro", "iPhone 15"]
+          for name in preferred:
+              match = next((d for d in items if d.get("name") == name), None)
+              if match:
+                  print(match["identifier"])
+                  break
+          else:
+              print(items[-1]["identifier"])
+          ')
+
+          UDID=$(xcrun simctl create "Lumen-Phase1B-ZeroRef-${GITHUB_RUN_ID}" "$DEVICE_TYPE_ID" "$RUNTIME_ID")
+          echo "SIMULATOR_UDID=$UDID" >> "$GITHUB_ENV"
+          echo "$UDID" > "$OUTPUT_DIR/simulator-udid.txt"
+          {
+            echo "runtime_id=$RUNTIME_ID"
+            echo "device_type_id=$DEVICE_TYPE_ID"
+            echo "simulator_udid=$UDID"
+          } | tee "$OUTPUT_DIR/simulator-environment.txt"
+
+          xcrun simctl boot "$UDID"
+          xcrun simctl bootstatus "$UDID" -b
+
+      - name: Run zero-reference characterization tests
+        run: |
+          set -euo pipefail
+          set -o pipefail
+
+          xcodebuild test \
+            -project "$PROJECT_PATH" \
+            -scheme "$SCHEME" \
+            -configuration Debug \
+            -destination "platform=iOS Simulator,id=$SIMULATOR_UDID" \
+            -derivedDataPath "$RUNNER_TEMP/LumenZeroRefDerivedData" \
+            -only-testing:LumenFinanceTests/LedgerPersistenceTests/testPhase1BCharacterizationUniqueSourceSurvivesAfterFinalTransactionDelete \
+            -only-testing:LumenFinanceTests/LedgerPersistenceTests/testPhase1BCharacterizationSharedSourceSurvivesAfterLastTransactionDelete \
+            -resultBundlePath "$OUTPUT_DIR/zero-reference-characterization.xcresult" \
+            2>&1 | tee "$OUTPUT_DIR/xcodebuild-test.log"
+
+      - name: Extract characterization markers
+        if: always()
+        run: |
+          set -euo pipefail
+          grep 'LUMEN_PHASE1B_ZERO_REF' "$OUTPUT_DIR/xcodebuild-test.log"             | tee "$OUTPUT_DIR/characterization-markers.txt" || true
+
+      - name: Upload characterization evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: Lumen-Phase1B-zero-reference-${{ github.run_number }}
+          path: artifacts/
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: Cleanup simulator
+        if: always()
+        run: |
+          set +e
+          if [ -n "${SIMULATOR_UDID:-}" ]; then
+            xcrun simctl shutdown "$SIMULATOR_UDID" >/dev/null 2>&1 || true
+            xcrun simctl delete "$SIMULATOR_UDID" >/dev/null 2>&1 || true
+          fi
+          exit 0
