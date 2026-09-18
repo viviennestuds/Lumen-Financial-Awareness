@@ -607,7 +607,14 @@ final class LedgerPersistenceTests: XCTestCase {
         mimeType: String,
         fileSize: Int,
         rawText: String,
-        sourceHash: String
+        sourceHash: String,
+        compressedURI: String?,
+        uploadedAt: Date?,
+        capturedAt: Date?,
+        sourceTimezone: String?,
+        metadataJSON: String?,
+        parseStatus: ParseStatus,
+        createdAt: Date
     ) {
         XCTAssertEqual(source.id, id)
         XCTAssertEqual(source.stored_file_uri, locator)
@@ -617,6 +624,13 @@ final class LedgerPersistenceTests: XCTestCase {
         XCTAssertEqual(source.file_size_bytes, fileSize)
         XCTAssertEqual(source.raw_extracted_text, rawText)
         XCTAssertEqual(source.source_hash, sourceHash)
+        XCTAssertEqual(source.compressed_file_uri, compressedURI)
+        XCTAssertEqual(source.uploaded_at, uploadedAt)
+        XCTAssertEqual(source.captured_at, capturedAt)
+        XCTAssertEqual(source.source_timezone, sourceTimezone)
+        XCTAssertEqual(source.metadata_json, metadataJSON)
+        XCTAssertEqual(source.parse_status, parseStatus)
+        XCTAssertEqual(source.created_at, createdAt)
     }
 
     @MainActor
@@ -629,6 +643,12 @@ final class LedgerPersistenceTests: XCTestCase {
             let fileSize = 1_409_711
             let rawText = "phase1b-characterization-raw-text"
             let sourceHash = "legacy-not-a-content-hash"
+            let compressedURI = "legacy-compressed://do-not-reinterpret"
+            let uploadedAt = Date(timeIntervalSince1970: 1_700_000_000)
+            let capturedAt = Date(timeIntervalSince1970: 1_699_999_000)
+            let sourceTimezone = "America/New_York"
+            let metadataJSON = "{\"characterization\":true}"
+            let createdAt = Date(timeIntervalSince1970: 1_700_000_100)
 
             // Commit one Transaction -> one source and prove the graph survives a reopen first.
             try autoreleasepool {
@@ -641,16 +661,17 @@ final class LedgerPersistenceTests: XCTestCase {
                         source_type: .receipt_photo,
                         original_filename: originalFilename,
                         stored_file_uri: locator,
+                        compressed_file_uri: compressedURI,
                         file_size_bytes: fileSize,
                         mime_type: mimeType,
-                        uploaded_at: Date(timeIntervalSince1970: 1_700_000_000),
-                        captured_at: Date(timeIntervalSince1970: 1_699_999_000),
-                        source_timezone: "America/New_York",
-                        metadata_json: "{\"characterization\":true}",
+                        uploaded_at: uploadedAt,
+                        captured_at: capturedAt,
+                        source_timezone: sourceTimezone,
+                        metadata_json: metadataJSON,
                         raw_extracted_text: rawText,
                         parse_status: .manual_review,
                         source_hash: sourceHash,
-                        created_at: Date(timeIntervalSince1970: 1_700_000_100)
+                        created_at: createdAt)
                     )
                     context.insert(Transaction(
                         id: "phase1b-zero-ref-unique-transaction",
@@ -680,7 +701,14 @@ final class LedgerPersistenceTests: XCTestCase {
                     mimeType: mimeType,
                     fileSize: fileSize,
                     rawText: rawText,
-                    sourceHash: sourceHash
+                    sourceHash: sourceHash,
+                    compressedURI: compressedURI,
+                    uploadedAt: uploadedAt,
+                    capturedAt: capturedAt,
+                    sourceTimezone: sourceTimezone,
+                    metadataJSON: metadataJSON,
+                    parseStatus: .manual_review,
+                    createdAt: createdAt
                 )
                 try LedgerWrite.perform(in: context) { context.delete(txn) }
                 XCTAssertEqual(try context.fetchCount(FetchDescriptor<Transaction>()), 0)
@@ -705,7 +733,14 @@ final class LedgerPersistenceTests: XCTestCase {
                     mimeType: mimeType,
                     fileSize: fileSize,
                     rawText: rawText,
-                    sourceHash: sourceHash
+                    sourceHash: sourceHash,
+                    compressedURI: compressedURI,
+                    uploadedAt: uploadedAt,
+                    capturedAt: capturedAt,
+                    sourceTimezone: sourceTimezone,
+                    metadataJSON: metadataJSON,
+                    parseStatus: .manual_review,
+                    createdAt: createdAt
                 )
             }
         }
@@ -721,6 +756,12 @@ final class LedgerPersistenceTests: XCTestCase {
             let fileSize = 2_187_307
             let rawText = "phase1b-shared-characterization"
             let sourceHash = "legacy-shared-not-a-content-hash"
+            let compressedURI = "legacy-shared-compressed://do-not-reinterpret"
+            let uploadedAt = Date(timeIntervalSince1970: 1_710_000_000)
+            let capturedAt = Date(timeIntervalSince1970: 1_709_999_000)
+            let sourceTimezone = "America/New_York"
+            let metadataJSON = "{\"sharedCharacterization\":true}"
+            let createdAt = Date(timeIntervalSince1970: 1_710_000_100)
 
             try autoreleasepool {
                 let store = try container(at: url)
@@ -732,11 +773,17 @@ final class LedgerPersistenceTests: XCTestCase {
                         source_type: .receipt_photo,
                         original_filename: originalFilename,
                         stored_file_uri: locator,
+                        compressed_file_uri: compressedURI,
                         file_size_bytes: fileSize,
                         mime_type: mimeType,
+                        uploaded_at: uploadedAt,
+                        captured_at: capturedAt,
+                        source_timezone: sourceTimezone,
+                        metadata_json: metadataJSON,
                         raw_extracted_text: rawText,
                         parse_status: .manual_review,
-                        source_hash: sourceHash
+                        source_hash: sourceHash,
+                        created_at: createdAt
                     )
                     context.insert(Transaction(id: "phase1b-shared-A", amount: 10, merchant_name: "Shared A", source: source))
                     context.insert(Transaction(id: "phase1b-shared-B", amount: 20, merchant_name: "Shared B", source: source))
@@ -771,7 +818,14 @@ final class LedgerPersistenceTests: XCTestCase {
                     mimeType: mimeType,
                     fileSize: fileSize,
                     rawText: rawText,
-                    sourceHash: sourceHash
+                    sourceHash: sourceHash,
+                    compressedURI: compressedURI,
+                    uploadedAt: uploadedAt,
+                    capturedAt: capturedAt,
+                    sourceTimezone: sourceTimezone,
+                    metadataJSON: metadataJSON,
+                    parseStatus: .manual_review,
+                    createdAt: createdAt
                 )
 
                 // 1 -> 0 references: this is the critical transition.
@@ -797,7 +851,14 @@ final class LedgerPersistenceTests: XCTestCase {
                     mimeType: mimeType,
                     fileSize: fileSize,
                     rawText: rawText,
-                    sourceHash: sourceHash
+                    sourceHash: sourceHash,
+                    compressedURI: compressedURI,
+                    uploadedAt: uploadedAt,
+                    capturedAt: capturedAt,
+                    sourceTimezone: sourceTimezone,
+                    metadataJSON: metadataJSON,
+                    parseStatus: .manual_review,
+                    createdAt: createdAt
                 )
             }
         }
