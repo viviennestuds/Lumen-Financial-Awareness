@@ -671,7 +671,7 @@ final class LedgerPersistenceTests: XCTestCase {
                         raw_extracted_text: rawText,
                         parse_status: .manual_review,
                         source_hash: sourceHash,
-                        created_at: createdAt)
+                        created_at: createdAt
                     )
                     context.insert(Transaction(
                         id: "phase1b-zero-ref-unique-transaction",
