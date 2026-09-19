@@ -198,10 +198,99 @@ final class EvidencePassAPrimitiveTests: XCTestCase {
         )
     }
 
+    @MainActor
+    func testSemanticOwnershipIgnoresUnsavedInsertionWithoutDisturbingCallerState() throws {
+        let container = try inMemoryContainer()
+        let context = container.mainContext
+        let sourceID = UUID()
+        let source = TransactionSource(id: sourceID.uuidString, source_type: .receipt_photo)
+
+        context.insert(source)
+
+        XCTAssertTrue(context.hasChanges)
+        XCTAssertTrue(
+            context.insertedModelsArray.contains {
+                $0.persistentModelID == source.persistentModelID
+            }
+        )
+
+        guard case .none = try EvidenceIdentity.semanticOwners(of: sourceID, in: context) else {
+            return XCTFail("Unsaved insertion must not become a persisted semantic owner")
+        }
+
+        XCTAssertTrue(context.hasChanges)
+        XCTAssertEqual(source.id, sourceID.uuidString)
+        XCTAssertTrue(
+            context.insertedModelsArray.contains {
+                $0.persistentModelID == source.persistentModelID
+            }
+        )
+    }
+
+    @MainActor
+    func testSemanticOwnershipSeesPersistedOwnerThroughUnsavedDeletionWithoutDisturbingCallerState() throws {
+        let container = try inMemoryContainer()
+        let context = container.mainContext
+        let sourceID = UUID()
+        let source = TransactionSource(id: sourceID.uuidString, source_type: .receipt_photo)
+        context.insert(source)
+        try context.save()
+
+        context.delete(source)
+
+        XCTAssertTrue(context.hasChanges)
+        XCTAssertTrue(
+            context.deletedModelsArray.contains {
+                $0.persistentModelID == source.persistentModelID
+            }
+        )
+
+        guard case .one(let owner) = try EvidenceIdentity.semanticOwners(of: sourceID, in: context) else {
+            return XCTFail("Unsaved deletion must not hide the persisted semantic owner")
+        }
+        XCTAssertEqual(owner.id, sourceID.uuidString)
+
+        XCTAssertTrue(context.hasChanges)
+        XCTAssertTrue(
+            context.deletedModelsArray.contains {
+                $0.persistentModelID == source.persistentModelID
+            }
+        )
+    }
+
+    @MainActor
+    func testSemanticOwnershipUsesPersistedIDThroughUnsavedMutationWithoutDisturbingCallerState() throws {
+        let container = try inMemoryContainer()
+        let context = container.mainContext
+        let persistedID = UUID()
+        let pendingID = UUID()
+        let source = TransactionSource(id: persistedID.uuidString, source_type: .receipt_photo)
+        context.insert(source)
+        try context.save()
+
+        source.id = pendingID.uuidString
+
+        XCTAssertTrue(context.hasChanges)
+        XCTAssertEqual(source.id, pendingID.uuidString)
+
+        guard case .one(let owner) = try EvidenceIdentity.semanticOwners(of: persistedID, in: context) else {
+            return XCTFail("Persisted UUID must remain authoritatively owned during an unsaved ID mutation")
+        }
+        XCTAssertEqual(owner.id, persistedID.uuidString)
+
+        guard case .none = try EvidenceIdentity.semanticOwners(of: pendingID, in: context) else {
+            return XCTFail("Unsaved UUID mutation must not create persisted ownership")
+        }
+
+        XCTAssertTrue(context.hasChanges)
+        XCTAssertEqual(source.id, pendingID.uuidString)
+    }
+
     // MARK: - EvidencePayloadInspector
 
     func testPayloadInspectorReportsActualPNGAndDoesNotMutateBytes() throws {
         let data = try encodedTestImage(type: .png)
+        try assertCompleteImageSource(data, expectedType: .png)
         let before = data
         let result = try EvidencePayloadInspector.inspect(data)
 
@@ -213,6 +302,7 @@ final class EvidencePassAPrimitiveTests: XCTestCase {
 
     func testPayloadInspectorReportsActualJPEG() throws {
         let data = try encodedTestImage(type: .jpeg)
+        try assertCompleteImageSource(data, expectedType: .jpeg)
         let result = try EvidencePayloadInspector.inspect(data)
 
         XCTAssertEqual(result.byteCount, data.count)
@@ -228,6 +318,7 @@ final class EvidencePassAPrimitiveTests: XCTestCase {
             throw XCTSkip("HEIC encoding is unavailable in this test environment")
         }
 
+        try assertCompleteImageSource(data, expectedType: .heic)
         let result = try EvidencePayloadInspector.inspect(data)
         XCTAssertEqual(result.byteCount, data.count)
         XCTAssertEqual(result.typeIdentifier, UTType.heic.identifier)
@@ -241,6 +332,22 @@ final class EvidencePassAPrimitiveTests: XCTestCase {
 
         XCTAssertThrowsError(try EvidencePayloadInspector.inspect(Data([0x00, 0x01, 0x02, 0x03]))) { error in
             XCTAssertEqual(error as? EvidencePayloadInspectionError, .invalidImage)
+        }
+    }
+
+    func testPayloadInspectorRejectsRecognizedIncompleteJPEGAndPNG() throws {
+        for type in [UTType.jpeg, UTType.png] {
+            let complete = try encodedTestImage(type: type)
+            let truncated = try recognizedIncompletePrefix(of: complete)
+
+            let source = try XCTUnwrap(CGImageSourceCreateWithData(truncated as CFData, nil))
+            XCTAssertGreaterThan(CGImageSourceGetCount(source), 0)
+            XCTAssertNotNil(CGImageSourceGetType(source))
+            XCTAssertNotEqual(CGImageSourceGetStatus(source), .statusComplete)
+
+            XCTAssertThrowsError(try EvidencePayloadInspector.inspect(truncated)) { error in
+                XCTAssertEqual(error as? EvidencePayloadInspectionError, .invalidImage)
+            }
         }
     }
 
@@ -263,6 +370,34 @@ final class EvidencePassAPrimitiveTests: XCTestCase {
     private enum TestImageEncodingError: Error {
         case imageCreationFailed
         case encoderUnavailable
+        case incompleteFixtureUnavailable
+    }
+
+    private func assertCompleteImageSource(_ data: Data, expectedType: UTType) throws {
+        let source = try XCTUnwrap(CGImageSourceCreateWithData(data as CFData, nil))
+        XCTAssertGreaterThan(CGImageSourceGetCount(source), 0)
+        XCTAssertEqual(CGImageSourceGetStatus(source), .statusComplete)
+        XCTAssertEqual(CGImageSourceGetType(source).map { $0 as String }, expectedType.identifier)
+    }
+
+    private func recognizedIncompletePrefix(of data: Data) throws -> Data {
+        guard data.count > 4 else {
+            throw TestImageEncodingError.incompleteFixtureUnavailable
+        }
+
+        let lowerBound = max(1, data.count / 4)
+        for length in stride(from: data.count - 1, through: lowerBound, by: -1) {
+            let candidate = Data(data.prefix(length))
+            guard let source = CGImageSourceCreateWithData(candidate as CFData, nil),
+                  CGImageSourceGetCount(source) > 0,
+                  CGImageSourceGetType(source) != nil,
+                  CGImageSourceGetStatus(source) != .statusComplete else {
+                continue
+            }
+            return candidate
+        }
+
+        throw TestImageEncodingError.incompleteFixtureUnavailable
     }
 
     private func encodedTestImage(type: UTType) throws -> Data {
