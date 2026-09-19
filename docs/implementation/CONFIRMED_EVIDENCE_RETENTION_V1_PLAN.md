@@ -871,22 +871,28 @@ For image-backed drafts:
 ```text
 Cancel / Discard
 → no ledger write
+→ ensure no identity-critical confirmation for this draft/session is still active
 → acquire canonical-UUID coordination before durable evidence deletion
 → fresh semantic-owner validation
 
 0 owners
 → cleanup known never-committed final payload if present
 → cleanup known never-committed incoming material
-→ cleanup staging
-→ no durable TransactionSource
-→ no retained locator
 
 1 / >1 owners or ambiguous state
 → fail closed for durable evidence deletion
-→ do not guess that final/incoming material is disposable
+→ retain final/incoming material
+→ do not guess that durable material is disposable
+
+ALL cases
+→ best-effort cleanup of this active draft/session's transient staging
+→ no durable TransactionSource is created by Cancel / Discard
+→ no retained locator is recorded by Cancel / Discard
 ```
 
-A cleanup failure must not be reported as confirmed deletion of bytes. Unknown or ambiguous durable material is retained rather than guessed away.
+Staging cleanup authority is session-local and distinct from authority to delete durable final/incoming material. Durable evidence ambiguity therefore does not, by itself, justify retaining the active draft/session's transient staging once Cancel / Discard has ended that session.
+
+A staging or durable cleanup failure must not be reported as confirmed deletion of bytes. Unknown or ambiguous durable material is retained rather than guessed away.
 
 No resumable ingestion session is introduced in v1.
 
