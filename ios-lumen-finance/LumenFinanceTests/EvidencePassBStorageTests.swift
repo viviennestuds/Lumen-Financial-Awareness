@@ -536,7 +536,7 @@ private final class FaultInjectingEvidenceFileSystem: EvidenceFileSystem {
         try base.applyCompleteFileProtection(at: url)
     }
 
-    func fileProtection(at url: URL) throws -> FileProtectionType? {
+    func fileProtection(at url: URL) throws -> URLFileProtection? {
         try base.fileProtection(at: url)
     }
 
