@@ -537,6 +537,8 @@ private final class FaultInjectingEvidenceFileSystem: EvidenceFileSystem {
     var applyProtectionFailure = false
     var forcedFileProtection: URLFileProtection? = .complete
     private(set) var appliedProtectionURLs: [URL] = []
+    var clearBackupExclusionFailure = false
+    private(set) var clearedBackupExclusionURLs: [URL] = []
     var forcedBackupExclusion: Bool?
 
     init(
@@ -644,6 +646,14 @@ private final class FaultInjectingEvidenceFileSystem: EvidenceFileSystem {
             return forcedFileProtection
         }
         return try base.fileProtection(at: url)
+    }
+
+    func clearBackupExclusion(at url: URL) throws {
+        clearedBackupExclusionURLs.append(url)
+        if clearBackupExclusionFailure {
+            throw EvidencePassBInjectedFailure.injected
+        }
+        try base.clearBackupExclusion(at: url)
     }
 
     func isExcludedFromBackup(at url: URL) throws -> Bool {
