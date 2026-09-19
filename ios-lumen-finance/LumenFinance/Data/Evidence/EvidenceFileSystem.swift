@@ -121,7 +121,11 @@ struct LocalEvidenceFileSystem: EvidenceFileSystem {
     }
 
     func fileProtection(at url: URL) throws -> URLFileProtection? {
-        let values = try url.resourceValues(
+        let freshURL = URL(
+            fileURLWithPath: url.path,
+            isDirectory: url.hasDirectoryPath
+        )
+        let values = try freshURL.resourceValues(
             forKeys: [.fileProtectionKey]
         )
         return values.fileProtection
@@ -135,7 +139,11 @@ struct LocalEvidenceFileSystem: EvidenceFileSystem {
     }
 
     func isExcludedFromBackup(at url: URL) throws -> Bool {
-        let values = try url.resourceValues(
+        let freshURL = URL(
+            fileURLWithPath: url.path,
+            isDirectory: url.hasDirectoryPath
+        )
+        let values = try freshURL.resourceValues(
             forKeys: [.isExcludedFromBackupKey]
         )
         return values.isExcludedFromBackup ?? false
