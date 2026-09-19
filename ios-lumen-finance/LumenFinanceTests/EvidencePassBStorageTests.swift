@@ -101,6 +101,10 @@ final class EvidencePassBStorageTests: XCTestCase {
         XCTAssertFalse(
             try harness.fileSystem.isExcludedFromBackup(at: paths.finalPayload)
         )
+        XCTAssertEqual(
+            harness.fileSystem.appliedProtectionURLs,
+            [paths.finalPayload]
+        )
     }
 
     func testRetryConvergesOnSameDestinationWithoutNumberedPayloads() throws {
@@ -364,7 +368,7 @@ final class EvidencePassBStorageTests: XCTestCase {
             .appendingPathComponent("unknown-material")
         try Data([0x01]).write(to: unknown)
 
-        let outcome = try harness.store.cleanupDurableMaterial(for: sourceID)
+        let outcome = try harness.store.cleanupPreparedDurableMaterial(for: sourceID)
 
         XCTAssertEqual(
             outcome,
@@ -390,7 +394,7 @@ final class EvidencePassBStorageTests: XCTestCase {
         XCTAssertFalse(FileManager.default.fileExists(atPath: paths.stagingDirectory.path))
 
         XCTAssertEqual(
-            try harness.store.cleanupDurableMaterial(for: sourceID),
+            try harness.store.cleanupPreparedDurableMaterial(for: sourceID),
             .removedKnownMaterial
         )
         XCTAssertFalse(FileManager.default.fileExists(atPath: paths.incomingPayload.path))
@@ -410,7 +414,7 @@ final class EvidencePassBStorageTests: XCTestCase {
         harness.fileSystem.removeFailureURL = paths.finalPayload
 
         XCTAssertThrowsError(
-            try harness.store.cleanupDurableMaterial(for: sourceID)
+            try harness.store.cleanupPreparedDurableMaterial(for: sourceID)
         )
 
         XCTAssertTrue(FileManager.default.fileExists(atPath: paths.finalPayload.path))
@@ -497,6 +501,7 @@ private final class FaultInjectingEvidenceFileSystem: EvidenceFileSystem {
     var replaceFailure = false
     var applyProtectionFailure = false
     var forcedFileProtection: URLFileProtection? = .complete
+    private(set) var appliedProtectionURLs: [URL] = []
     var forcedBackupExclusion: Bool?
 
     init(
@@ -592,6 +597,7 @@ private final class FaultInjectingEvidenceFileSystem: EvidenceFileSystem {
     }
 
     func applyCompleteFileProtection(at url: URL) throws {
+        appliedProtectionURLs.append(url)
         if applyProtectionFailure {
             throw EvidencePassBInjectedFailure.injected
         }
