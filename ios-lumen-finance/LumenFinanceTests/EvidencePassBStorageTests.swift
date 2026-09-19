@@ -178,6 +178,29 @@ final class EvidencePassBStorageTests: XCTestCase {
         XCTAssertFalse(FileManager.default.fileExists(atPath: paths.incomingPayload.path))
     }
 
+    func testPartialIncomingWriteAndCleanupFailureRetainsOnlyIncomingAsNonfinalMaterial() throws {
+        let harness = try makeHarness()
+        let sourceID = UUID()
+        let data = testPayload(seed: 33)
+        let paths = harness.store.paths(for: sourceID)
+
+        _ = try harness.store.stage(data, for: sourceID)
+        harness.fileSystem.partialWriteFailureURL = paths.incomingPayload
+        harness.fileSystem.removeFailureURL = paths.incomingPayload
+
+        XCTAssertThrowsError(
+            try harness.store.prepareDurablePayload(for: sourceID)
+        )
+
+        XCTAssertEqual(try Data(contentsOf: paths.stagedPayload), data)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: paths.incomingPayload.path))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: paths.finalPayload.path))
+
+        let partial = try Data(contentsOf: paths.incomingPayload)
+        XCTAssertNotEqual(partial, data)
+        XCTAssertLessThan(partial.count, data.count)
+    }
+
     func testIncomingByteMismatchIsRejectedAndCleanedWithoutTouchingStaging() throws {
         let harness = try makeHarness()
         let sourceID = UUID()
