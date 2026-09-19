@@ -19,9 +19,12 @@ enum EvidenceIdentity {
         of uuid: UUID,
         in context: ModelContext
     ) throws -> EvidenceIdentityOwnership {
+        let persistedContext = ModelContext(context.container)
+        persistedContext.autosaveEnabled = false
+
         var descriptor = FetchDescriptor<TransactionSource>()
         descriptor.includePendingChanges = false
-        let sources = try context.fetch(descriptor)
+        let sources = try persistedContext.fetch(descriptor)
         let matches = sources.filter { source in
             guard let sourceUUID = UUID(uuidString: source.id) else { return false }
             return sourceUUID == uuid

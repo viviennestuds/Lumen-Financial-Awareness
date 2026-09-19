@@ -115,7 +115,7 @@ final class EvidencePassAPrimitiveTests: XCTestCase {
         guard case .one(let owner) = try EvidenceIdentity.semanticOwners(of: sourceID, in: context) else {
             return XCTFail("Expected one semantic owner")
         }
-        XCTAssertTrue(owner === first)
+        XCTAssertEqual(owner.persistentModelID, first.persistentModelID)
         XCTAssertEqual(owner.id, sourceID.uuidString)
 
         let second = TransactionSource(id: sourceID.uuidString, source_type: .screenshot)
@@ -190,7 +190,7 @@ final class EvidencePassAPrimitiveTests: XCTestCase {
             return XCTFail("Expected the legacy row to occupy the semantic UUID")
         }
 
-        XCTAssertTrue(owner === source)
+        XCTAssertEqual(owner.persistentModelID, source.persistentModelID)
         XCTAssertEqual(owner.id, persistedSpelling)
         XCTAssertEqual(
             RetainedEvidenceLocator.classify(owner.stored_file_uri, owningSourceID: owner.id),
@@ -248,6 +248,7 @@ final class EvidencePassAPrimitiveTests: XCTestCase {
         guard case .one(let owner) = try EvidenceIdentity.semanticOwners(of: sourceID, in: context) else {
             return XCTFail("Unsaved deletion must not hide the persisted semantic owner")
         }
+        XCTAssertEqual(owner.persistentModelID, source.persistentModelID)
         XCTAssertEqual(owner.id, sourceID.uuidString)
 
         XCTAssertTrue(context.hasChanges)
@@ -276,6 +277,7 @@ final class EvidencePassAPrimitiveTests: XCTestCase {
         guard case .one(let owner) = try EvidenceIdentity.semanticOwners(of: persistedID, in: context) else {
             return XCTFail("Persisted UUID must remain authoritatively owned during an unsaved ID mutation")
         }
+        XCTAssertEqual(owner.persistentModelID, source.persistentModelID)
         XCTAssertEqual(owner.id, persistedID.uuidString)
 
         guard case .none = try EvidenceIdentity.semanticOwners(of: pendingID, in: context) else {
@@ -340,7 +342,7 @@ final class EvidencePassAPrimitiveTests: XCTestCase {
             let complete = try encodedTestImage(type: type)
             let truncated = try recognizedIncompletePrefix(of: complete)
 
-            let source = try XCTUnwrap(CGImageSourceCreateWithData(truncated as CFData, nil))
+            let source = finalizedIncrementalImageSource(truncated)
             XCTAssertGreaterThan(CGImageSourceGetCount(source), 0)
             XCTAssertNotNil(CGImageSourceGetType(source))
             XCTAssertNotEqual(CGImageSourceGetStatus(source), .statusComplete)
@@ -373,8 +375,14 @@ final class EvidencePassAPrimitiveTests: XCTestCase {
         case incompleteFixtureUnavailable
     }
 
+    private func finalizedIncrementalImageSource(_ data: Data) -> CGImageSource {
+        let source = CGImageSourceCreateIncremental(nil)
+        CGImageSourceUpdateData(source, data as CFData, true)
+        return source
+    }
+
     private func assertCompleteImageSource(_ data: Data, expectedType: UTType) throws {
-        let source = try XCTUnwrap(CGImageSourceCreateWithData(data as CFData, nil))
+        let source = finalizedIncrementalImageSource(data)
         XCTAssertGreaterThan(CGImageSourceGetCount(source), 0)
         XCTAssertEqual(CGImageSourceGetStatus(source), .statusComplete)
         XCTAssertEqual(CGImageSourceGetType(source).map { $0 as String }, expectedType.identifier)
@@ -388,8 +396,8 @@ final class EvidencePassAPrimitiveTests: XCTestCase {
         let lowerBound = max(1, data.count / 4)
         for length in stride(from: data.count - 1, through: lowerBound, by: -1) {
             let candidate = Data(data.prefix(length))
-            guard let source = CGImageSourceCreateWithData(candidate as CFData, nil),
-                  CGImageSourceGetCount(source) > 0,
+            let source = finalizedIncrementalImageSource(candidate)
+            guard CGImageSourceGetCount(source) > 0,
                   CGImageSourceGetType(source) != nil,
                   CGImageSourceGetStatus(source) != .statusComplete else {
                 continue
