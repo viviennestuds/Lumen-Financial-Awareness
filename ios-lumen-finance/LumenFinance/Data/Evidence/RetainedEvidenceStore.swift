@@ -48,7 +48,7 @@ struct DurablyPreparedEvidencePayload: Equatable {
     let byteCount: Int
 }
 
-enum EvidenceCleanupOutcome: Equatable {
+enum EvidenceCleanupOutcome {
     case nothingToRemove
     case removedKnownMaterial
     case retainedUnexpectedContents([String])
