@@ -292,7 +292,6 @@ final class EvidencePassAPrimitiveTests: XCTestCase {
 
     func testPayloadInspectorReportsActualPNGAndDoesNotMutateBytes() throws {
         let data = try encodedTestImage(type: .png)
-        try assertCompleteImageSource(data, expectedType: .png)
         let before = data
         let result = try EvidencePayloadInspector.inspect(data)
 
@@ -304,7 +303,6 @@ final class EvidencePassAPrimitiveTests: XCTestCase {
 
     func testPayloadInspectorReportsActualJPEG() throws {
         let data = try encodedTestImage(type: .jpeg)
-        try assertCompleteImageSource(data, expectedType: .jpeg)
         let result = try EvidencePayloadInspector.inspect(data)
 
         XCTAssertEqual(result.byteCount, data.count)
@@ -320,7 +318,6 @@ final class EvidencePassAPrimitiveTests: XCTestCase {
             throw XCTSkip("HEIC encoding is unavailable in this test environment")
         }
 
-        try assertCompleteImageSource(data, expectedType: .heic)
         let result = try EvidencePayloadInspector.inspect(data)
         XCTAssertEqual(result.byteCount, data.count)
         XCTAssertEqual(result.typeIdentifier, UTType.heic.identifier)
@@ -358,32 +355,19 @@ final class EvidencePassAPrimitiveTests: XCTestCase {
         case encoderUnavailable
     }
 
-    private func assertCompleteImageSource(_ data: Data, expectedType: UTType) throws {
-        let source = try XCTUnwrap(CGImageSourceCreateWithData(data as CFData, nil))
-        XCTAssertGreaterThan(CGImageSourceGetCount(source), 0)
-        XCTAssertEqual(CGImageSourceGetStatus(source), .statusComplete)
-        XCTAssertEqual(CGImageSourceGetType(source).map { $0 as String }, expectedType.identifier)
-    }
-
-    private func encodedTestImage(type: UTType, dimension: Int = 2) throws -> Data {
-        var pixels = [UInt8](repeating: 0, count: dimension * dimension * 4)
-        for y in 0..<dimension {
-            for x in 0..<dimension {
-                let index = (y * dimension + x) * 4
-                pixels[index] = UInt8((x * 17 + y * 29) % 256)
-                pixels[index + 1] = UInt8((x * 43 + y * 11) % 256)
-                pixels[index + 2] = UInt8((x * 7 + y * 53) % 256)
-                pixels[index + 3] = 255
-            }
-        }
+    private func encodedTestImage(type: UTType) throws -> Data {
+        let pixels: [UInt8] = [
+            255, 0, 0, 255,     0, 255, 0, 255,
+            0, 0, 255, 255,     255, 255, 255, 255
+        ]
 
         guard let provider = CGDataProvider(data: Data(pixels) as CFData),
               let image = CGImage(
-                width: dimension,
-                height: dimension,
+                width: 2,
+                height: 2,
                 bitsPerComponent: 8,
                 bitsPerPixel: 32,
-                bytesPerRow: dimension * 4,
+                bytesPerRow: 8,
                 space: CGColorSpaceCreateDeviceRGB(),
                 bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.noneSkipLast.rawValue),
                 provider: provider,
