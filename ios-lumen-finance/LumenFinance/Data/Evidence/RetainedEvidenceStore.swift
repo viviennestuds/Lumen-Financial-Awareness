@@ -197,6 +197,7 @@ struct RetainedEvidenceStore {
         )
 
         try fileSystem.applyCompleteFileProtection(at: paths.finalPayload)
+        try fileSystem.clearBackupExclusion(at: paths.finalPayload)
 
         let finalData = try fileSystem.read(paths.finalPayload)
         guard finalData == stagedData else {
