@@ -8,6 +8,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: phase1b-pass-b-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   pass-b:
     name: Build and test Pass B storage
