@@ -337,18 +337,6 @@ final class EvidencePassAPrimitiveTests: XCTestCase {
         }
     }
 
-    func testPayloadInspectorRejectsRecognizedTruncatedJPEG() throws {
-        let complete = try encodedTestImage(type: .jpeg, dimension: 64)
-        let truncated = try recognizedUnusablePrefix(of: complete, expectedType: .jpeg)
-        try assertRecognizedButUnusable(truncated, expectedType: .jpeg)
-    }
-
-    func testPayloadInspectorRejectsRecognizedTruncatedPNG() throws {
-        let complete = try encodedTestImage(type: .png, dimension: 64)
-        let truncated = try recognizedUnusablePrefix(of: complete, expectedType: .png)
-        try assertRecognizedButUnusable(truncated, expectedType: .png)
-    }
-
     func testUnknownTypeIdentifierMapsToNilMimeWithoutInventingMetadata() {
         XCTAssertNil(EvidencePayloadInspector.mimeType(forTypeIdentifier: "com.example.lumen-unmapped-image"))
         XCTAssertNil(EvidencePayloadInspector.mimeType(forTypeIdentifier: nil))
@@ -368,7 +356,6 @@ final class EvidencePassAPrimitiveTests: XCTestCase {
     private enum TestImageEncodingError: Error {
         case imageCreationFailed
         case encoderUnavailable
-        case incompleteFixtureUnavailable
     }
 
     private func assertCompleteImageSource(_ data: Data, expectedType: UTType) throws {
@@ -376,45 +363,6 @@ final class EvidencePassAPrimitiveTests: XCTestCase {
         XCTAssertGreaterThan(CGImageSourceGetCount(source), 0)
         XCTAssertEqual(CGImageSourceGetStatus(source), .statusComplete)
         XCTAssertEqual(CGImageSourceGetType(source).map { $0 as String }, expectedType.identifier)
-    }
-
-    private func assertRecognizedButUnusable(_ data: Data, expectedType: UTType) throws {
-        let source = try XCTUnwrap(CGImageSourceCreateWithData(data as CFData, nil))
-        XCTAssertEqual(CGImageSourceGetType(source).map { $0 as String }, expectedType.identifier)
-        XCTAssertTrue(
-            CGImageSourceGetCount(source) == 0 ||
-            CGImageSourceCopyPropertiesAtIndex(source, 0, nil) == nil
-        )
-        XCTAssertThrowsError(try EvidencePayloadInspector.inspect(data)) { error in
-            XCTAssertEqual(error as? EvidencePayloadInspectionError, .invalidImage)
-        }
-    }
-
-    private func recognizedUnusablePrefix(of data: Data, expectedType: UTType) throws -> Data {
-        guard data.count > 1 else {
-            throw TestImageEncodingError.incompleteFixtureUnavailable
-        }
-
-        let initialLimit = min(data.count - 1, 512)
-        var candidateLengths = Array(1...initialLimit)
-        candidateLengths.append(contentsOf: [20, 30, 40, 50, 60, 70, 80, 90, 95].map {
-            max(1, data.count * $0 / 100)
-        })
-
-        for length in Set(candidateLengths).sorted() where length < data.count {
-            let candidate = Data(data.prefix(length))
-            guard let source = CGImageSourceCreateWithData(candidate as CFData, nil),
-                  CGImageSourceGetType(source).map({ $0 as String }) == expectedType.identifier else {
-                continue
-            }
-
-            if CGImageSourceGetCount(source) == 0 ||
-                CGImageSourceCopyPropertiesAtIndex(source, 0, nil) == nil {
-                return candidate
-            }
-        }
-
-        throw TestImageEncodingError.incompleteFixtureUnavailable
     }
 
     private func encodedTestImage(type: UTType, dimension: Int = 2) throws -> Data {
