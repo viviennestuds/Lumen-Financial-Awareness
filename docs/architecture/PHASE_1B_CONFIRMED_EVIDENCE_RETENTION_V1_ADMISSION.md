@@ -826,7 +826,7 @@ No OCR/extraction is introduced. Existing preview/stub processing may fail witho
 
 ## 18.12 What happens when persistence/cleanup partially fails?
 
-Pre-commit failures retain retryable draft/staging state and avoid false success. Post-commit integrity failures preserve canonical ledger state and bytes while evidence operations fail closed. Cleanup uncertainty defaults to retention.
+Retained-confirmation pre-commit failures preserve retryable draft/staging state and avoid false success. Save Without Retained Evidence follows its explicitly admitted exception: after successful user-authorized evidence cleanup, a subsequent financial write failure preserves the financial draft but not staging. Post-commit integrity failures preserve canonical ledger state and bytes while evidence operations fail closed. Cleanup uncertainty defaults to retention.
 
 ## 18.13 Does evidence-free manual entry continue to work independently?
 
