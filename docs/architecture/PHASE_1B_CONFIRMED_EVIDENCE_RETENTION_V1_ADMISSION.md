@@ -896,7 +896,7 @@ Confirmed Evidence Retention v1 is not release-complete until all of the followi
 
 - current image selection reaches Review without canonical persistence;
 - retained confirmation survives force-close/relaunch with readable evidence;
-- cancel/discard performs explicit staging cleanup;
+- cancel/discard performs explicit staging cleanup and cleans any known never-committed final/incoming v1 material only under canonical-UUID coordination with a fresh zero-owner validation;
 - failed retention remains retryable;
 - explicit save-without-evidence requires zero committed owners before destructive cleanup, produces no retained locator, and does not falsely claim retained evidence;
 - retained-confirmation ledger failure leaves no canonical Transaction, preserves the financial draft, and preserves staging for retained retry;
@@ -911,6 +911,7 @@ Confirmed Evidence Retention v1 is not release-complete until all of the followi
 - final payload is not deliberately marked excluded from platform-managed backup;
 - missing/unreadable payload degrades to unavailable without changing the Transaction;
 - identity conflict is distinguishable internally from ordinary unavailable evidence;
+- post-commit evidence integrity conflict is terminal for financial confirmation and cannot permit a second Transaction submission for the same draft/session;
 - reconciler cannot delete a payload while confirmation for the same identity is active;
 - reconciler refuses destructive action when ledger state is unavailable or ambiguous;
 - committed zero-reference source survival is protected by a permanent regression test;
