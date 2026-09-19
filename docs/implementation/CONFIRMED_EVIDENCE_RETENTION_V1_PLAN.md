@@ -911,6 +911,8 @@ identity preflight
 
 The pre-commit recheck must read current persisted ownership, not merely re-evaluate a cached preflight collection.
 
+An actor type by itself is not proof that the entire identity-critical operation is mutually exclusive: Swift actors may be reentrant across `await`. The coordinator must use a lease/token, queued critical section, non-reentrant gate, or equivalent mechanism whose exclusivity for canonical UUID S survives suspension points until the operation explicitly releases it.
+
 ## 15.2 Reconciliation
 
 Filesystem scanning/discovery may occur without holding S.
@@ -1215,6 +1217,7 @@ Prove:
 - post-commit evidence integrity conflict is terminal for financial confirmation and cannot trigger a second Transaction submission;
 - repeated confirmation does not create a second Transaction/source blindly;
 - concurrent double-submit for same semantic UUID yields at most one first commitment;
+- same-UUID confirmations cannot simultaneously enter the identity-critical region even when the implementation suspends/awaits filesystem or MainActor work;
 - case-varied semantic UUID requests share the same coordination authority;
 - pre-commit identity conflict prevents commit;
 - injected post-commit identity conflict preserves Transaction and bytes and returns internal conflict state.
