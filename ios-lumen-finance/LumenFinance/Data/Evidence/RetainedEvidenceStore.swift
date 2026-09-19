@@ -289,16 +289,12 @@ struct RetainedEvidenceStore {
             return .retainedUnexpectedContents(unexpected)
         }
 
-        var removedAny = false
-
         for item in knownItems where fileSystem.fileExists(at: item) {
             try fileSystem.removeItem(at: item)
-            removedAny = true
         }
 
         do {
             try fileSystem.removeDirectoryIfEmpty(at: directory)
-            removedAny = true
         } catch {
             let remaining = try fileSystem.contentsOfDirectory(at: directory)
                 .map(\.lastPathComponent)
@@ -311,9 +307,7 @@ struct RetainedEvidenceStore {
             throw error
         }
 
-        return removedAny
-            ? .removedKnownMaterial
-            : .nothingToRemove
+        return .removedKnownMaterial
     }
 }
 
