@@ -105,6 +105,10 @@ final class EvidencePassBStorageTests: XCTestCase {
             harness.fileSystem.appliedProtectionURLs,
             [paths.finalPayload]
         )
+        XCTAssertEqual(
+            harness.fileSystem.clearedBackupExclusionURLs,
+            [paths.finalPayload]
+        )
     }
 
     func testRetryConvergesOnSameDestinationWithoutNumberedPayloads() throws {
@@ -309,6 +313,28 @@ final class EvidencePassBStorageTests: XCTestCase {
 #endif
 
         XCTAssertEqual(reported, .complete)
+    }
+
+    func testBackupEligibilityApplicationFailureNeverReportsDurablyPreparedSuccess() throws {
+        let harness = try makeHarness()
+        let sourceID = UUID()
+        let data = testPayload(seed: 46)
+        let paths = harness.store.paths(for: sourceID)
+
+        _ = try harness.store.stage(data, for: sourceID)
+        _ = try harness.store.prepareDurablePayload(for: sourceID)
+        harness.fileSystem.clearBackupExclusionFailure = true
+
+        XCTAssertThrowsError(
+            try harness.store.finalizeDurablePayload(for: sourceID)
+        )
+
+        XCTAssertEqual(try Data(contentsOf: paths.stagedPayload), data)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: paths.finalPayload.path))
+        XCTAssertEqual(
+            harness.fileSystem.clearedBackupExclusionURLs,
+            [paths.finalPayload]
+        )
     }
 
     func testBackupExclusionVerificationFailureNeverReportsDurablyPreparedSuccess() throws {
