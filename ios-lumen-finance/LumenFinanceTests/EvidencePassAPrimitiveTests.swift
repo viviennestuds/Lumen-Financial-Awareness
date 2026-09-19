@@ -337,19 +337,16 @@ final class EvidencePassAPrimitiveTests: XCTestCase {
         }
     }
 
-    func testPayloadInspectorRejectsRecognizedIncompleteJPEGAndPNG() throws {
-        for type in [UTType.jpeg, UTType.png] {
-            let complete = try encodedTestImage(type: type)
-            let truncated = try recognizedIncompletePrefix(of: complete)
+    func testPayloadInspectorRejectsRecognizedIncompleteJPEG() throws {
+        let complete = try encodedTestImage(type: .jpeg, dimension: 64)
+        let truncated = try recognizedIncompletePrefix(of: complete, type: .jpeg)
+        try assertRecognizedIncomplete(truncated, expectedType: .jpeg)
+    }
 
-            let source = finalizedIncrementalImageSource(truncated)
-            XCTAssertEqual(CGImageSourceGetType(source).map { $0 as String }, type.identifier)
-            XCTAssertNotEqual(CGImageSourceGetStatus(source), .statusComplete)
-
-            XCTAssertThrowsError(try EvidencePayloadInspector.inspect(truncated)) { error in
-                XCTAssertEqual(error as? EvidencePayloadInspectionError, .invalidImage)
-            }
-        }
+    func testPayloadInspectorRejectsRecognizedIncompletePNG() throws {
+        let complete = try encodedTestImage(type: .png, dimension: 64)
+        let truncated = try recognizedIncompletePrefix(of: complete, type: .png)
+        try assertRecognizedIncomplete(truncated, expectedType: .png)
     }
 
     func testUnknownTypeIdentifierMapsToNilMimeWithoutInventingMetadata() {
@@ -374,28 +371,76 @@ final class EvidencePassAPrimitiveTests: XCTestCase {
         case incompleteFixtureUnavailable
     }
 
-    private func finalizedIncrementalImageSource(_ data: Data) -> CGImageSource {
-        let source = CGImageSourceCreateIncremental(nil)
-        CGImageSourceUpdateData(source, data as CFData, true)
-        return source
-    }
-
     private func assertCompleteImageSource(_ data: Data, expectedType: UTType) throws {
-        let source = finalizedIncrementalImageSource(data)
+        let source = try XCTUnwrap(CGImageSourceCreateWithData(data as CFData, nil))
         XCTAssertGreaterThan(CGImageSourceGetCount(source), 0)
         XCTAssertEqual(CGImageSourceGetStatus(source), .statusComplete)
         XCTAssertEqual(CGImageSourceGetType(source).map { $0 as String }, expectedType.identifier)
     }
 
-    private func recognizedIncompletePrefix(of data: Data) throws -> Data {
-        guard data.count > 4 else {
-            throw TestImageEncodingError.incompleteFixtureUnavailable
+    private func assertRecognizedIncomplete(_ data: Data, expectedType: UTType) throws {
+        let source = try XCTUnwrap(CGImageSourceCreateWithData(data as CFData, nil))
+        XCTAssertGreaterThan(CGImageSourceGetCount(source), 0)
+        XCTAssertEqual(CGImageSourceGetType(source).map { $0 as String }, expectedType.identifier)
+        XCTAssertNotEqual(CGImageSourceGetStatus(source), .statusComplete)
+        XCTAssertThrowsError(try EvidencePayloadInspector.inspect(data)) { error in
+            XCTAssertEqual(error as? EvidencePayloadInspectionError, .invalidImage)
+        }
+    }
+
+    private func recognizedIncompletePrefix(of data: Data, type: UTType) throws -> Data {
+        let bytes = [UInt8](data)
+        var candidateLengths: [Int] = []
+
+        if type == .jpeg, bytes.count > 4 {
+            if let marker = (0..<(bytes.count - 3)).first(where: {
+                bytes[$0] == 0xFF && bytes[$0 + 1] == 0xDA
+            }) {
+                let segmentLength = (Int(bytes[marker + 2]) << 8) | Int(bytes[marker + 3])
+                let scanStart = marker + 2 + segmentLength
+                if scanStart < bytes.count {
+                    let remaining = bytes.count - scanStart
+                    candidateLengths.append(scanStart + max(1, remaining / 2))
+                    candidateLengths.append(scanStart + max(1, remaining / 4))
+                }
+            }
         }
 
-        for length in stride(from: data.count - 1, through: 1, by: -1) {
+        if type == .png, bytes.count >= 12 {
+            var offset = 8
+            while offset + 12 <= bytes.count {
+                let length =
+                    (Int(bytes[offset]) << 24) |
+                    (Int(bytes[offset + 1]) << 16) |
+                    (Int(bytes[offset + 2]) << 8) |
+                    Int(bytes[offset + 3])
+                let dataStart = offset + 8
+                let chunkEnd = dataStart + length + 4
+                guard chunkEnd <= bytes.count else { break }
+
+                if bytes[offset + 4] == 0x49,
+                   bytes[offset + 5] == 0x44,
+                   bytes[offset + 6] == 0x41,
+                   bytes[offset + 7] == 0x54,
+                   length > 1 {
+                    candidateLengths.append(dataStart + max(1, length / 2))
+                    candidateLengths.append(dataStart + max(1, length / 4))
+                    break
+                }
+
+                offset = chunkEnd
+            }
+        }
+
+        candidateLengths.append(contentsOf: [95, 90, 80, 70, 60, 50, 40, 30, 20].map {
+            max(1, data.count * $0 / 100)
+        })
+
+        for length in candidateLengths where length > 0 && length < data.count {
             let candidate = Data(data.prefix(length))
-            let source = finalizedIncrementalImageSource(candidate)
-            guard CGImageSourceGetType(source) != nil,
+            guard let source = CGImageSourceCreateWithData(candidate as CFData, nil),
+                  CGImageSourceGetCount(source) > 0,
+                  CGImageSourceGetType(source) != nil,
                   CGImageSourceGetStatus(source) != .statusComplete else {
                 continue
             }
@@ -405,19 +450,25 @@ final class EvidencePassAPrimitiveTests: XCTestCase {
         throw TestImageEncodingError.incompleteFixtureUnavailable
     }
 
-    private func encodedTestImage(type: UTType) throws -> Data {
-        let pixels: [UInt8] = [
-            255, 0, 0, 255,     0, 255, 0, 255,
-            0, 0, 255, 255,     255, 255, 255, 255
-        ]
+    private func encodedTestImage(type: UTType, dimension: Int = 2) throws -> Data {
+        var pixels = [UInt8](repeating: 0, count: dimension * dimension * 4)
+        for y in 0..<dimension {
+            for x in 0..<dimension {
+                let index = (y * dimension + x) * 4
+                pixels[index] = UInt8((x * 17 + y * 29) % 256)
+                pixels[index + 1] = UInt8((x * 43 + y * 11) % 256)
+                pixels[index + 2] = UInt8((x * 7 + y * 53) % 256)
+                pixels[index + 3] = 255
+            }
+        }
 
         guard let provider = CGDataProvider(data: Data(pixels) as CFData),
               let image = CGImage(
-                width: 2,
-                height: 2,
+                width: dimension,
+                height: dimension,
                 bitsPerComponent: 8,
                 bitsPerPixel: 32,
-                bytesPerRow: 8,
+                bytesPerRow: dimension * 4,
                 space: CGColorSpaceCreateDeviceRGB(),
                 bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.noneSkipLast.rawValue),
                 provider: provider,
