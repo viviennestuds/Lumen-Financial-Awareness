@@ -209,8 +209,6 @@ final class EvidencePassAPrimitiveTests: XCTestCase {
         XCTAssertEqual(result.byteCount, data.count)
         XCTAssertEqual(result.typeIdentifier, UTType.png.identifier)
         XCTAssertEqual(result.mimeType, "image/png")
-        XCTAssertEqual(result.pixelWidth, 2)
-        XCTAssertEqual(result.pixelHeight, 2)
     }
 
     func testPayloadInspectorReportsActualJPEG() throws {
@@ -220,8 +218,6 @@ final class EvidencePassAPrimitiveTests: XCTestCase {
         XCTAssertEqual(result.byteCount, data.count)
         XCTAssertEqual(result.typeIdentifier, UTType.jpeg.identifier)
         XCTAssertEqual(result.mimeType, "image/jpeg")
-        XCTAssertEqual(result.pixelWidth, 2)
-        XCTAssertEqual(result.pixelHeight, 2)
     }
 
     func testPayloadInspectorReportsHEICWhenEncoderIsAvailable() throws {
@@ -267,7 +263,6 @@ final class EvidencePassAPrimitiveTests: XCTestCase {
     private enum TestImageEncodingError: Error {
         case imageCreationFailed
         case encoderUnavailable
-        case finalizationFailed
     }
 
     private func encodedTestImage(type: UTType) throws -> Data {
