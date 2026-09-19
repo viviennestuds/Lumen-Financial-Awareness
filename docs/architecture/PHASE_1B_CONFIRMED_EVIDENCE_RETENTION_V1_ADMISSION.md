@@ -98,14 +98,15 @@ The following exact behavior is admitted:
 14. Retain the picker-supplied bytes without decode/re-encode normalization.
 15. Preserve embedded metadata that remains in the picker-supplied representation; do not interpret GPS, captions, capture metadata, or other image metadata into canonical financial state in v1.
 16. Use transient operational states equivalent to STAGED → PREPARED → RETAINED without adding persisted lifecycle columns.
-17. Keep staging intact until the confirmed ledger write succeeds.
-18. Require idempotent retry behavior and deterministic destination identity.
-19. Require process-wide coordination between identity-critical confirmation and destructive reconciliation.
-20. Derive runtime evidence availability separately from source/origin and separately from prior commitment.
-21. Permit committed retained evidence and its `TransactionSource` commitment marker to outlive their final current `Transaction` association.
-22. Do not automatically delete committed retained evidence when the final Transaction reference disappears.
-23. Allow automatic destructive reconciliation only for positively identified never-committed v1 material.
-24. Correct privacy copy before the capability is considered release-complete.
+17. For retained-evidence confirmation, keep staging intact until the confirmed ledger write succeeds.
+18. The explicit Save Without Retained Evidence path is the v1 exception to rule 17: after required evidence cleanup succeeds, staging may be intentionally removed before the nil-locator ledger write so the no-retained-evidence outcome is truthful.
+19. Require idempotent retry behavior and deterministic destination identity.
+20. Require process-wide coordination between identity-critical confirmation and destructive reconciliation.
+21. Derive runtime evidence availability separately from source/origin and separately from prior commitment.
+22. Permit committed retained evidence and its `TransactionSource` commitment marker to outlive their final current `Transaction` association.
+23. Do not automatically delete committed retained evidence when the final Transaction reference disappears.
+24. Allow automatic destructive reconciliation only for positively identified never-committed v1 material.
+25. Correct privacy copy before the capability is considered release-complete.
 
 ---
 
@@ -519,7 +520,9 @@ The admitted crash-safety preference is:
 
 > **A complete but unreferenced prepared payload is safer than a committed locator whose payload was never successfully established.**
 
-Therefore the implementation plan must place a complete final payload before the ledger commit and preserve staging until that ledger commit succeeds.
+Therefore the retained-evidence confirmation path must place a complete final payload before the ledger commit and preserve staging until that ledger commit succeeds.
+
+The explicit **Save Without Retained Evidence** path is intentionally different. Once that user-authorized path has established zero committed owners and successfully removed all known evidence for the active session, including staging, it may perform the financial ledger write with `stored_file_uri == nil`. If that later ledger write fails, the financial draft remains retryable but retained-evidence confirmation is no longer retryable because the user already authorized destruction of the staged evidence.
 
 ---
 
@@ -568,13 +571,28 @@ A completed "save without retained evidence" outcome must truthfully record no r
 
 ## 11.4 Financial write failure
 
-If the durable Transaction write fails:
+A failed durable Transaction write must never be presented as a successful canonical save, but retry semantics depend on which user-authorized path was active.
+
+### Retained-evidence confirmation
+
+If the retained-confirmation ledger write fails:
 
 - no canonical Transaction may be presented as saved;
-- the draft remains retryable;
-- staging remains available for retry;
+- the financial draft remains retryable;
+- staging remains available so retained confirmation may be retried;
 - prepared/final uncommitted evidence is cleaned where safely possible;
 - failed cleanup becomes conservative reconciliation work, not proof of user-visible retention.
+
+### Save Without Retained Evidence
+
+If the user explicitly chose Save Without Retained Evidence, required evidence cleanup succeeds, staging is intentionally removed, and the subsequent nil-locator ledger write fails:
+
+- no canonical Transaction may be presented as saved;
+- the financial draft remains retryable;
+- staged evidence is intentionally absent;
+- the user may retry the financial save-without-evidence operation;
+- retained-evidence confirmation is no longer available for that draft/session;
+- Lumen must not imply that the destroyed staging can be restored.
 
 ---
 
@@ -880,9 +898,10 @@ Confirmed Evidence Retention v1 is not release-complete until all of the followi
 - retained confirmation survives force-close/relaunch with readable evidence;
 - cancel/discard performs explicit staging cleanup;
 - failed retention remains retryable;
-- explicit save-without-evidence produces no retained locator and does not falsely claim retained evidence;
-- failed ledger commit leaves no canonical Transaction and preserves retryable proposal state;
-- retries converge on one logical source/payload;
+- explicit save-without-evidence requires zero committed owners before destructive cleanup, produces no retained locator, and does not falsely claim retained evidence;
+- retained-confirmation ledger failure leaves no canonical Transaction, preserves the financial draft, and preserves staging for retained retry;
+- save-without-evidence ledger failure after successful evidence cleanup leaves no canonical Transaction, preserves the financial draft, keeps evidence intentionally absent, and does not offer retained-evidence retry for that session;
+- retries converge on one logical source/payload and do not trust a pre-existing zero-owner final payload as proof of correctness;
 - repeated/concurrent confirmation cannot create duplicate committed v1 identities;
 - semantic UUID duplicate owners fail closed;
 - case-varied UUID duplicate owners fail closed;
