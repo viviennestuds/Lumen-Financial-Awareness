@@ -279,7 +279,7 @@ final class EvidencePassAPrimitiveTests: XCTestCase {
                 bitsPerPixel: 32,
                 bytesPerRow: 8,
                 space: CGColorSpaceCreateDeviceRGB(),
-                bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedLast.rawValue),
+                bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.noneSkipLast.rawValue),
                 provider: provider,
                 decode: nil,
                 shouldInterpolate: false,
@@ -303,6 +303,9 @@ final class EvidencePassAPrimitiveTests: XCTestCase {
             throw TestImageEncodingError.encoderUnavailable
         }
 
-        return output as Data
+        guard let bytes = CFDataGetBytePtr(output) else {
+            throw TestImageEncodingError.imageCreationFailed
+        }
+        return Data(bytes: bytes, count: CFDataGetLength(output))
     }
 }
