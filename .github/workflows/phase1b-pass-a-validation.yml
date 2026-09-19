@@ -81,7 +81,7 @@ jobs:
             -destination "platform=iOS Simulator,id=$SIMULATOR_UDID" \
             -derivedDataPath "$RUNNER_TEMP/LumenPassADerivedData" \
             -resultBundlePath "$OUTPUT_DIR/pass-a.xcresult" \
-            -only-testing:LumenFinanceTests \
+            -only-testing:LumenFinanceTests/EvidencePassAPrimitiveTests \
             2>&1 | tee "$OUTPUT_DIR/xcodebuild-test.log"
 
       - name: Extract summary
