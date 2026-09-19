@@ -593,11 +593,14 @@ Equivalent to:
 ```text
 .saved
 .savedWithoutEvidence
+.savedWithEvidenceConflict
 .discarded
 .cancelled
 ```
 
 These may be represented by an enum or equivalent typed result.
+
+`.savedWithEvidenceConflict` means the financial ledger commit succeeded but a post-commit evidence-integrity verification failed. The Transaction is already canonical. The UI must never offer another financial confirmation attempt for that draft/session.
 
 ## 10.2 Nonterminal confirmation states
 
@@ -608,10 +611,10 @@ Equivalent to:
 .saving
 .retentionFailedRetryable
 .ledgerFailedRetryable
-.identityConflict
+.preCommitIdentityConflict
 ```
 
-A retryable failure is **not** completion.
+A retryable or pre-commit blocking failure is **not** completion.
 
 Required behavior:
 
@@ -625,9 +628,17 @@ retentionFailedRetryable
 ledgerFailedRetryable
 → Review remains open
 → draft remains
-→ staging remains
+→ retained-confirmation staging remains when that path was active
 → uncommitted durable material is cleaned/reconciled safely
+
+preCommitIdentityConflict
+→ no Transaction exists
+→ confirmation is blocked
+→ no destructive evidence mutation occurs
+→ Review remains open for an explicit recovery path or abandonment
 ```
+
+Post-commit evidence conflict is not represented by these nonterminal states.
 
 The Save control is disabled while a confirmation operation is active, but button state is not the concurrency guarantee.
 
@@ -643,9 +654,10 @@ Manual entry remains source-free.
 ## 10.4 Image-upload parent behavior
 
 - `.saved` / `.savedWithoutEvidence` → close the completed add flow.
+- `.savedWithEvidenceConflict` → financial flow is complete; close or transition out of financial confirmation without allowing resubmission, while evidence remains fail-closed internally.
 - `.discarded` → cleanup staging and abandon the draft.
 - `.cancelled` → cleanup staging and return to the Upload hub.
-- retryable states → remain in Review.
+- retryable/pre-commit blocking states → remain in Review.
 
 ---
 
@@ -666,40 +678,47 @@ For evidence-backed retained confirmation of UUID S:
    staged bytes remain intact
    write/copy complete bytes to payload.incoming
    verify preparation
-   apply/verify required file protection
+   if an existing zero-owner final payload from an earlier interrupted attempt exists,
+   do not trust it as proof of correctness; reprepare/atomically replace from the
+   still-authoritative staged bytes
 
 5. finalize durable payload
    atomic move/replace payload.incoming → payload
    deterministic final path
 
-6. fresh semantic owner revalidation
+6. verify the actual final payload
+   readable/complete as expected
+   Complete file protection applied
+   not deliberately excluded from platform-managed backup
+
+7. fresh semantic owner revalidation
    re-read authoritative persisted ownership
    0 → continue
    otherwise → abort before ledger commit
 
-7. construct confirmation-time TransactionSource copy
+8. construct confirmation-time TransactionSource copy
    stored_file_uri = canonical v1 locator
    actual-byte mime/size retained
    legacy fields preserve admitted semantics
 
-8. LedgerWrite.perform
+9. LedgerWrite.perform
    create Transaction
    attach confirmation source
    insert
    durable save
 
-9. ledger commit succeeds
-   → canonical Transaction now exists
-   → source row is commitment marker
-   → state is RETAINED
+10. ledger commit succeeds
+    → canonical Transaction now exists
+    → source row is commitment marker
+    → state is RETAINED
 
-10. post-save integrity verification
+11. post-save integrity verification
     exactly one semantic owner S expected
     locator/source consistency expected
 
-11. cleanup staged payload
+12. cleanup staged payload
 
-12. release coordination
+13. release coordination
 ```
 
 The complete final payload intentionally exists before ledger commit.
@@ -743,16 +762,27 @@ Failure/crash:
 
 - final payload may remain with zero persisted semantic owners;
 - this is the central pre-commit orphan case;
-- on restart the reconciler may clean it only under the admitted authority rules.
+- on restart the reconciler may clean it only under the admitted authority rules;
+- on an in-session retry, the existing zero-owner final payload is not trusted merely because it exists or appears complete; retry re-establishes the deterministic final payload from the still-authoritative staged bytes.
 
-## LedgerWrite failure
+## LedgerWrite failure — retained confirmation
 
 - canonical Transaction does not exist;
 - committed locator-bearing source does not exist;
 - staging remains;
 - remove uncommitted final/incoming payload while authority is clear;
 - if cleanup fails, leave it for reconciliation;
-- Review remains retryable.
+- Review remains retryable for retained confirmation.
+
+## LedgerWrite failure — Save Without Retained Evidence after cleanup
+
+If the user explicitly selected Save Without Retained Evidence and evidence cleanup already succeeded before the nil-locator ledger write:
+
+- canonical Transaction does not exist;
+- the financial draft remains;
+- staging is intentionally absent because the user authorized its destruction;
+- the user may retry the financial save-without-evidence operation;
+- retained-evidence confirmation must not be offered again for that draft/session.
 
 ## LedgerWrite succeeds, staging cleanup fails
 
@@ -766,9 +796,12 @@ Failure/crash:
 
 - do not undo the successful financial write;
 - do not delete bytes;
-- expose internal `identityConflict`;
+- financial confirmation is terminal;
+- return/record a terminal result equivalent to `.savedWithEvidenceConflict`, not a retryable confirmation state;
+- expose internal evidence `identityConflict`;
 - prohibit evidence mutation/destructive reconciliation for S;
-- keep canonical Transaction readable/editable.
+- keep canonical Transaction readable/editable;
+- do not permit another financial confirmation attempt for that draft/session.
 
 ---
 
@@ -782,10 +815,26 @@ For image-backed UUID S:
 acquire coordination S
         ↓
 fresh semantic-owner check
+
+0 owners
+→ continue
+
+1 owner
+→ classify / fail closed
+→ NO durable evidence deletion
+
+>1 owners
+→ identity conflict
+→ NO durable evidence deletion
+
+        ↓ only when fresh owner count == 0
+
+remove known uncommitted durable v1 material for S
+(final payload first, then incoming as applicable)
         ↓
-remove staged/incoming/final uncommitted v1 material for S
+remove staging LAST
         ↓
-verify Lumen-controlled v1 retained payload is absent
+verify all known session evidence is absent
         ↓
 LedgerWrite:
 Transaction + source metadata
@@ -800,7 +849,14 @@ If cleanup required for this explicit outcome fails:
 
 - keep Review active;
 - surface a retryable cleanup/retention error;
+- preserve staging when durable cleanup fails before the staging-removal step;
 - do not falsely tell the user that Lumen completed the no-retained-evidence outcome.
+
+If all evidence cleanup succeeds, staging is intentionally gone, and the subsequent nil-locator ledger write fails:
+
+- the financial draft remains retryable;
+- the user may retry Save Without Retained Evidence;
+- retained-evidence confirmation is no longer available for that draft/session.
 
 This choice avoids introducing a new durable cleanup marker solely to remember failed deletion.
 
@@ -815,13 +871,22 @@ For image-backed drafts:
 ```text
 Cancel / Discard
 → no ledger write
-→ explicit staging cleanup
-→ cleanup any known never-committed incoming material for that active session
+→ acquire canonical-UUID coordination before durable evidence deletion
+→ fresh semantic-owner validation
+
+0 owners
+→ cleanup known never-committed final payload if present
+→ cleanup known never-committed incoming material
+→ cleanup staging
 → no durable TransactionSource
 → no retained locator
+
+1 / >1 owners or ambiguous state
+→ fail closed for durable evidence deletion
+→ do not guess that final/incoming material is disposable
 ```
 
-A cleanup failure must not be reported as confirmed deletion of bytes.
+A cleanup failure must not be reported as confirmed deletion of bytes. Unknown or ambiguous durable material is retained rather than guessed away.
 
 No resumable ingestion session is introduced in v1.
 
@@ -1138,10 +1203,16 @@ Prove:
 - staging remains until ledger commit succeeds;
 - successful commit cleans staging;
 - retention failure keeps Review/draft retryable;
-- ledger failure leaves zero canonical Transactions / zero locator-bearing committed v1 sources;
+- retained-confirmation ledger failure leaves zero canonical Transactions / zero locator-bearing committed v1 sources and preserves staging;
 - retry converges on one source identity and one payload;
+- retry re-prepares/replaces an existing zero-owner deterministic final payload from staged bytes rather than trusting its existence;
+- final payload protection, backup-exclusion posture, and readability are verified after finalization and before ledger commit;
 - save without evidence persists nil locator with actual-byte MIME/size metadata;
+- save-without-evidence requires a fresh zero-owner result before any durable v1 evidence deletion;
+- save-without-evidence removes staging last;
 - save-without-evidence does not complete if required cleanup cannot be verified;
+- if save-without cleanup succeeds but the nil-locator ledger write fails, the draft remains financially retryable while retained-evidence confirmation is unavailable;
+- post-commit evidence integrity conflict is terminal for financial confirmation and cannot trigger a second Transaction submission;
 - repeated confirmation does not create a second Transaction/source blindly;
 - concurrent double-submit for same semantic UUID yields at most one first commitment;
 - case-varied semantic UUID requests share the same coordination authority;
@@ -1156,6 +1227,7 @@ Prove:
 - incoming + zero owners → cleanup;
 - confirmation active for S → reconciler cannot destructively act on S;
 - owner appears between discovery and destructive phase → recheck prevents deletion;
+- Cancel/Discard cleanup of a known final orphan requires coordination + fresh zero-owner validation;
 - one committed owner + zero Transactions → retain;
 - duplicate owners → retain;
 - nil/legacy/malformed/unsupported locator → no destructive inference;
@@ -1237,11 +1309,13 @@ The filesystem boundary must make these failures deterministic in tests.
 | Incoming directory creation fails | Review retryable; staging retained |
 | Incoming write fails | Review retryable; staging retained; partial cannot masquerade as final |
 | Finalization fails | Review retryable; staging retained |
+| Final payload protection/backup/readability verification fails | No ledger commit; staging retained; retained confirmation retryable |
 | Identity preflight conflict | No filesystem mutation for first commitment |
 | Pre-commit recheck conflict | No ledger commit; staging retained; no destructive ambiguity handling |
-| Ledger save fails | No canonical Transaction; staging retained; uncommitted final cleaned/reconciled |
+| Retained-confirmation ledger save fails | No canonical Transaction; staging retained; uncommitted final cleaned/reconciled |
+| Save-without-evidence ledger save fails after cleanup | No canonical Transaction; draft remains; evidence stays intentionally absent; retained-evidence retry is unavailable |
 | Staging cleanup fails after successful commit | Ledger remains committed; evidence retained; cleanup can retry |
-| Post-save integrity check fails | Ledger + bytes retained; internal identityConflict; no automatic rollback |
+| Post-save integrity check fails | Ledger + bytes retained; terminal saved-with-evidence-conflict result; no second financial confirmation; no automatic rollback |
 | Orphan cleanup fails | Material retained for later retry; ledger unchanged |
 | Ledger cannot open | No destructive reconciliation |
 | Resolver cannot understand locator | Attachment unavailable/unsupported; ledger unchanged |
