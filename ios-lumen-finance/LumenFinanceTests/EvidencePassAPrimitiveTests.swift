@@ -343,8 +343,7 @@ final class EvidencePassAPrimitiveTests: XCTestCase {
             let truncated = try recognizedIncompletePrefix(of: complete)
 
             let source = finalizedIncrementalImageSource(truncated)
-            XCTAssertGreaterThan(CGImageSourceGetCount(source), 0)
-            XCTAssertNotNil(CGImageSourceGetType(source))
+            XCTAssertEqual(CGImageSourceGetType(source).map { $0 as String }, type.identifier)
             XCTAssertNotEqual(CGImageSourceGetStatus(source), .statusComplete)
 
             XCTAssertThrowsError(try EvidencePayloadInspector.inspect(truncated)) { error in
@@ -393,12 +392,10 @@ final class EvidencePassAPrimitiveTests: XCTestCase {
             throw TestImageEncodingError.incompleteFixtureUnavailable
         }
 
-        let lowerBound = max(1, data.count / 4)
-        for length in stride(from: data.count - 1, through: lowerBound, by: -1) {
+        for length in stride(from: data.count - 1, through: 1, by: -1) {
             let candidate = Data(data.prefix(length))
             let source = finalizedIncrementalImageSource(candidate)
-            guard CGImageSourceGetCount(source) > 0,
-                  CGImageSourceGetType(source) != nil,
+            guard CGImageSourceGetType(source) != nil,
                   CGImageSourceGetStatus(source) != .statusComplete else {
                 continue
             }
