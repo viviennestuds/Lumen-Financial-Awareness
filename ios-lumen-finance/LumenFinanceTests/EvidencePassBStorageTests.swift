@@ -238,6 +238,44 @@ final class EvidencePassBStorageTests: XCTestCase {
         XCTAssertTrue(FileManager.default.fileExists(atPath: paths.finalPayload.path))
     }
 
+    func testProtectionVerificationMismatchNeverReportsDurablyPreparedSuccess() throws {
+        let harness = try makeHarness()
+        let sourceID = UUID()
+        let data = testPayload(seed: 45)
+        let paths = harness.store.paths(for: sourceID)
+
+        _ = try harness.store.stage(data, for: sourceID)
+        _ = try harness.store.prepareDurablePayload(for: sourceID)
+        harness.fileSystem.forcedFileProtection = .none
+
+        XCTAssertThrowsError(
+            try harness.store.finalizeDurablePayload(for: sourceID)
+        ) { error in
+            XCTAssertEqual(
+                error as? RetainedEvidenceStoreError,
+                .completeProtectionNotVerified(sourceID)
+            )
+        }
+
+        XCTAssertEqual(try Data(contentsOf: paths.stagedPayload), data)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: paths.finalPayload.path))
+    }
+
+    func testLocalFileSystemCompleteProtectionCharacterization() throws {
+        let harness = try makeHarness()
+        let fileURL = harness.root.appendingPathComponent("protection-probe")
+        try Data([0x01, 0x02, 0x03]).write(to: fileURL)
+
+        let local = LocalEvidenceFileSystem()
+        try local.applyCompleteFileProtection(at: fileURL)
+
+        guard let reported = try local.fileProtection(at: fileURL) else {
+            throw XCTSkip("This simulator does not report file-protection resource values")
+        }
+
+        XCTAssertEqual(reported, .complete)
+    }
+
     func testBackupExclusionVerificationFailureNeverReportsDurablyPreparedSuccess() throws {
         let harness = try makeHarness()
         let sourceID = UUID()
@@ -435,6 +473,7 @@ private final class FaultInjectingEvidenceFileSystem: EvidenceFileSystem {
     var removeFailureURL: URL?
     var replaceFailure = false
     var applyProtectionFailure = false
+    var forcedFileProtection: URLFileProtection? = .complete
     var forcedBackupExclusion: Bool?
 
     init(
@@ -537,7 +576,10 @@ private final class FaultInjectingEvidenceFileSystem: EvidenceFileSystem {
     }
 
     func fileProtection(at url: URL) throws -> URLFileProtection? {
-        try base.fileProtection(at: url)
+        if let forcedFileProtection {
+            return forcedFileProtection
+        }
+        return try base.fileProtection(at: url)
     }
 
     func isExcludedFromBackup(at url: URL) throws -> Bool {
