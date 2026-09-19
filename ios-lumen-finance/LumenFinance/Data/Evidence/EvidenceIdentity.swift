@@ -19,7 +19,9 @@ enum EvidenceIdentity {
         of uuid: UUID,
         in context: ModelContext
     ) throws -> EvidenceIdentityOwnership {
-        let sources = try context.fetch(FetchDescriptor<TransactionSource>())
+        var descriptor = FetchDescriptor<TransactionSource>()
+        descriptor.includePendingChanges = false
+        let sources = try context.fetch(descriptor)
         let matches = sources.filter { source in
             guard let sourceUUID = UUID(uuidString: source.id) else { return false }
             return sourceUUID == uuid
@@ -47,9 +49,5 @@ enum EvidenceIdentityOwnership {
         case .one: 1
         case .conflict(let sources): sources.count
         }
-    }
-
-    var isUnambiguous: Bool {
-        count <= 1
     }
 }
