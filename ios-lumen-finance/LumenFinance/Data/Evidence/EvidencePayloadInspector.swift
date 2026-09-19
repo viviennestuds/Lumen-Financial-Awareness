@@ -6,8 +6,6 @@ struct EvidencePayloadInspection: Equatable, Sendable {
     let byteCount: Int
     let typeIdentifier: String?
     let mimeType: String?
-    let pixelWidth: Int?
-    let pixelHeight: Int?
 }
 
 /// Read-only characterization of the exact image bytes supplied to Lumen.
@@ -22,21 +20,17 @@ enum EvidencePayloadInspector {
 
         guard let source = CGImageSourceCreateWithData(data as CFData, nil),
               CGImageSourceGetCount(source) > 0,
-              let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any] else {
+              CGImageSourceCopyPropertiesAtIndex(source, 0, nil) != nil else {
             throw EvidencePayloadInspectionError.invalidImage
         }
 
         let typeIdentifier = CGImageSourceGetType(source).map { $0 as String }
         let mimeType = mimeType(forTypeIdentifier: typeIdentifier)
-        let width = (properties[kCGImagePropertyPixelWidth] as? NSNumber)?.intValue
-        let height = (properties[kCGImagePropertyPixelHeight] as? NSNumber)?.intValue
 
         return EvidencePayloadInspection(
             byteCount: data.count,
             typeIdentifier: typeIdentifier,
-            mimeType: mimeType,
-            pixelWidth: width,
-            pixelHeight: height
+            mimeType: mimeType
         )
     }
 
