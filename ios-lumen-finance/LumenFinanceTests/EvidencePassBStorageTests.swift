@@ -277,7 +277,7 @@ final class EvidencePassBStorageTests: XCTestCase {
 
         _ = try harness.store.stage(data, for: sourceID)
         _ = try harness.store.prepareDurablePayload(for: sourceID)
-        harness.fileSystem.forcedFileProtection = .none
+        harness.fileSystem.forcedFileProtection = URLFileProtection.none
 
         XCTAssertThrowsError(
             try harness.store.finalizeDurablePayload(for: sourceID)
@@ -431,10 +431,10 @@ final class EvidencePassBStorageTests: XCTestCase {
 
         let outcome = try harness.store.cleanupPreparedDurableMaterial(for: sourceID)
 
-        XCTAssertEqual(
-            outcome,
-            .retainedUnexpectedContents(["unknown-material"])
-        )
+        guard case .retainedUnexpectedContents(let unexpected) = outcome else {
+            return XCTFail("Expected conservative retention of unexpected durable contents")
+        }
+        XCTAssertEqual(unexpected, ["unknown-material"])
         XCTAssertTrue(FileManager.default.fileExists(atPath: paths.finalPayload.path))
         XCTAssertTrue(FileManager.default.fileExists(atPath: unknown.path))
     }
@@ -447,17 +447,17 @@ final class EvidencePassBStorageTests: XCTestCase {
         _ = try harness.store.stage(testPayload(seed: 61), for: sourceID)
         _ = try harness.store.prepareDurablePayload(for: sourceID)
 
-        XCTAssertEqual(
-            try harness.store.cleanupStaging(for: sourceID),
-            .removedKnownMaterial
-        )
+        let stagingOutcome = try harness.store.cleanupStaging(for: sourceID)
+        guard case .removedKnownMaterial = stagingOutcome else {
+            return XCTFail("Expected known staging material to be removed")
+        }
         XCTAssertFalse(FileManager.default.fileExists(atPath: paths.stagedPayload.path))
         XCTAssertFalse(FileManager.default.fileExists(atPath: paths.stagingDirectory.path))
 
-        XCTAssertEqual(
-            try harness.store.cleanupPreparedDurableMaterial(for: sourceID),
-            .removedKnownMaterial
-        )
+        let durableOutcome = try harness.store.cleanupPreparedDurableMaterial(for: sourceID)
+        guard case .removedKnownMaterial = durableOutcome else {
+            return XCTFail("Expected known prepared durable material to be removed")
+        }
         XCTAssertFalse(FileManager.default.fileExists(atPath: paths.incomingPayload.path))
         XCTAssertFalse(FileManager.default.fileExists(atPath: paths.durableDirectory.path))
     }
