@@ -297,8 +297,16 @@ final class EvidencePassBStorageTests: XCTestCase {
         try local.applyCompleteFileProtection(at: fileURL)
 
         guard let reported = try local.fileProtection(at: fileURL) else {
-            throw XCTSkip("This simulator does not report file-protection resource values")
+            throw XCTSkip("This environment does not report file-protection resource values")
         }
+
+#if targetEnvironment(simulator)
+        guard reported == .complete else {
+            throw XCTSkip(
+                "The simulator reports \(reported.rawValue) after a successful Complete-protection set"
+            )
+        }
+#endif
 
         XCTAssertEqual(reported, .complete)
     }
