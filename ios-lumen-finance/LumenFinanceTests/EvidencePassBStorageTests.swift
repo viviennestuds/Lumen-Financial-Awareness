@@ -334,6 +334,33 @@ final class EvidencePassBStorageTests: XCTestCase {
         XCTAssertTrue(FileManager.default.fileExists(atPath: paths.finalPayload.path))
     }
 
+    func testRetryDoesNotPreserveStaleFinalBackupExclusionMetadata() throws {
+        let harness = try makeHarness()
+        let sourceID = UUID()
+        let data = testPayload(seed: 51)
+        let paths = harness.store.paths(for: sourceID)
+
+        _ = try harness.store.stage(data, for: sourceID)
+        _ = try harness.store.prepareDurablePayload(for: sourceID)
+        _ = try harness.store.finalizeDurablePayload(for: sourceID)
+
+        try (paths.finalPayload as NSURL).setResourceValue(
+            true,
+            forKey: .isExcludedFromBackupKey
+        )
+        XCTAssertTrue(
+            try LocalEvidenceFileSystem().isExcludedFromBackup(at: paths.finalPayload)
+        )
+
+        _ = try harness.store.prepareDurablePayload(for: sourceID)
+        _ = try harness.store.finalizeDurablePayload(for: sourceID)
+
+        XCTAssertFalse(
+            try LocalEvidenceFileSystem().isExcludedFromBackup(at: paths.finalPayload)
+        )
+        XCTAssertEqual(try Data(contentsOf: paths.finalPayload), data)
+    }
+
     func testRetryAfterPostFinalizationVerificationFailureRepreparesFromStaging() throws {
         let harness = try makeHarness()
         let sourceID = UUID()
