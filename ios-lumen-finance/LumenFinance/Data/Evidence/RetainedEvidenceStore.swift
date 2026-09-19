@@ -229,7 +229,11 @@ struct RetainedEvidenceStore {
         )
     }
 
-    func cleanupDurableMaterial(
+    /// Removes only deterministic prepared-storage artifacts.
+    ///
+    /// This method does not infer ledger commitment. A caller must establish
+    /// deletion authority before invoking it for a source UUID.
+    func cleanupPreparedDurableMaterial(
         for sourceID: UUID
     ) throws -> EvidenceCleanupOutcome {
         let paths = paths(for: sourceID)
