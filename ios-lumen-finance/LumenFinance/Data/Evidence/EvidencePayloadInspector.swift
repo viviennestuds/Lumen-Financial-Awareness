@@ -18,10 +18,8 @@ enum EvidencePayloadInspector {
             throw EvidencePayloadInspectionError.emptyData
         }
 
-        let source = CGImageSourceCreateIncremental(nil)
-        CGImageSourceUpdateData(source, data as CFData, true)
-
-        guard CGImageSourceGetCount(source) > 0,
+        guard let source = CGImageSourceCreateWithData(data as CFData, nil),
+              CGImageSourceGetCount(source) > 0,
               CGImageSourceGetStatus(source) == .statusComplete,
               CGImageSourceCopyPropertiesAtIndex(source, 0, nil) != nil else {
             throw EvidencePayloadInspectionError.invalidImage
