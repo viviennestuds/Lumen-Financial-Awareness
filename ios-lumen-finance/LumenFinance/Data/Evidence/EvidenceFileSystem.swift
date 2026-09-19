@@ -14,7 +14,7 @@ protocol EvidenceFileSystem {
     func removeDirectoryIfEmpty(at url: URL) throws
     func replaceItemAtomically(at destinationURL: URL, withItemAt sourceURL: URL) throws
     func applyCompleteFileProtection(at url: URL) throws
-    func fileProtection(at url: URL) throws -> FileProtectionType?
+    func fileProtection(at url: URL) throws -> URLFileProtection?
     func isExcludedFromBackup(at url: URL) throws -> Bool
 }
 
@@ -113,24 +113,17 @@ struct LocalEvidenceFileSystem: EvidenceFileSystem {
     }
 
     func applyCompleteFileProtection(at url: URL) throws {
-        try fileManager.setAttributes(
-            [.protectionKey: FileProtectionType.complete],
-            ofItemAtPath: url.path
+        try (url as NSURL).setResourceValue(
+            URLFileProtection.complete,
+            forKey: .fileProtectionKey
         )
     }
 
-    func fileProtection(at url: URL) throws -> FileProtectionType? {
-        let attributes = try fileManager.attributesOfItem(atPath: url.path)
-
-        if let protection = attributes[.protectionKey] as? FileProtectionType {
-            return protection
-        }
-
-        if let rawValue = attributes[.protectionKey] as? String {
-            return FileProtectionType(rawValue: rawValue)
-        }
-
-        return nil
+    func fileProtection(at url: URL) throws -> URLFileProtection? {
+        let values = try url.resourceValues(
+            forKeys: [.fileProtectionKey]
+        )
+        return values.fileProtection
     }
 
     func isExcludedFromBackup(at url: URL) throws -> Bool {
