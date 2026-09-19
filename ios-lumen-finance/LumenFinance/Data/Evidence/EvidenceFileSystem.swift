@@ -102,7 +102,7 @@ struct LocalEvidenceFileSystem: EvidenceFileSystem {
                 destinationURL,
                 withItemAt: sourceURL,
                 backupItemName: nil,
-                options: []
+                options: [.usingNewMetadataOnly]
             )
         } else {
             try fileManager.moveItem(
