@@ -5,7 +5,6 @@ import SwiftData
 ///
 /// TransactionSource.id is not schema-enforced unique. v1 therefore compares
 /// parseable UUID identities semantically and never rewrites historical strings.
-@MainActor
 enum EvidenceIdentity {
     static func uuid(fromSourceID sourceID: String) -> UUID? {
         UUID(uuidString: sourceID)
@@ -15,6 +14,7 @@ enum EvidenceIdentity {
         uuid.uuidString
     }
 
+    @MainActor
     static func semanticOwners(
         of uuid: UUID,
         in context: ModelContext
