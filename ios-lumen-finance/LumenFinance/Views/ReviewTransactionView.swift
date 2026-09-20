@@ -362,40 +362,35 @@ struct ReviewTransactionView: View {
 
         confirmationState = .saving
 
-        do {
-            let coordinator = try EvidenceConfirmationCoordinator.live()
-            let result = await coordinator.confirm(
-                draft: draft,
-                allTags: tags,
-                in: modelContext,
-                intent: intent,
-                duplicateFingerprint: duplicate == nil ? nil : "soft-match"
-            )
+        let coordinator = EvidenceConfirmationCoordinator.live()
+        let result = await coordinator.confirm(
+            draft: draft,
+            allTags: tags,
+            in: modelContext,
+            intent: intent,
+            duplicateFingerprint: duplicate == nil ? nil : "soft-match"
+        )
 
-            switch result {
-            case .terminal(let outcome):
-                terminalOutcomeReached = true
+        switch result {
+        case .terminal(let outcome):
+            terminalOutcomeReached = true
 
-                switch outcome {
-                case .saved, .savedWithoutEvidence:
-                    UINotificationFeedbackGenerator()
-                        .notificationOccurred(.success)
-                case .savedWithEvidenceConflict:
-                    UINotificationFeedbackGenerator()
-                        .notificationOccurred(.warning)
-                case .discarded, .cancelled:
-                    break
-                }
-
-                onComplete(outcome)
-
-            case .nonterminal(let failure):
-                confirmationState = failure.state
-                saveError = failure.message
+            switch outcome {
+            case .saved, .savedWithoutEvidence:
+                UINotificationFeedbackGenerator()
+                    .notificationOccurred(.success)
+            case .savedWithEvidenceConflict:
+                UINotificationFeedbackGenerator()
+                    .notificationOccurred(.warning)
+            case .discarded, .cancelled:
+                break
             }
-        } catch {
-            confirmationState = .retentionFailedRetryable
-            saveError = "Lumen could not initialize retained-evidence storage. Your draft is still here."
+
+            onComplete(outcome)
+
+        case .nonterminal(let failure):
+            confirmationState = failure.state
+            saveError = failure.message
         }
     }
 
@@ -409,21 +404,15 @@ struct ReviewTransactionView: View {
         confirmationState = .saving
 
         if draft.evidenceRetentionState.sourceID != nil {
-            do {
-                let coordinator = try EvidenceConfirmationCoordinator.live()
-                let abandonment = await coordinator.abandonEvidence(
-                    for: draft,
-                    in: modelContext
-                )
+            let coordinator = EvidenceConfirmationCoordinator.live()
+            let abandonment = await coordinator.abandonEvidence(
+                for: draft,
+                in: modelContext
+            )
 
-                if case .stagingCleanupFailed = abandonment {
-                    confirmationState = .retentionFailedRetryable
-                    saveError = "Lumen could not verify cleanup of this draft's transient staging. The draft remains open."
-                    return
-                }
-            } catch {
+            if case .stagingCleanupFailed = abandonment {
                 confirmationState = .retentionFailedRetryable
-                saveError = "Lumen could not verify cleanup of this draft's evidence. The draft remains open."
+                saveError = "Lumen could not verify cleanup of this draft's transient staging. The draft remains open."
                 return
             }
         }
