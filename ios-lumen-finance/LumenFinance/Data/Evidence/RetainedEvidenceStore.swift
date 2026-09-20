@@ -153,6 +153,9 @@ struct RetainedEvidenceStore {
 
         let stagedData = try fileSystem.read(paths.stagedPayload)
 
+        try fileSystem.createDirectory(
+            at: roots.durableV1Root.deletingLastPathComponent()
+        )
         try fileSystem.createDirectory(at: roots.durableV1Root)
         try fileSystem.createDirectory(at: paths.durableDirectory)
         try requireControlledPayloadDirectory(
