@@ -102,7 +102,8 @@ struct EvidenceConfirmationCoordinator {
     }
 
     func abandonEvidence(
-        for draft: TransactionDraft
+        for draft: TransactionDraft,
+        in context: ModelContext
     ) async -> Bool {
         guard let sourceID = draft.evidenceRetentionState.sourceID else {
             return true
@@ -118,9 +119,7 @@ struct EvidenceConfirmationCoordinator {
         do {
             let owners = try EvidenceIdentity.semanticOwners(
                 of: sourceID,
-                in: source.modelContext ?? ModelContext(
-                    try LedgerStore.open()
-                )
+                in: context
             )
 
             if case .none = owners {
