@@ -450,7 +450,7 @@ final class EvidencePassCConfirmationTests: XCTestCase {
         try Seed.bootstrapIfNeeded(context)
 
         let category = try XCTUnwrap(
-            try context.fetch(FetchDescriptor<Category>()).first
+            try context.fetch(FetchDescriptor<LumenFinance.Category>()).first
         )
         let draft = TransactionDraft()
         draft.amountText = "9.25"
@@ -724,20 +724,30 @@ final class EvidencePassCConfirmationTests: XCTestCase {
         let harness = try makeHarness()
         let fixture = try makeEvidenceDraft(in: harness, seed: 59)
 
-        async let first = harness.coordinator.confirm(
-            draft: fixture.draft,
-            allTags: harness.tags,
-            in: harness.context,
-            intent: .retainEvidence
-        )
-        async let second = harness.coordinator.confirm(
-            draft: fixture.draft,
-            allTags: harness.tags,
-            in: harness.context,
-            intent: .retainEvidence
-        )
+        let firstTask = Task { @MainActor in
+            await harness.coordinator.confirm(
+                draft: fixture.draft,
+                allTags: harness.tags,
+                in: harness.context,
+                intent: .retainEvidence
+            )
+        }
 
-        let results = await (first, second)
+        await Task.yield()
+
+        let secondTask = Task { @MainActor in
+            await harness.coordinator.confirm(
+                draft: fixture.draft,
+                allTags: harness.tags,
+                in: harness.context,
+                intent: .retainEvidence
+            )
+        }
+
+        let results = await (
+            firstTask.value,
+            secondTask.value
+        )
 
         let savedCount = [results.0, results.1].reduce(into: 0) { count, result in
             if case .terminal(.saved) = result {
@@ -977,7 +987,7 @@ final class EvidencePassCConfirmationTests: XCTestCase {
         )
 
         let category = try XCTUnwrap(
-            try harness.context.fetch(FetchDescriptor<Category>()).first
+            try harness.context.fetch(FetchDescriptor<LumenFinance.Category>()).first
         )
 
         let draft = TransactionDraft()
