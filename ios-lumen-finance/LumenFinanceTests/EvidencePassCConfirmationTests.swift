@@ -617,6 +617,86 @@ final class EvidencePassCConfirmationTests: XCTestCase {
         )
     }
 
+    @MainActor
+    func testSaveWithoutEvidenceCleanupFailurePreservesStagingAndBlocksLedger() async throws {
+        let harness = try makeHarness()
+        let fixture = try makeEvidenceDraft(in: harness, seed: 57)
+        let paths = harness.store.paths(for: fixture.sourceID)
+
+        try createDurableDirectory(paths, in: harness)
+        try harness.fileSystem.write(
+            fixture.data,
+            to: paths.finalPayload,
+            atomically: false
+        )
+        harness.fileSystem.removeFailureURL = paths.finalPayload
+
+        let result = await harness.coordinator.confirm(
+            draft: fixture.draft,
+            allTags: harness.tags,
+            in: harness.context,
+            intent: .saveWithoutRetainedEvidence
+        )
+
+        guard case .nonterminal(let failure) = result,
+              case .retentionFailedRetryable = failure.state else {
+            return XCTFail("Required cleanup failure must block save without evidence")
+        }
+
+        XCTAssertEqual(
+            try harness.context.fetchCount(FetchDescriptor<Transaction>()),
+            0
+        )
+        XCTAssertEqual(
+            try Data(contentsOf: paths.stagedPayload),
+            fixture.data
+        )
+        XCTAssertEqual(
+            try Data(contentsOf: paths.finalPayload),
+            fixture.data
+        )
+        guard case .staged = fixture.draft.evidenceRetentionState else {
+            return XCTFail("Staging must remain available when durable cleanup fails")
+        }
+    }
+
+    @MainActor
+    func testConcurrentDoubleSubmitCreatesAtMostOneFirstCommitment() async throws {
+        let harness = try makeHarness()
+        let fixture = try makeEvidenceDraft(in: harness, seed: 59)
+
+        async let first = harness.coordinator.confirm(
+            draft: fixture.draft,
+            allTags: harness.tags,
+            in: harness.context,
+            intent: .retainEvidence
+        )
+        async let second = harness.coordinator.confirm(
+            draft: fixture.draft,
+            allTags: harness.tags,
+            in: harness.context,
+            intent: .retainEvidence
+        )
+
+        let results = await (first, second)
+
+        let savedCount = [results.0, results.1].reduce(into: 0) { count, result in
+            if case .terminal(.saved) = result {
+                count += 1
+            }
+        }
+
+        XCTAssertEqual(savedCount, 1)
+        XCTAssertEqual(
+            try harness.context.fetchCount(FetchDescriptor<Transaction>()),
+            1
+        )
+        XCTAssertEqual(
+            try harness.context.fetchCount(FetchDescriptor<TransactionSource>()),
+            1
+        )
+    }
+
     func testSameUUIDLeaseRemainsExclusiveAcrossSuspension() async {
         let coordinator = EvidenceOperationCoordinator()
         let sourceID = UUID()
