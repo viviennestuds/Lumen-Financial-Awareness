@@ -435,10 +435,14 @@ final class EvidencePassCConfirmationTests: XCTestCase {
             await Task.yield()
         }
 
-        XCTAssertFalse(await probe.isAcquired())
+        let beforeRelease = await probe.isAcquired()
+        XCTAssertFalse(beforeRelease)
+
         await coordinator.release(first)
         _ = await secondTask.value
-        XCTAssertTrue(await probe.isAcquired())
+
+        let afterRelease = await probe.isAcquired()
+        XCTAssertTrue(afterRelease)
     }
 
     @MainActor
