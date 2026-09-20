@@ -42,13 +42,13 @@ final class EvidencePassCConfirmationTests: XCTestCase {
         XCTAssertEqual(source.file_size_bytes, fixture.data.count)
         XCTAssertEqual(source.mime_type, "image/jpeg")
 
-        XCTAssertEqual(
-            try harness.fileSystem.nodeKind(at: paths.finalPayload),
-            .regularFile
+        try assertRegularFile(
+            paths.finalPayload,
+            fileSystem: harness.fileSystem
         )
-        XCTAssertEqual(
-            try harness.fileSystem.nodeKind(at: paths.stagedPayload),
-            .missing
+        try assertMissing(
+            paths.stagedPayload,
+            fileSystem: harness.fileSystem
         )
 
         guard case .none = fixture.draft.evidenceRetentionState else {
@@ -127,9 +127,9 @@ final class EvidencePassCConfirmationTests: XCTestCase {
             try Data(contentsOf: paths.stagedPayload),
             fixture.data
         )
-        XCTAssertEqual(
-            try harness.fileSystem.nodeKind(at: paths.finalPayload),
-            .missing
+        try assertMissing(
+            paths.finalPayload,
+            fileSystem: harness.fileSystem
         )
     }
 
@@ -174,13 +174,13 @@ final class EvidencePassCConfirmationTests: XCTestCase {
         XCTAssertEqual(source.id, fixture.sourceID.uuidString)
         XCTAssertEqual(source.file_size_bytes, fixture.data.count)
         XCTAssertEqual(source.mime_type, "image/jpeg")
-        XCTAssertEqual(
-            try harness.fileSystem.nodeKind(at: paths.stagedPayload),
-            .missing
+        try assertMissing(
+            paths.stagedPayload,
+            fileSystem: harness.fileSystem
         )
-        XCTAssertEqual(
-            try harness.fileSystem.nodeKind(at: paths.finalPayload),
-            .missing
+        try assertMissing(
+            paths.finalPayload,
+            fileSystem: harness.fileSystem
         )
     }
 
@@ -210,9 +210,9 @@ final class EvidencePassCConfirmationTests: XCTestCase {
             return XCTFail("Retained confirmation must become unavailable after authorized cleanup")
         }
         XCTAssertEqual(sourceID, fixture.sourceID)
-        XCTAssertEqual(
-            try harness.fileSystem.nodeKind(at: paths.stagedPayload),
-            .missing
+        try assertMissing(
+            paths.stagedPayload,
+            fileSystem: harness.fileSystem
         )
 
         let retainedRetry = await harness.coordinator.confirm(
@@ -286,9 +286,9 @@ final class EvidencePassCConfirmationTests: XCTestCase {
             try Data(contentsOf: paths.stagedPayload),
             fixture.data
         )
-        XCTAssertEqual(
-            try harness.fileSystem.nodeKind(at: paths.finalPayload),
-            .missing
+        try assertMissing(
+            paths.finalPayload,
+            fileSystem: harness.fileSystem
         )
     }
 
@@ -618,9 +618,9 @@ final class EvidencePassCConfirmationTests: XCTestCase {
             return XCTFail("Committed/ambiguous ownership must retain durable material authority")
         }
 
-        XCTAssertEqual(
-            try harness.fileSystem.nodeKind(at: paths.stagedPayload),
-            .missing
+        try assertMissing(
+            paths.stagedPayload,
+            fileSystem: harness.fileSystem
         )
     }
 
@@ -860,6 +860,38 @@ final class EvidencePassCConfirmationTests: XCTestCase {
                 store: store
             )
         )
+    }
+
+    private func assertRegularFile(
+        _ url: URL,
+        fileSystem: PassCFileSystem,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) throws {
+        let kind = try fileSystem.nodeKind(at: url)
+        guard case .regularFile = kind else {
+            return XCTFail(
+                "Expected regular file at \(url.path)",
+                file: file,
+                line: line
+            )
+        }
+    }
+
+    private func assertMissing(
+        _ url: URL,
+        fileSystem: PassCFileSystem,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) throws {
+        let kind = try fileSystem.nodeKind(at: url)
+        guard case .missing = kind else {
+            return XCTFail(
+                "Expected no filesystem node at \(url.path)",
+                file: file,
+                line: line
+            )
+        }
     }
 
     @MainActor
