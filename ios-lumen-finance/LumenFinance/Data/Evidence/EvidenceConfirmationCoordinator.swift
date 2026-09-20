@@ -50,22 +50,30 @@ struct EvidenceConfirmationCoordinator {
     typealias LedgerCommit = (ModelContext) throws -> Void
 
     private let operationCoordinator: EvidenceOperationCoordinator
-    private let store: RetainedEvidenceStore
+    private let storeProvider: () throws -> RetainedEvidenceStore
 
     init(
         operationCoordinator: EvidenceOperationCoordinator = .shared,
         store: RetainedEvidenceStore
     ) {
         self.operationCoordinator = operationCoordinator
-        self.store = store
+        self.storeProvider = { store }
+    }
+
+    init(
+        operationCoordinator: EvidenceOperationCoordinator = .shared,
+        storeProvider: @escaping () throws -> RetainedEvidenceStore
+    ) {
+        self.operationCoordinator = operationCoordinator
+        self.storeProvider = storeProvider
     }
 
     static func live(
         operationCoordinator: EvidenceOperationCoordinator = .shared
-    ) throws -> EvidenceConfirmationCoordinator {
-        try EvidenceConfirmationCoordinator(
+    ) -> EvidenceConfirmationCoordinator {
+        EvidenceConfirmationCoordinator(
             operationCoordinator: operationCoordinator,
-            store: .live()
+            storeProvider: { try RetainedEvidenceStore.live() }
         )
     }
 
@@ -117,6 +125,13 @@ struct EvidenceConfirmationCoordinator {
 
         guard let source = draft.source,
               EvidenceIdentity.uuid(fromSourceID: source.id) == sourceID else {
+            return .stagingCleanupFailed
+        }
+
+        let store: RetainedEvidenceStore
+        do {
+            store = try storeProvider()
+        } catch {
             return .stagingCleanupFailed
         }
 
@@ -226,10 +241,24 @@ struct EvidenceConfirmationCoordinator {
               let source = draft.source,
               EvidenceIdentity.uuid(fromSourceID: source.id) == staged.sourceID,
               source.stored_file_uri == nil,
-              source.file_size_bytes == staged.byteCount,
-              staged.stagedURL == store.paths(for: staged.sourceID).stagedPayload else {
+              source.file_size_bytes == staged.byteCount else {
             return retentionFailure(
                 "The retained photo session is no longer valid. Keep this draft open and try again or save without retained evidence."
+            )
+        }
+
+        let store: RetainedEvidenceStore
+        do {
+            store = try storeProvider()
+        } catch {
+            return retentionFailure(
+                "Lumen could not initialize retained-evidence storage. Your draft is still here."
+            )
+        }
+
+        guard staged.stagedURL == store.paths(for: staged.sourceID).stagedPayload else {
+            return retentionFailure(
+                "The retained photo session no longer points to Lumen's controlled staging location."
             )
         }
 
@@ -323,6 +352,15 @@ struct EvidenceConfirmationCoordinator {
               source.stored_file_uri == nil else {
             return retentionFailure(
                 "The photo session identity is no longer valid. No evidence was deleted."
+            )
+        }
+
+        let store: RetainedEvidenceStore
+        do {
+            store = try storeProvider()
+        } catch {
+            return retentionFailure(
+                "Lumen could not initialize retained-evidence storage. No evidence was deleted."
             )
         }
 
@@ -477,7 +515,8 @@ struct EvidenceConfirmationCoordinator {
     }
 
     private func cleanupPreparedDurableMaterialForRetry(
-        sourceID: UUID
+        sourceID: UUID,
+        store: RetainedEvidenceStore
     ) throws {
         let outcome = try store.cleanupPreparedDurableMaterial(
             for: sourceID
