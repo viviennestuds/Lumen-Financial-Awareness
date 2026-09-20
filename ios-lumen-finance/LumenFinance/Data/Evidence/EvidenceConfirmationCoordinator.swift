@@ -117,7 +117,8 @@ struct EvidenceConfirmationCoordinator {
 
     func abandonEvidence(
         for draft: TransactionDraft,
-        in context: ModelContext
+        in context: ModelContext,
+        intent: EvidenceAbandonmentIntent
     ) async -> EvidenceAbandonmentResult {
         guard let sourceID = draft.evidenceRetentionState.sourceID else {
             return .completed
@@ -126,6 +127,20 @@ struct EvidenceConfirmationCoordinator {
         if case .saveWithoutEvidenceOnly = draft.evidenceRetentionState {
             draft.evidenceRetentionState = .none
             return .completed
+        }
+
+        if case .cleanupPending(
+            let pendingSourceID,
+            let pendingIntent
+        ) = draft.evidenceRetentionState {
+            guard pendingSourceID == sourceID,
+                  case .abandon(let pendingAbandonment) = pendingIntent,
+                  abandonmentIntent(
+                    pendingAbandonment,
+                    matches: intent
+                  ) else {
+                return .stagingCleanupFailed
+            }
         }
 
         guard let source = draft.source,
@@ -141,6 +156,14 @@ struct EvidenceConfirmationCoordinator {
         }
 
         let lease = await operationCoordinator.acquire(for: sourceID)
+
+        if case .staged = draft.evidenceRetentionState {
+            draft.evidenceRetentionState = .cleanupPending(
+                sourceID,
+                .abandon(intent)
+            )
+        }
+
         var durableMaterialRetained = false
 
         do {
@@ -163,49 +186,30 @@ struct EvidenceConfirmationCoordinator {
             } else {
                 durableMaterialRetained = true
             }
-
-            if draft.evidenceRetentionState.canAttemptRetainedEvidence {
-                do {
-                    let stagingOutcome = try store.cleanupStaging(
-                        for: sourceID
-                    )
-
-                    guard cleanupCompleted(stagingOutcome) else {
-                        await operationCoordinator.release(lease)
-                        return .stagingCleanupFailed
-                    }
-                } catch {
-                    await operationCoordinator.release(lease)
-                    return .stagingCleanupFailed
-                }
-            }
-
-            draft.evidenceRetentionState = .none
-            await operationCoordinator.release(lease)
-
-            return durableMaterialRetained
-                ? .completedWithDurableMaterialRetained
-                : .completed
         } catch {
-            if draft.evidenceRetentionState.canAttemptRetainedEvidence {
-                do {
-                    let stagingOutcome = try store.cleanupStaging(
-                        for: sourceID
-                    )
-                    guard cleanupCompleted(stagingOutcome) else {
-                        await operationCoordinator.release(lease)
-                        return .stagingCleanupFailed
-                    }
-                    draft.evidenceRetentionState = .none
-                } catch {
-                    await operationCoordinator.release(lease)
-                    return .stagingCleanupFailed
-                }
-            }
-
-            await operationCoordinator.release(lease)
-            return .completedWithDurableMaterialRetained
+            durableMaterialRetained = true
         }
+
+        do {
+            let stagingOutcome = try store.cleanupStaging(
+                for: sourceID
+            )
+
+            guard cleanupCompleted(stagingOutcome) else {
+                await operationCoordinator.release(lease)
+                return .stagingCleanupFailed
+            }
+        } catch {
+            await operationCoordinator.release(lease)
+            return .stagingCleanupFailed
+        }
+
+        draft.evidenceRetentionState = .none
+        await operationCoordinator.release(lease)
+
+        return durableMaterialRetained
+            ? .completedWithDurableMaterialRetained
+            : .completed
     }
 
     private func confirmPlain(
@@ -215,6 +219,12 @@ struct EvidenceConfirmationCoordinator {
         duplicateFingerprint: String?,
         ledgerCommit: LedgerCommit?
     ) -> EvidenceConfirmationResult {
+        guard case .none = draft.evidenceRetentionState else {
+            return retentionFailure(
+                "This draft has an active evidence session. Choose the retained-evidence or explicit save-without-evidence path."
+            )
+        }
+
         do {
             _ = try performLedgerWrite(
                 draft: draft,
@@ -361,13 +371,40 @@ struct EvidenceConfirmationCoordinator {
             )
         }
 
+        let needsCleanup: Bool
+
+        switch draft.evidenceRetentionState {
+        case .staged:
+            needsCleanup = true
+
+        case .cleanupPending(
+            let pendingSourceID,
+            let destructiveIntent
+        ):
+            guard pendingSourceID == sourceID,
+                  case .saveWithoutEvidence = destructiveIntent else {
+                return retentionFailure(
+                    "This evidence session is already completing a different destructive action."
+                )
+            }
+            needsCleanup = true
+
+        case .saveWithoutEvidenceOnly:
+            needsCleanup = false
+
+        case .none:
+            return retentionFailure(
+                "This draft has no active retained-evidence session."
+            )
+        }
+
         let store: RetainedEvidenceStore?
-        if draft.evidenceRetentionState.canAttemptRetainedEvidence {
+        if needsCleanup {
             do {
                 store = try storeProvider()
             } catch {
                 return retentionFailure(
-                    "Lumen could not initialize retained-evidence storage. No evidence was deleted."
+                    "Lumen could not initialize retained-evidence storage. Nothing was saved."
                 )
             }
         } else {
@@ -385,11 +422,18 @@ struct EvidenceConfirmationCoordinator {
                 return identityConflict()
             }
 
-            if draft.evidenceRetentionState.canAttemptRetainedEvidence {
+            if needsCleanup {
                 guard let store else {
                     await operationCoordinator.release(lease)
                     return retentionFailure(
                         "Lumen could not access retained-evidence storage. Nothing was saved."
+                    )
+                }
+
+                if case .staged = draft.evidenceRetentionState {
+                    draft.evidenceRetentionState = .cleanupPending(
+                        sourceID,
+                        .saveWithoutEvidence
                     )
                 }
 
@@ -403,7 +447,9 @@ struct EvidenceConfirmationCoordinator {
                     )
                 }
 
-                let stagingOutcome = try store.cleanupStaging(for: sourceID)
+                let stagingOutcome = try store.cleanupStaging(
+                    for: sourceID
+                )
                 guard cleanupCompleted(stagingOutcome) else {
                     await operationCoordinator.release(lease)
                     return retentionFailure(
@@ -414,6 +460,14 @@ struct EvidenceConfirmationCoordinator {
                 draft.evidenceRetentionState = .saveWithoutEvidenceOnly(
                     sourceID
                 )
+            }
+
+            guard try hasZeroPersistedOwners(
+                sourceID,
+                in: context
+            ) else {
+                await operationCoordinator.release(lease)
+                return identityConflict()
             }
         } catch {
             await operationCoordinator.release(lease)
@@ -552,6 +606,19 @@ struct EvidenceConfirmationCoordinator {
             return true
         case .retainedUnexpectedContents,
              .retainedUnexpectedNodeKinds:
+            return false
+        }
+    }
+
+    private func abandonmentIntent(
+        _ lhs: EvidenceAbandonmentIntent,
+        matches rhs: EvidenceAbandonmentIntent
+    ) -> Bool {
+        switch (lhs, rhs) {
+        case (.cancelled, .cancelled),
+             (.discarded, .discarded):
+            return true
+        default:
             return false
         }
     }
