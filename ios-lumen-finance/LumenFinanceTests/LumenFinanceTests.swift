@@ -168,7 +168,14 @@ final class LumenFinanceTests: XCTestCase {
         XCTAssertTrue(Money.format(12.34, currency: "USD").contains("USD"))
         XCTAssertTrue(Money.format(12.34, currency: "EUR").contains("EUR"))
         XCTAssertFalse(Money.format(500, currency: "USD", signed: false).hasPrefix("+"))
-        let stub = UploadView.makeStubbedDraft(fileURI: nil, sizeBytes: nil)
+        let sourceID = UUID()
+        let stub = UploadView.makeStubbedDraft(
+            sourceID: sourceID,
+            sizeBytes: nil,
+            mimeType: nil
+        )
+        XCTAssertEqual(stub.source?.id, sourceID.uuidString)
+        XCTAssertNil(stub.source?.stored_file_uri)
         XCTAssertEqual(stub.source?.parse_status, .manual_review)
         XCTAssertNil(stub.source?.source_hash)
         XCTAssertNil(stub.source?.captured_at)
