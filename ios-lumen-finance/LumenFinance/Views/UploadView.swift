@@ -88,7 +88,19 @@ struct UploadView: View {
             }
             .navigationDestination(isPresented: $goReviewUpload) {
                 if let parsedDraft {
-                    ReviewTransactionView(draft: parsedDraft) { dismiss() }
+                    ReviewTransactionView(draft: parsedDraft) { outcome in
+                        switch outcome {
+                        case .saved,
+                             .savedWithoutEvidence,
+                             .savedWithEvidenceConflict,
+                             .discarded:
+                            dismiss()
+
+                        case .cancelled:
+                            goReviewUpload = false
+                            self.parsedDraft = nil
+                        }
+                    }
                 }
             }
             .sheet(isPresented: $showCSV) { CSVImportStubView() }
