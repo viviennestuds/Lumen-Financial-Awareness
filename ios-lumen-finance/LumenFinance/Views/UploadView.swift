@@ -163,19 +163,34 @@ struct UploadView: View {
     private func handlePickedPhoto(_ item: PhotosPickerItem) async {
         isParsing = true
         defer { isParsing = false }
+
         do {
-            guard let data = try await item.loadTransferable(type: Data.self), !data.isEmpty else {
+            guard let data = try await item.loadTransferable(type: Data.self) else {
                 uploadError = true
                 return
             }
+
             try Task.checkCancellation()
-            let type = item.supportedContentTypes.first
-            let filename = "upload_\(UUID().uuidString).\(type?.preferredFilenameExtension ?? "data")"
-            let url = FileManager.default.temporaryDirectory.appendingPathComponent(filename)
-            try data.write(to: url, options: .atomic)
-            let draft = Self.makeStubbedDraft(fileURI: url.absoluteString, sizeBytes: data.count)
-            draft.source?.original_filename = nil
-            draft.source?.mime_type = type?.preferredMIMEType
+
+            let inspection = try EvidencePayloadInspector.inspect(data)
+            let sourceID = UUID()
+            let store = try RetainedEvidenceStore.live()
+            let staged = try store.stage(data, for: sourceID)
+
+            let draft = Self.makeStubbedDraft(
+                sourceID: sourceID,
+                sizeBytes: inspection.byteCount,
+                mimeType: inspection.mimeType
+            )
+
+            draft.evidenceRetentionState = .staged(
+                StagedEvidenceContext(
+                    sourceID: sourceID,
+                    stagedURL: staged.url,
+                    byteCount: staged.byteCount
+                )
+            )
+
             parsedDraft = draft
             goReviewUpload = true
             photoItem = nil
@@ -188,14 +203,19 @@ struct UploadView: View {
     }
 
     /// Explicit demonstration only; these values are never represented as extracted truth.
-    static func makeStubbedDraft(fileURI: String?, sizeBytes: Int?) -> TransactionDraft {
+    static func makeStubbedDraft(
+        sourceID: UUID,
+        sizeBytes: Int?,
+        mimeType: String?
+    ) -> TransactionDraft {
         let pick = ("Preview receipt", 19.99)
         let source = TransactionSource(
+            id: EvidenceIdentity.canonicalString(for: sourceID),
             source_type: .receipt_photo,
             original_filename: nil,
-            stored_file_uri: fileURI,
+            stored_file_uri: nil,
             file_size_bytes: sizeBytes,
-            mime_type: nil,
+            mime_type: mimeType,
             uploaded_at: .now,
             captured_at: nil,
             source_timezone: TimeZone.current.identifier,
@@ -203,6 +223,7 @@ struct UploadView: View {
             parse_status: .manual_review,
             source_hash: nil
         )
+
         let draft = TransactionDraft()
         draft.transaction_type = .expense
         draft.amountText = String(format: "%.2f", pick.1)
