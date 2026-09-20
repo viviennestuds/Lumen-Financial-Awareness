@@ -227,7 +227,14 @@ final class EvidencePassCConfirmationTests: XCTestCase {
             return XCTFail("Retained retry must be unavailable after save-without cleanup")
         }
 
-        let retry = await harness.coordinator.confirm(
+        let financialRetryCoordinator = EvidenceConfirmationCoordinator(
+            operationCoordinator: EvidenceOperationCoordinator(),
+            storeProvider: {
+                throw PassCInjectedFailure.storageInitialization
+            }
+        )
+
+        let retry = await financialRetryCoordinator.confirm(
             draft: fixture.draft,
             allTags: harness.tags,
             in: harness.context,
@@ -235,7 +242,7 @@ final class EvidencePassCConfirmationTests: XCTestCase {
         )
 
         guard case .terminal(.savedWithoutEvidence) = retry else {
-            return XCTFail("Expected retry of financial save without retained evidence to succeed")
+            return XCTFail("Financial retry must not depend on evidence storage after cleanup")
         }
 
         XCTAssertEqual(
