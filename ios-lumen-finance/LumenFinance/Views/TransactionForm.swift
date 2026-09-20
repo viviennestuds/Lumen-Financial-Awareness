@@ -14,9 +14,20 @@ struct StagedEvidenceContext: Sendable {
     let byteCount: Int
 }
 
+enum EvidenceAbandonmentIntent {
+    case cancelled
+    case discarded
+}
+
+enum EvidenceDestructiveIntent {
+    case saveWithoutEvidence
+    case abandon(EvidenceAbandonmentIntent)
+}
+
 enum DraftEvidenceRetentionState {
     case none
     case staged(StagedEvidenceContext)
+    case cleanupPending(UUID, EvidenceDestructiveIntent)
     case saveWithoutEvidenceOnly(UUID)
 
     var sourceID: UUID? {
@@ -25,7 +36,8 @@ enum DraftEvidenceRetentionState {
             return nil
         case .staged(let context):
             return context.sourceID
-        case .saveWithoutEvidenceOnly(let sourceID):
+        case .cleanupPending(let sourceID, _),
+             .saveWithoutEvidenceOnly(let sourceID):
             return sourceID
         }
     }
@@ -35,6 +47,17 @@ enum DraftEvidenceRetentionState {
             return true
         }
         return false
+    }
+
+    var hasActiveEvidenceSession: Bool {
+        sourceID != nil
+    }
+
+    var destructiveIntent: EvidenceDestructiveIntent? {
+        if case .cleanupPending(_, let intent) = self {
+            return intent
+        }
+        return nil
     }
 }
 
