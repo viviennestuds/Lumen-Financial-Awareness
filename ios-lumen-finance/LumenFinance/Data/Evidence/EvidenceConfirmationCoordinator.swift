@@ -39,6 +39,12 @@ enum EvidenceConfirmationIntent {
     case saveWithoutRetainedEvidence
 }
 
+enum EvidenceAbandonmentResult {
+    case completed
+    case completedWithDurableMaterialRetained
+    case stagingCleanupFailed
+}
+
 @MainActor
 struct EvidenceConfirmationCoordinator {
     typealias LedgerCommit = (ModelContext) throws -> Void
@@ -104,17 +110,18 @@ struct EvidenceConfirmationCoordinator {
     func abandonEvidence(
         for draft: TransactionDraft,
         in context: ModelContext
-    ) async -> Bool {
+    ) async -> EvidenceAbandonmentResult {
         guard let sourceID = draft.evidenceRetentionState.sourceID else {
-            return true
+            return .completed
         }
 
         guard let source = draft.source,
               EvidenceIdentity.uuid(fromSourceID: source.id) == sourceID else {
-            return false
+            return .stagingCleanupFailed
         }
 
         let lease = await operationCoordinator.acquire(for: sourceID)
+        var durableMaterialRetained = false
 
         do {
             let owners = try EvidenceIdentity.semanticOwners(
@@ -123,29 +130,61 @@ struct EvidenceConfirmationCoordinator {
             )
 
             if case .none = owners {
-                let durableOutcome = try store.cleanupPreparedDurableMaterial(
-                    for: sourceID
-                )
-                guard cleanupCompleted(durableOutcome) else {
-                    await operationCoordinator.release(lease)
-                    return false
+                do {
+                    let durableOutcome = try store.cleanupPreparedDurableMaterial(
+                        for: sourceID
+                    )
+                    if !cleanupCompleted(durableOutcome) {
+                        durableMaterialRetained = true
+                    }
+                } catch {
+                    durableMaterialRetained = true
                 }
+            } else {
+                durableMaterialRetained = true
             }
 
             if draft.evidenceRetentionState.canAttemptRetainedEvidence {
-                let stagingOutcome = try store.cleanupStaging(for: sourceID)
-                guard cleanupCompleted(stagingOutcome) else {
+                do {
+                    let stagingOutcome = try store.cleanupStaging(
+                        for: sourceID
+                    )
+
+                    guard cleanupCompleted(stagingOutcome) else {
+                        await operationCoordinator.release(lease)
+                        return .stagingCleanupFailed
+                    }
+                } catch {
                     await operationCoordinator.release(lease)
-                    return false
+                    return .stagingCleanupFailed
                 }
             }
 
             draft.evidenceRetentionState = .none
             await operationCoordinator.release(lease)
-            return true
+
+            return durableMaterialRetained
+                ? .completedWithDurableMaterialRetained
+                : .completed
         } catch {
+            if draft.evidenceRetentionState.canAttemptRetainedEvidence {
+                do {
+                    let stagingOutcome = try store.cleanupStaging(
+                        for: sourceID
+                    )
+                    guard cleanupCompleted(stagingOutcome) else {
+                        await operationCoordinator.release(lease)
+                        return .stagingCleanupFailed
+                    }
+                    draft.evidenceRetentionState = .none
+                } catch {
+                    await operationCoordinator.release(lease)
+                    return .stagingCleanupFailed
+                }
+            }
+
             await operationCoordinator.release(lease)
-            return false
+            return .completedWithDurableMaterialRetained
         }
     }
 
@@ -185,7 +224,10 @@ struct EvidenceConfirmationCoordinator {
     ) async -> EvidenceConfirmationResult {
         guard case .staged(let staged) = draft.evidenceRetentionState,
               let source = draft.source,
-              EvidenceIdentity.uuid(fromSourceID: source.id) == staged.sourceID else {
+              EvidenceIdentity.uuid(fromSourceID: source.id) == staged.sourceID,
+              source.stored_file_uri == nil,
+              source.file_size_bytes == staged.byteCount,
+              staged.stagedURL == store.paths(for: staged.sourceID).stagedPayload else {
             return retentionFailure(
                 "The retained photo session is no longer valid. Keep this draft open and try again or save without retained evidence."
             )
@@ -194,16 +236,13 @@ struct EvidenceConfirmationCoordinator {
         let sourceID = staged.sourceID
         let lease = await operationCoordinator.acquire(for: sourceID)
 
-        let result: EvidenceConfirmationResult
-
         do {
             guard try hasZeroPersistedOwners(
                 sourceID,
                 in: context
             ) else {
-                result = identityConflict()
                 await operationCoordinator.release(lease)
-                return result
+                return identityConflict()
             }
 
             _ = try store.prepareDurablePayload(for: sourceID)
@@ -213,58 +252,62 @@ struct EvidenceConfirmationCoordinator {
                 sourceID,
                 in: context
             ) else {
-                result = identityConflict()
                 await operationCoordinator.release(lease)
-                return result
+                return identityConflict()
             }
-
-            let locator = RetainedEvidenceLocator(
-                sourceID: sourceID
-            ).serialized
-
-            do {
-                _ = try performLedgerWrite(
-                    draft: draft,
-                    allTags: allTags,
-                    in: context,
-                    storedFileURI: locator,
-                    duplicateFingerprint: duplicateFingerprint,
-                    ledgerCommit: ledgerCommit
-                )
-            } catch {
-                try? cleanupPreparedDurableMaterialForRetry(
-                    sourceID: sourceID
-                )
-                result = .nonterminal(
-                    ReviewConfirmationFailure(
-                        state: .ledgerFailedRetryable(.retainedEvidence),
-                        message: ledgerFailureMessage(error)
-                    )
-                )
-                await operationCoordinator.release(lease)
-                return result
-            }
-
-            guard try postSaveRetainedAssociationIsValid(
-                sourceID,
-                in: context
-            ) else {
-                result = .terminal(.savedWithEvidenceConflict)
-                await operationCoordinator.release(lease)
-                return result
-            }
-
-            _ = try? store.cleanupStaging(for: sourceID)
-            draft.evidenceRetentionState = .none
-            result = .terminal(.saved)
         } catch {
-            result = retentionFailure(
+            await operationCoordinator.release(lease)
+            return retentionFailure(
                 "The photo could not be retained safely. Your draft and staged photo are still available. Retry, or explicitly save without retained evidence."
             )
         }
 
+        let locator = RetainedEvidenceLocator(
+            sourceID: sourceID
+        ).serialized
+
+        do {
+            _ = try performLedgerWrite(
+                draft: draft,
+                allTags: allTags,
+                in: context,
+                storedFileURI: locator,
+                duplicateFingerprint: duplicateFingerprint,
+                ledgerCommit: ledgerCommit
+            )
+        } catch {
+            try? cleanupPreparedDurableMaterialForRetry(
+                sourceID: sourceID
+            )
+            await operationCoordinator.release(lease)
+            return .nonterminal(
+                ReviewConfirmationFailure(
+                    state: .ledgerFailedRetryable(.retainedEvidence),
+                    message: ledgerFailureMessage(error)
+                )
+            )
+        }
+
+        let postSaveValid: Bool
+        do {
+            postSaveValid = try postSaveRetainedAssociationIsValid(
+                sourceID,
+                in: context
+            )
+        } catch {
+            postSaveValid = false
+        }
+
+        guard postSaveValid else {
+            await operationCoordinator.release(lease)
+            return .terminal(.savedWithEvidenceConflict)
+        }
+
+        _ = try? store.cleanupStaging(for: sourceID)
+        draft.evidenceRetentionState = .none
+
         await operationCoordinator.release(lease)
-        return result
+        return .terminal(.saved)
     }
 
     private func confirmWithoutEvidence(
@@ -276,23 +319,22 @@ struct EvidenceConfirmationCoordinator {
     ) async -> EvidenceConfirmationResult {
         guard let sourceID = draft.evidenceRetentionState.sourceID,
               let source = draft.source,
-              EvidenceIdentity.uuid(fromSourceID: source.id) == sourceID else {
+              EvidenceIdentity.uuid(fromSourceID: source.id) == sourceID,
+              source.stored_file_uri == nil else {
             return retentionFailure(
                 "The photo session identity is no longer valid. No evidence was deleted."
             )
         }
 
         let lease = await operationCoordinator.acquire(for: sourceID)
-        let result: EvidenceConfirmationResult
 
         do {
             guard try hasZeroPersistedOwners(
                 sourceID,
                 in: context
             ) else {
-                result = identityConflict()
                 await operationCoordinator.release(lease)
-                return result
+                return identityConflict()
             }
 
             if draft.evidenceRetentionState.canAttemptRetainedEvidence {
@@ -300,66 +342,68 @@ struct EvidenceConfirmationCoordinator {
                     for: sourceID
                 )
                 guard cleanupCompleted(durableOutcome) else {
-                    result = retentionFailure(
+                    await operationCoordinator.release(lease)
+                    return retentionFailure(
                         "Lumen could not verify removal of prepared evidence. Nothing was saved."
                     )
-                    await operationCoordinator.release(lease)
-                    return result
                 }
 
                 let stagingOutcome = try store.cleanupStaging(for: sourceID)
                 guard cleanupCompleted(stagingOutcome) else {
-                    result = retentionFailure(
+                    await operationCoordinator.release(lease)
+                    return retentionFailure(
                         "Lumen could not verify removal of the staged photo. Nothing was saved."
                     )
-                    await operationCoordinator.release(lease)
-                    return result
                 }
 
                 draft.evidenceRetentionState = .saveWithoutEvidenceOnly(
                     sourceID
                 )
             }
-
-            do {
-                _ = try performLedgerWrite(
-                    draft: draft,
-                    allTags: allTags,
-                    in: context,
-                    storedFileURI: nil,
-                    duplicateFingerprint: duplicateFingerprint,
-                    ledgerCommit: ledgerCommit
-                )
-            } catch {
-                result = .nonterminal(
-                    ReviewConfirmationFailure(
-                        state: .ledgerFailedRetryable(.saveWithoutEvidence),
-                        message: ledgerFailureMessage(error)
-                    )
-                )
-                await operationCoordinator.release(lease)
-                return result
-            }
-
-            guard try postSaveNilLocatorAssociationIsValid(
-                sourceID,
-                in: context
-            ) else {
-                result = .terminal(.savedWithEvidenceConflict)
-                await operationCoordinator.release(lease)
-                return result
-            }
-
-            draft.evidenceRetentionState = .none
-            result = .terminal(.savedWithoutEvidence)
         } catch {
-            result = retentionFailure(
+            await operationCoordinator.release(lease)
+            return retentionFailure(
                 "Lumen could not safely complete the save-without-evidence cleanup. Nothing was saved."
             )
         }
 
+        do {
+            _ = try performLedgerWrite(
+                draft: draft,
+                allTags: allTags,
+                in: context,
+                storedFileURI: nil,
+                duplicateFingerprint: duplicateFingerprint,
+                ledgerCommit: ledgerCommit
+            )
+        } catch {
+            await operationCoordinator.release(lease)
+            return .nonterminal(
+                ReviewConfirmationFailure(
+                    state: .ledgerFailedRetryable(.saveWithoutEvidence),
+                    message: ledgerFailureMessage(error)
+                )
+            )
+        }
+
+        let postSaveValid: Bool
+        do {
+            postSaveValid = try postSaveNilLocatorAssociationIsValid(
+                sourceID,
+                in: context
+            )
+        } catch {
+            postSaveValid = false
+        }
+
+        guard postSaveValid else {
+            await operationCoordinator.release(lease)
+            return .terminal(.savedWithEvidenceConflict)
+        }
+
+        draft.evidenceRetentionState = .none
         await operationCoordinator.release(lease)
-        return result
+        return .terminal(.savedWithoutEvidence)
     }
 
     private func performLedgerWrite(
