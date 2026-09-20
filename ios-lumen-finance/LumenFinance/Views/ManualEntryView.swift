@@ -53,9 +53,24 @@ struct ManualEntryView: View {
             .background(.ultraThinMaterial)
         }
         .navigationDestination(isPresented: $goReview) {
-            ReviewTransactionView(draft: draft) {
-                onSaved?()
-                dismiss()
+            ReviewTransactionView(draft: draft) { outcome in
+                switch outcome {
+                case .saved:
+                    onSaved?()
+                    dismiss()
+
+                case .cancelled:
+                    goReview = false
+
+                case .discarded:
+                    onSaved?()
+                    dismiss()
+
+                case .savedWithoutEvidence,
+                     .savedWithEvidenceConflict:
+                    onSaved?()
+                    dismiss()
+                }
             }
         }
         .onAppear {
