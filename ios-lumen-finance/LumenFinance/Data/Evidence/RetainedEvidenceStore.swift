@@ -52,6 +52,7 @@ enum EvidenceCleanupOutcome {
     case nothingToRemove
     case removedKnownMaterial
     case retainedUnexpectedContents([String])
+    case retainedUnexpectedNodeKinds([String])
 }
 
 struct RetainedEvidenceStore {
@@ -104,7 +105,7 @@ struct RetainedEvidenceStore {
 
         try fileSystem.createDirectory(at: roots.stagingRoot)
         try fileSystem.createDirectory(at: paths.stagingDirectory)
-        try requireOnlyExpectedContents(
+        try requireControlledPayloadDirectory(
             at: paths.stagingDirectory,
             sourceID: sourceID,
             allowedNames: ["payload"]
@@ -114,6 +115,12 @@ struct RetainedEvidenceStore {
             data,
             to: paths.stagedPayload,
             atomically: true
+        )
+
+        try requireRegularPayload(
+            at: paths.stagedPayload,
+            sourceID: sourceID,
+            missingError: .stagedPayloadMissing(sourceID)
         )
 
         let stagedData = try fileSystem.read(paths.stagedPayload)
@@ -133,15 +140,22 @@ struct RetainedEvidenceStore {
     ) throws -> DurableEvidencePreparation {
         let paths = paths(for: sourceID)
 
-        guard fileSystem.fileExists(at: paths.stagedPayload) else {
-            throw RetainedEvidenceStoreError.stagedPayloadMissing(sourceID)
-        }
+        try requireControlledPayloadDirectory(
+            at: paths.stagingDirectory,
+            sourceID: sourceID,
+            allowedNames: ["payload"]
+        )
+        try requireRegularPayload(
+            at: paths.stagedPayload,
+            sourceID: sourceID,
+            missingError: .stagedPayloadMissing(sourceID)
+        )
 
         let stagedData = try fileSystem.read(paths.stagedPayload)
 
         try fileSystem.createDirectory(at: roots.durableV1Root)
         try fileSystem.createDirectory(at: paths.durableDirectory)
-        try requireOnlyExpectedContents(
+        try requireControlledPayloadDirectory(
             at: paths.durableDirectory,
             sourceID: sourceID,
             allowedNames: ["payload.incoming", "payload"]
@@ -154,12 +168,18 @@ struct RetainedEvidenceStore {
                 atomically: false
             )
 
+            try requireRegularPayload(
+                at: paths.incomingPayload,
+                sourceID: sourceID,
+                missingError: .incomingPayloadMissing(sourceID)
+            )
+
             let incomingData = try fileSystem.read(paths.incomingPayload)
             guard incomingData == stagedData else {
                 throw RetainedEvidenceStoreError.byteVerificationFailed(sourceID)
             }
         } catch {
-            try? fileSystem.removeItem(at: paths.incomingPayload)
+            try? fileSystem.removeRegularFile(at: paths.incomingPayload)
             throw error
         }
 
@@ -176,13 +196,27 @@ struct RetainedEvidenceStore {
     ) throws -> DurablyPreparedEvidencePayload {
         let paths = paths(for: sourceID)
 
-        guard fileSystem.fileExists(at: paths.stagedPayload) else {
-            throw RetainedEvidenceStoreError.stagedPayloadMissing(sourceID)
-        }
+        try requireControlledPayloadDirectory(
+            at: paths.stagingDirectory,
+            sourceID: sourceID,
+            allowedNames: ["payload"]
+        )
+        try requireControlledPayloadDirectory(
+            at: paths.durableDirectory,
+            sourceID: sourceID,
+            allowedNames: ["payload.incoming", "payload"]
+        )
 
-        guard fileSystem.fileExists(at: paths.incomingPayload) else {
-            throw RetainedEvidenceStoreError.incomingPayloadMissing(sourceID)
-        }
+        try requireRegularPayload(
+            at: paths.stagedPayload,
+            sourceID: sourceID,
+            missingError: .stagedPayloadMissing(sourceID)
+        )
+        try requireRegularPayload(
+            at: paths.incomingPayload,
+            sourceID: sourceID,
+            missingError: .incomingPayloadMissing(sourceID)
+        )
 
         let stagedData = try fileSystem.read(paths.stagedPayload)
         let incomingData = try fileSystem.read(paths.incomingPayload)
@@ -194,6 +228,12 @@ struct RetainedEvidenceStore {
         try fileSystem.replaceItemAtomically(
             at: paths.finalPayload,
             withItemAt: paths.incomingPayload
+        )
+
+        try requireRegularPayload(
+            at: paths.finalPayload,
+            sourceID: sourceID,
+            missingError: .finalPayloadMissing(sourceID)
         )
 
         try fileSystem.applyCompleteFileProtection(at: paths.finalPayload)
@@ -248,22 +288,67 @@ struct RetainedEvidenceStore {
         )
     }
 
-    private func requireOnlyExpectedContents(
+    private func requireControlledPayloadDirectory(
         at directory: URL,
         sourceID: UUID,
         allowedNames: Set<String>
     ) throws {
-        let names = try fileSystem.contentsOfDirectory(at: directory)
-            .map(\.lastPathComponent)
+        let directoryKind = try fileSystem.nodeKind(at: directory)
+        guard directoryKind == .directory else {
+            throw RetainedEvidenceStoreError.unexpectedControlledNodeKind(
+                sourceID,
+                directory.lastPathComponent,
+                directoryKind
+            )
+        }
 
-        let unexpected = names
+        let items = try fileSystem.contentsOfDirectory(at: directory)
+
+        let unexpectedNames = items
+            .map(\.lastPathComponent)
             .filter { !allowedNames.contains($0) }
             .sorted()
 
-        guard unexpected.isEmpty else {
+        guard unexpectedNames.isEmpty else {
             throw RetainedEvidenceStoreError.unexpectedControlledContents(
                 sourceID,
-                unexpected
+                unexpectedNames
+            )
+        }
+
+        for item in items {
+            let name = item.lastPathComponent
+            guard allowedNames.contains(name) else {
+                continue
+            }
+
+            let kind = try fileSystem.nodeKind(at: item)
+            guard kind == .regularFile else {
+                throw RetainedEvidenceStoreError.unexpectedControlledNodeKind(
+                    sourceID,
+                    name,
+                    kind
+                )
+            }
+        }
+    }
+
+    private func requireRegularPayload(
+        at url: URL,
+        sourceID: UUID,
+        missingError: RetainedEvidenceStoreError
+    ) throws {
+        let kind = try fileSystem.nodeKind(at: url)
+
+        if kind == .missing {
+            throw missingError
+        }
+
+        guard kind == .regularFile else {
+            throw RetainedEvidenceStoreError.unexpectedControlledNodeKind(
+                sourceID,
+                url.lastPathComponent,
+                kind
             )
         }
     }
@@ -273,35 +358,91 @@ struct RetainedEvidenceStore {
         sourceID: UUID,
         knownItems: [URL]
     ) throws -> EvidenceCleanupOutcome {
-        guard fileSystem.fileExists(at: directory) else {
+        let directoryKind = try fileSystem.nodeKind(at: directory)
+
+        if directoryKind == .missing {
             return .nothingToRemove
         }
 
-        let knownNames = Set(knownItems.map(\.lastPathComponent))
-        let initialNames = try fileSystem.contentsOfDirectory(at: directory)
-            .map(\.lastPathComponent)
+        guard directoryKind == .directory else {
+            return .retainedUnexpectedNodeKinds([
+                describeNode(
+                    name: directory.lastPathComponent,
+                    kind: directoryKind
+                )
+            ])
+        }
 
-        let unexpected = initialNames
+        let knownNames = Set(knownItems.map(\.lastPathComponent))
+        let initialItems = try fileSystem.contentsOfDirectory(at: directory)
+
+        let unexpectedNames = initialItems
+            .map(\.lastPathComponent)
             .filter { !knownNames.contains($0) }
             .sorted()
 
-        guard unexpected.isEmpty else {
-            return .retainedUnexpectedContents(unexpected)
+        guard unexpectedNames.isEmpty else {
+            return .retainedUnexpectedContents(unexpectedNames)
         }
 
-        for item in knownItems where fileSystem.fileExists(at: item) {
-            try fileSystem.removeItem(at: item)
+        var unsafeKinds: [String] = []
+
+        for item in knownItems {
+            let kind = try fileSystem.nodeKind(at: item)
+
+            switch kind {
+            case .missing, .regularFile:
+                continue
+            case .directory, .symbolicLink, .other:
+                unsafeKinds.append(
+                    describeNode(
+                        name: item.lastPathComponent,
+                        kind: kind
+                    )
+                )
+            }
+        }
+
+        guard unsafeKinds.isEmpty else {
+            return .retainedUnexpectedNodeKinds(unsafeKinds.sorted())
+        }
+
+        for item in knownItems {
+            if try fileSystem.nodeKind(at: item) == .regularFile {
+                try fileSystem.removeRegularFile(at: item)
+            }
         }
 
         do {
             try fileSystem.removeDirectoryIfEmpty(at: directory)
         } catch {
-            let remaining = try fileSystem.contentsOfDirectory(at: directory)
-                .map(\.lastPathComponent)
+            let remainingItems = try fileSystem.contentsOfDirectory(at: directory)
+
+            if !remainingItems.isEmpty {
+                let retainedKinds = try remainingItems.compactMap { item -> String? in
+                    let name = item.lastPathComponent
+                    guard knownNames.contains(name) else {
+                        return nil
+                    }
+
+                    let kind = try fileSystem.nodeKind(at: item)
+                    guard kind != .regularFile else {
+                        return nil
+                    }
+
+                    return describeNode(name: name, kind: kind)
+                }
                 .sorted()
 
-            if !remaining.isEmpty {
-                return .retainedUnexpectedContents(remaining)
+                if !retainedKinds.isEmpty {
+                    return .retainedUnexpectedNodeKinds(retainedKinds)
+                }
+
+                return .retainedUnexpectedContents(
+                    remainingItems
+                        .map(\.lastPathComponent)
+                        .sorted()
+                )
             }
 
             throw error
@@ -309,13 +450,43 @@ struct RetainedEvidenceStore {
 
         return .removedKnownMaterial
     }
+
+    private func describeNode(
+        name: String,
+        kind: EvidenceFileNodeKind
+    ) -> String {
+        "\(name):\(nodeKindName(kind))"
+    }
+
+    private func nodeKindName(
+        _ kind: EvidenceFileNodeKind
+    ) -> String {
+        switch kind {
+        case .missing:
+            return "missing"
+        case .regularFile:
+            return "regularFile"
+        case .directory:
+            return "directory"
+        case .symbolicLink:
+            return "symbolicLink"
+        case .other:
+            return "other"
+        }
+    }
 }
 
 enum RetainedEvidenceStoreError: Error, Equatable {
     case stagedPayloadMissing(UUID)
     case incomingPayloadMissing(UUID)
+    case finalPayloadMissing(UUID)
     case byteVerificationFailed(UUID)
     case completeProtectionNotVerified(UUID)
     case backupExclusionDetected(UUID)
     case unexpectedControlledContents(UUID, [String])
+    case unexpectedControlledNodeKind(
+        UUID,
+        String,
+        EvidenceFileNodeKind
+    )
 }
