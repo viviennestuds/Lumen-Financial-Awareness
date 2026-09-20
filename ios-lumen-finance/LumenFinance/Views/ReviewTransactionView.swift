@@ -411,14 +411,14 @@ struct ReviewTransactionView: View {
         if draft.evidenceRetentionState.sourceID != nil {
             do {
                 let coordinator = try EvidenceConfirmationCoordinator.live()
-                let cleaned = await coordinator.abandonEvidence(
+                let abandonment = await coordinator.abandonEvidence(
                     for: draft,
                     in: modelContext
                 )
 
-                guard cleaned else {
+                if case .stagingCleanupFailed = abandonment {
                     confirmationState = .retentionFailedRetryable
-                    saveError = "Lumen could not verify cleanup of this draft's evidence. The draft remains open."
+                    saveError = "Lumen could not verify cleanup of this draft's transient staging. The draft remains open."
                     return
                 }
             } catch {
