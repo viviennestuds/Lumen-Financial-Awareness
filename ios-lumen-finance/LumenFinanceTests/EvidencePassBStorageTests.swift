@@ -438,10 +438,10 @@ final class EvidencePassBStorageTests: XCTestCase {
 
         XCTAssertEqual(retained, ["payload:directory"])
         XCTAssertEqual(try Data(contentsOf: nested), nestedData)
-        XCTAssertEqual(
-            try harness.fileSystem.nodeKind(at: paths.finalPayload),
-            .directory
-        )
+        let finalKind = try harness.fileSystem.nodeKind(at: paths.finalPayload)
+        guard case .directory = finalKind else {
+            return XCTFail("Expected payload node to remain a directory")
+        }
     }
 
     func testPrepareRejectsDirectoryNamedIncomingPayloadWithoutDeletingNestedMaterial() throws {
@@ -556,10 +556,12 @@ final class EvidencePassBStorageTests: XCTestCase {
 
         XCTAssertEqual(try Data(contentsOf: paths.stagedPayload), data)
         XCTAssertEqual(try Data(contentsOf: externalTarget), targetData)
-        XCTAssertEqual(
-            try harness.fileSystem.nodeKind(at: paths.incomingPayload),
-            .symbolicLink
+        let incomingKind = try harness.fileSystem.nodeKind(
+            at: paths.incomingPayload
         )
+        guard case .symbolicLink = incomingKind else {
+            return XCTFail("Expected incoming payload symlink to remain intact")
+        }
         XCTAssertFalse(FileManager.default.fileExists(atPath: paths.finalPayload.path))
     }
 
@@ -599,10 +601,12 @@ final class EvidencePassBStorageTests: XCTestCase {
 
         XCTAssertEqual(try Data(contentsOf: paths.stagedPayload), data)
         XCTAssertEqual(try Data(contentsOf: sentinel), sentinelData)
-        XCTAssertEqual(
-            try harness.fileSystem.nodeKind(at: durableContainer),
-            .symbolicLink
+        let containerKind = try harness.fileSystem.nodeKind(
+            at: durableContainer
         )
+        guard case .symbolicLink = containerKind else {
+            return XCTFail("Expected durable container symlink to remain intact")
+        }
         XCTAssertFalse(
             FileManager.default.fileExists(
                 atPath: externalDirectory
@@ -650,10 +654,12 @@ final class EvidencePassBStorageTests: XCTestCase {
 
         XCTAssertEqual(try Data(contentsOf: paths.stagedPayload), data)
         XCTAssertEqual(try Data(contentsOf: sentinel), sentinelData)
-        XCTAssertEqual(
-            try harness.fileSystem.nodeKind(at: paths.durableDirectory),
-            .symbolicLink
+        let sourceDirectoryKind = try harness.fileSystem.nodeKind(
+            at: paths.durableDirectory
         )
+        guard case .symbolicLink = sourceDirectoryKind else {
+            return XCTFail("Expected source directory symlink to remain intact")
+        }
         XCTAssertFalse(
             FileManager.default.fileExists(
                 atPath: externalDirectory
