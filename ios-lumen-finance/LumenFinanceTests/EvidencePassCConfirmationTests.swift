@@ -97,6 +97,41 @@ final class EvidencePassCConfirmationTests: XCTestCase {
     }
 
     @MainActor
+    func testPlainConfirmationRejectsActiveEvidenceSessionAndPreservesStaging() async throws {
+        let harness = try makeHarness()
+        let fixture = try makeEvidenceDraft(in: harness, seed: 15)
+        let paths = harness.store.paths(for: fixture.sourceID)
+
+        let result = await harness.coordinator.confirm(
+            draft: fixture.draft,
+            allTags: harness.tags,
+            in: harness.context,
+            intent: .plain
+        )
+
+        guard case .nonterminal(let failure) = result,
+              case .retentionFailedRetryable = failure.state else {
+            return XCTFail("Plain confirmation must reject an active evidence session")
+        }
+
+        XCTAssertEqual(
+            try harness.context.fetchCount(FetchDescriptor<Transaction>()),
+            0
+        )
+        XCTAssertEqual(
+            try harness.context.fetchCount(FetchDescriptor<TransactionSource>()),
+            0
+        )
+        XCTAssertEqual(
+            try Data(contentsOf: paths.stagedPayload),
+            fixture.data
+        )
+        guard case .staged = fixture.draft.evidenceRetentionState else {
+            return XCTFail("Rejected plain confirmation must leave staged evidence unchanged")
+        }
+    }
+
+    @MainActor
     func testRetainedLedgerFailureLeavesNoCanonicalAssociationAndPreservesStaging() async throws {
         let harness = try makeHarness()
         let fixture = try makeEvidenceDraft(in: harness, seed: 17)
@@ -230,6 +265,22 @@ final class EvidencePassCConfirmationTests: XCTestCase {
               case .retentionFailedRetryable = retainedFailure.state else {
             return XCTFail("Retained retry must be unavailable after save-without cleanup")
         }
+
+        let plainAfterCleanup = await harness.coordinator.confirm(
+            draft: fixture.draft,
+            allTags: harness.tags,
+            in: harness.context,
+            intent: .plain
+        )
+
+        guard case .nonterminal(let plainFailure) = plainAfterCleanup,
+              case .retentionFailedRetryable = plainFailure.state else {
+            return XCTFail("Plain confirmation must remain unavailable after evidence cleanup")
+        }
+        XCTAssertEqual(
+            try harness.context.fetchCount(FetchDescriptor<Transaction>()),
+            0
+        )
 
         let financialRetryCoordinator = EvidenceConfirmationCoordinator(
             operationCoordinator: EvidenceOperationCoordinator(),
@@ -663,7 +714,8 @@ final class EvidencePassCConfirmationTests: XCTestCase {
 
         let result = await harness.coordinator.abandonEvidence(
             for: fixture.draft,
-            in: harness.context
+            in: harness.context,
+            intent: .cancelled
         )
 
         guard case .completedWithDurableMaterialRetained = result else {
@@ -714,8 +766,264 @@ final class EvidencePassCConfirmationTests: XCTestCase {
             try Data(contentsOf: paths.finalPayload),
             fixture.data
         )
-        guard case .staged = fixture.draft.evidenceRetentionState else {
-            return XCTFail("Staging must remain available when durable cleanup fails")
+        guard case .cleanupPending(
+            let pendingSourceID,
+            let destructiveIntent
+        ) = fixture.draft.evidenceRetentionState,
+              pendingSourceID == fixture.sourceID,
+              case .saveWithoutEvidence = destructiveIntent else {
+            return XCTFail("Destructive save-without intent must remain cleanup-pending")
+        }
+    }
+
+    @MainActor
+    func testSaveWithoutEvidenceFreshOwnerRecheckBlocksCommitAfterCleanup() async throws {
+        let harness = try makeHarness()
+        let fixture = try makeEvidenceDraft(in: harness, seed: 58)
+        let paths = harness.store.paths(for: fixture.sourceID)
+        var injectedOwner = false
+
+        harness.fileSystem.afterDirectoryRemoval = { url in
+            guard url == paths.stagingDirectory, !injectedOwner else {
+                return
+            }
+            injectedOwner = true
+
+            try LedgerWrite.perform(in: harness.context) {
+                harness.context.insert(
+                    TransactionSource(
+                        id: fixture.sourceID.uuidString.lowercased(),
+                        source_type: .screenshot
+                    )
+                )
+            }
+        }
+
+        let result = await harness.coordinator.confirm(
+            draft: fixture.draft,
+            allTags: harness.tags,
+            in: harness.context,
+            intent: .saveWithoutRetainedEvidence
+        )
+
+        guard case .nonterminal(let failure) = result,
+              case .preCommitIdentityConflict = failure.state else {
+            return XCTFail("Fresh owner recheck after cleanup must block first commitment")
+        }
+
+        XCTAssertTrue(injectedOwner)
+        XCTAssertEqual(
+            try harness.context.fetchCount(FetchDescriptor<Transaction>()),
+            0
+        )
+        XCTAssertEqual(
+            try harness.context.fetchCount(FetchDescriptor<TransactionSource>()),
+            1
+        )
+        try assertMissing(
+            paths.stagedPayload,
+            fileSystem: harness.fileSystem
+        )
+        guard case .saveWithoutEvidenceOnly(let sourceID) =
+                fixture.draft.evidenceRetentionState,
+              sourceID == fixture.sourceID else {
+            return XCTFail("Owner conflict after cleanup must not restore retained evidence")
+        }
+    }
+
+    @MainActor
+    func testSaveWithoutEvidencePartialStagingCleanupRemainsNonRetainableAndRetriesCleanup() async throws {
+        let harness = try makeHarness()
+        let fixture = try makeEvidenceDraft(in: harness, seed: 60)
+        let paths = harness.store.paths(for: fixture.sourceID)
+        harness.fileSystem.removeDirectoryFailureURL = paths.stagingDirectory
+
+        let failed = await harness.coordinator.confirm(
+            draft: fixture.draft,
+            allTags: harness.tags,
+            in: harness.context,
+            intent: .saveWithoutRetainedEvidence
+        )
+
+        guard case .nonterminal(let failure) = failed,
+              case .retentionFailedRetryable = failure.state else {
+            return XCTFail("Partial staging cleanup must remain nonterminal")
+        }
+
+        try assertMissing(
+            paths.stagedPayload,
+            fileSystem: harness.fileSystem
+        )
+        XCTAssertEqual(
+            try harness.context.fetchCount(FetchDescriptor<Transaction>()),
+            0
+        )
+
+        guard case .cleanupPending(
+            let pendingSourceID,
+            let destructiveIntent
+        ) = fixture.draft.evidenceRetentionState,
+              pendingSourceID == fixture.sourceID,
+              case .saveWithoutEvidence = destructiveIntent else {
+            return XCTFail("Partial save-without cleanup must remain intent-bearing and non-retainable")
+        }
+
+        let retainedRetry = await harness.coordinator.confirm(
+            draft: fixture.draft,
+            allTags: harness.tags,
+            in: harness.context,
+            intent: .retainEvidence
+        )
+        guard case .nonterminal(let retainedFailure) = retainedRetry,
+              case .retentionFailedRetryable = retainedFailure.state else {
+            return XCTFail("Retained confirmation must never reappear after destructive cleanup begins")
+        }
+
+        harness.fileSystem.removeDirectoryFailureURL = nil
+
+        let retry = await harness.coordinator.confirm(
+            draft: fixture.draft,
+            allTags: harness.tags,
+            in: harness.context,
+            intent: .saveWithoutRetainedEvidence
+        )
+
+        guard case .terminal(.savedWithoutEvidence) = retry else {
+            return XCTFail("Retry must finish cleanup before the nil-locator ledger save")
+        }
+
+        XCTAssertEqual(
+            try harness.context.fetchCount(FetchDescriptor<Transaction>()),
+            1
+        )
+        try assertMissing(
+            paths.stagingDirectory,
+            fileSystem: harness.fileSystem
+        )
+    }
+
+    @MainActor
+    func testCancelPartialStagingCleanupPreservesCancelIntentAndRetriesAbandonment() async throws {
+        let harness = try makeHarness()
+        let fixture = try makeEvidenceDraft(in: harness, seed: 62)
+        let paths = harness.store.paths(for: fixture.sourceID)
+        harness.fileSystem.removeDirectoryFailureURL = paths.stagingDirectory
+
+        let failed = await harness.coordinator.abandonEvidence(
+            for: fixture.draft,
+            in: harness.context,
+            intent: .cancelled
+        )
+
+        guard case .stagingCleanupFailed = failed else {
+            return XCTFail("Partial cancel cleanup must remain nonterminal")
+        }
+
+        try assertMissing(
+            paths.stagedPayload,
+            fileSystem: harness.fileSystem
+        )
+        XCTAssertEqual(
+            try harness.context.fetchCount(FetchDescriptor<Transaction>()),
+            0
+        )
+
+        guard case .cleanupPending(
+            let pendingSourceID,
+            let destructiveIntent
+        ) = fixture.draft.evidenceRetentionState,
+              pendingSourceID == fixture.sourceID,
+              case .abandon(.cancelled) = destructiveIntent else {
+            return XCTFail("Partial cancel cleanup must preserve its exact authorized continuation")
+        }
+
+        let retainedRetry = await harness.coordinator.confirm(
+            draft: fixture.draft,
+            allTags: harness.tags,
+            in: harness.context,
+            intent: .retainEvidence
+        )
+        guard case .nonterminal = retainedRetry else {
+            return XCTFail("Retained confirmation must remain unavailable after cancel cleanup begins")
+        }
+
+        let wrongContinuation = await harness.coordinator.abandonEvidence(
+            for: fixture.draft,
+            in: harness.context,
+            intent: .discarded
+        )
+        guard case .stagingCleanupFailed = wrongContinuation else {
+            return XCTFail("Discard must not silently replace an in-progress cancel continuation")
+        }
+
+        harness.fileSystem.removeDirectoryFailureURL = nil
+
+        let retry = await harness.coordinator.abandonEvidence(
+            for: fixture.draft,
+            in: harness.context,
+            intent: .cancelled
+        )
+        guard case .completed = retry else {
+            return XCTFail("Cancel retry must complete the original abandonment")
+        }
+
+        guard case .none = fixture.draft.evidenceRetentionState else {
+            return XCTFail("Completed cancel cleanup must clear transient evidence state")
+        }
+        try assertMissing(
+            paths.stagingDirectory,
+            fileSystem: harness.fileSystem
+        )
+    }
+
+    @MainActor
+    func testDiscardPartialStagingCleanupPreservesDiscardIntentAndRetriesAbandonment() async throws {
+        let harness = try makeHarness()
+        let fixture = try makeEvidenceDraft(in: harness, seed: 64)
+        let paths = harness.store.paths(for: fixture.sourceID)
+        harness.fileSystem.removeDirectoryFailureURL = paths.stagingDirectory
+
+        let failed = await harness.coordinator.abandonEvidence(
+            for: fixture.draft,
+            in: harness.context,
+            intent: .discarded
+        )
+
+        guard case .stagingCleanupFailed = failed else {
+            return XCTFail("Partial discard cleanup must remain nonterminal")
+        }
+
+        try assertMissing(
+            paths.stagedPayload,
+            fileSystem: harness.fileSystem
+        )
+
+        guard case .cleanupPending(
+            let pendingSourceID,
+            let destructiveIntent
+        ) = fixture.draft.evidenceRetentionState,
+              pendingSourceID == fixture.sourceID,
+              case .abandon(.discarded) = destructiveIntent else {
+            return XCTFail("Partial discard cleanup must preserve its exact authorized continuation")
+        }
+
+        harness.fileSystem.removeDirectoryFailureURL = nil
+
+        let retry = await harness.coordinator.abandonEvidence(
+            for: fixture.draft,
+            in: harness.context,
+            intent: .discarded
+        )
+        guard case .completed = retry else {
+            return XCTFail("Discard retry must complete the original abandonment")
+        }
+
+        XCTAssertEqual(
+            try harness.context.fetchCount(FetchDescriptor<Transaction>()),
+            0
+        )
+        guard case .none = fixture.draft.evidenceRetentionState else {
+            return XCTFail("Completed discard cleanup must clear transient evidence state")
         }
     }
 
@@ -1029,8 +1337,10 @@ private final class PassCFileSystem: EvidenceFileSystem {
 
     var writeFailureURL: URL?
     var removeFailureURL: URL?
+    var removeDirectoryFailureURL: URL?
     var removedURLs: [URL] = []
     var afterAtomicReplacement: (() throws -> Void)?
+    var afterDirectoryRemoval: ((URL) throws -> Void)?
 
     init(
         temporaryDirectory: URL,
@@ -1080,7 +1390,11 @@ private final class PassCFileSystem: EvidenceFileSystem {
     }
 
     func removeDirectoryIfEmpty(at url: URL) throws {
+        if url == removeDirectoryFailureURL {
+            throw PassCInjectedFailure.directoryRemoval
+        }
         try base.removeDirectoryIfEmpty(at: url)
+        try afterDirectoryRemoval?(url)
     }
 
     func replaceItemAtomically(
@@ -1124,5 +1438,6 @@ private enum PassCInjectedFailure: Error {
     case storageInitialization
     case storageWrite
     case storageRemoval
+    case directoryRemoval
     case ledgerWrite
 }
