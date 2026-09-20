@@ -375,6 +375,248 @@ final class EvidencePassCConfirmationTests: XCTestCase {
         )
     }
 
+    @MainActor
+    func testPlainConfirmationDoesNotResolveEvidenceStore() async throws {
+        let schema = LedgerStore.schema()
+        let configuration = ModelConfiguration(
+            schema: schema,
+            isStoredInMemoryOnly: true
+        )
+        let container = try ModelContainer(
+            for: schema,
+            configurations: [configuration]
+        )
+        container.mainContext.autosaveEnabled = false
+        let context = container.mainContext
+        try Seed.bootstrapIfNeeded(context)
+
+        let category = try XCTUnwrap(
+            try context.fetch(FetchDescriptor<Category>()).first
+        )
+        let draft = TransactionDraft()
+        draft.amountText = "9.25"
+        draft.merchant_name = "Manual only"
+        draft.category = category
+        draft.status = .pending
+
+        let coordinator = EvidenceConfirmationCoordinator(
+            operationCoordinator: EvidenceOperationCoordinator(),
+            storeProvider: {
+                throw PassCInjectedFailure.storageInitialization
+            }
+        )
+
+        let result = await coordinator.confirm(
+            draft: draft,
+            allTags: try context.fetch(FetchDescriptor<Tag>()),
+            in: context,
+            intent: .plain
+        )
+
+        guard case .terminal(.saved) = result else {
+            return XCTFail("Manual confirmation must not depend on evidence storage")
+        }
+
+        XCTAssertEqual(
+            try context.fetchCount(FetchDescriptor<Transaction>()),
+            1
+        )
+    }
+
+    @MainActor
+    func testRetainedRetryReplacesStaleZeroOwnerFinalFromStaging() async throws {
+        let harness = try makeHarness()
+        let fixture = try makeEvidenceDraft(in: harness, seed: 41)
+        let paths = harness.store.paths(for: fixture.sourceID)
+
+        try createDurableDirectory(paths, in: harness)
+        let stale = Data(repeating: 0xEE, count: fixture.data.count)
+        try harness.fileSystem.write(
+            stale,
+            to: paths.finalPayload,
+            atomically: false
+        )
+
+        let result = await harness.coordinator.confirm(
+            draft: fixture.draft,
+            allTags: harness.tags,
+            in: harness.context,
+            intent: .retainEvidence
+        )
+
+        guard case .terminal(.saved) = result else {
+            return XCTFail("Expected retained retry to reprepare from staging")
+        }
+
+        XCTAssertEqual(
+            try Data(contentsOf: paths.finalPayload),
+            fixture.data
+        )
+        XCTAssertNotEqual(stale, fixture.data)
+        XCTAssertEqual(
+            try harness.context.fetchCount(FetchDescriptor<TransactionSource>()),
+            1
+        )
+    }
+
+    @MainActor
+    func testRetainedLedgerFailureRetryConvergesOnOneIdentityAndPayload() async throws {
+        let harness = try makeHarness()
+        let fixture = try makeEvidenceDraft(in: harness, seed: 43)
+        let paths = harness.store.paths(for: fixture.sourceID)
+
+        let failed = await harness.coordinator.confirm(
+            draft: fixture.draft,
+            allTags: harness.tags,
+            in: harness.context,
+            intent: .retainEvidence,
+            ledgerCommit: { _ in
+                throw PassCInjectedFailure.ledgerWrite
+            }
+        )
+
+        guard case .nonterminal(let failure) = failed,
+              case .ledgerFailedRetryable(.retainedEvidence) = failure.state else {
+            return XCTFail("Expected first retained ledger attempt to fail retryably")
+        }
+
+        let retry = await harness.coordinator.confirm(
+            draft: fixture.draft,
+            allTags: harness.tags,
+            in: harness.context,
+            intent: .retainEvidence
+        )
+
+        guard case .terminal(.saved) = retry else {
+            return XCTFail("Expected retained retry to succeed")
+        }
+
+        XCTAssertEqual(
+            try harness.context.fetchCount(FetchDescriptor<Transaction>()),
+            1
+        )
+        XCTAssertEqual(
+            try harness.context.fetchCount(FetchDescriptor<TransactionSource>()),
+            1
+        )
+
+        let source = try XCTUnwrap(
+            try harness.context.fetch(FetchDescriptor<Transaction>()).first?.source
+        )
+        XCTAssertEqual(source.id, fixture.sourceID.uuidString)
+        XCTAssertEqual(
+            source.stored_file_uri,
+            RetainedEvidenceLocator(sourceID: fixture.sourceID).serialized
+        )
+        XCTAssertEqual(
+            try Data(contentsOf: paths.finalPayload),
+            fixture.data
+        )
+    }
+
+    @MainActor
+    func testPostCommitStagingCleanupFailureDoesNotTurnLedgerSuccessIntoRetryableFailure() async throws {
+        let harness = try makeHarness()
+        let fixture = try makeEvidenceDraft(in: harness, seed: 47)
+        let paths = harness.store.paths(for: fixture.sourceID)
+        harness.fileSystem.removeFailureURL = paths.stagedPayload
+
+        let result = await harness.coordinator.confirm(
+            draft: fixture.draft,
+            allTags: harness.tags,
+            in: harness.context,
+            intent: .retainEvidence
+        )
+
+        guard case .terminal(.saved) = result else {
+            return XCTFail("Ledger success must remain terminal after staging cleanup failure")
+        }
+
+        XCTAssertEqual(
+            try harness.context.fetchCount(FetchDescriptor<Transaction>()),
+            1
+        )
+        XCTAssertEqual(
+            try Data(contentsOf: paths.finalPayload),
+            fixture.data
+        )
+        XCTAssertEqual(
+            try Data(contentsOf: paths.stagedPayload),
+            fixture.data
+        )
+    }
+
+    @MainActor
+    func testSaveWithoutEvidenceDeletesFinalThenIncomingThenStaging() async throws {
+        let harness = try makeHarness()
+        let fixture = try makeEvidenceDraft(in: harness, seed: 51)
+        let paths = harness.store.paths(for: fixture.sourceID)
+
+        try createDurableDirectory(paths, in: harness)
+        try harness.fileSystem.write(
+            fixture.data,
+            to: paths.finalPayload,
+            atomically: false
+        )
+        try harness.fileSystem.write(
+            fixture.data,
+            to: paths.incomingPayload,
+            atomically: false
+        )
+
+        harness.fileSystem.removedURLs.removeAll()
+
+        let result = await harness.coordinator.confirm(
+            draft: fixture.draft,
+            allTags: harness.tags,
+            in: harness.context,
+            intent: .saveWithoutRetainedEvidence
+        )
+
+        guard case .terminal(.savedWithoutEvidence) = result else {
+            return XCTFail("Expected explicit save without retained evidence")
+        }
+
+        XCTAssertEqual(
+            harness.fileSystem.removedURLs,
+            [
+                paths.finalPayload,
+                paths.incomingPayload,
+                paths.stagedPayload
+            ]
+        )
+    }
+
+    @MainActor
+    func testAbandonmentCleansStagingEvenWhenPersistedOwnerMakesDurableDeletionAmbiguous() async throws {
+        let harness = try makeHarness()
+        let fixture = try makeEvidenceDraft(in: harness, seed: 53)
+        let paths = harness.store.paths(for: fixture.sourceID)
+
+        try LedgerWrite.perform(in: harness.context) {
+            harness.context.insert(
+                TransactionSource(
+                    id: fixture.sourceID.uuidString,
+                    source_type: .screenshot
+                )
+            )
+        }
+
+        let result = await harness.coordinator.abandonEvidence(
+            for: fixture.draft,
+            in: harness.context
+        )
+
+        guard case .completedWithDurableMaterialRetained = result else {
+            return XCTFail("Committed/ambiguous ownership must retain durable material authority")
+        }
+
+        XCTAssertEqual(
+            try harness.fileSystem.nodeKind(at: paths.stagedPayload),
+            .missing
+        )
+    }
+
     func testSameUUIDLeaseRemainsExclusiveAcrossSuspension() async {
         let coordinator = EvidenceOperationCoordinator()
         let sourceID = UUID()
@@ -534,6 +776,22 @@ final class EvidencePassCConfirmationTests: XCTestCase {
     }
 
     @MainActor
+    private func createDurableDirectory(
+        _ paths: RetainedEvidencePaths,
+        in harness: Harness
+    ) throws {
+        try harness.fileSystem.createDirectory(
+            at: harness.store.roots.durableV1Root.deletingLastPathComponent()
+        )
+        try harness.fileSystem.createDirectory(
+            at: harness.store.roots.durableV1Root
+        )
+        try harness.fileSystem.createDirectory(
+            at: paths.durableDirectory
+        )
+    }
+
+    @MainActor
     private func makeEvidenceDraft(
         in harness: Harness,
         seed: UInt8
@@ -589,6 +847,8 @@ private final class PassCFileSystem: EvidenceFileSystem {
     private let applicationSupportURL: URL
 
     var writeFailureURL: URL?
+    var removeFailureURL: URL?
+    var removedURLs: [URL] = []
 
     init(
         temporaryDirectory: URL,
@@ -630,7 +890,11 @@ private final class PassCFileSystem: EvidenceFileSystem {
     }
 
     func removeRegularFile(at url: URL) throws {
+        if url == removeFailureURL {
+            throw PassCInjectedFailure.storageRemoval
+        }
         try base.removeRegularFile(at: url)
+        removedURLs.append(url)
     }
 
     func removeDirectoryIfEmpty(at url: URL) throws {
@@ -673,6 +937,8 @@ private actor PassCLeaseProbe {
 }
 
 private enum PassCInjectedFailure: Error {
+    case storageInitialization
     case storageWrite
+    case storageRemoval
     case ledgerWrite
 }
