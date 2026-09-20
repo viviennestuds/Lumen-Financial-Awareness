@@ -418,8 +418,11 @@ struct EvidenceConfirmationCoordinator {
                 sourceID,
                 in: context
             ) else {
+                let conflict = draft.evidenceRetentionState.canAttemptRetainedEvidence
+                    ? identityConflict()
+                    : identityConflictAfterDestructiveCleanup()
                 await operationCoordinator.release(lease)
-                return identityConflict()
+                return conflict
             }
 
             if needsCleanup {
@@ -467,7 +470,7 @@ struct EvidenceConfirmationCoordinator {
                 in: context
             ) else {
                 await operationCoordinator.release(lease)
-                return identityConflict()
+                return identityConflictAfterDestructiveCleanup()
             }
         } catch {
             await operationCoordinator.release(lease)
@@ -621,6 +624,15 @@ struct EvidenceConfirmationCoordinator {
         default:
             return false
         }
+    }
+
+    private func identityConflictAfterDestructiveCleanup() -> EvidenceConfirmationResult {
+        .nonterminal(
+            ReviewConfirmationFailure(
+                state: .preCommitIdentityConflict,
+                message: "Lumen found an ambiguous evidence identity after evidence cleanup. No transaction was saved, and retained-photo confirmation remains unavailable for this session."
+            )
+        )
     }
 
     private func identityConflict() -> EvidenceConfirmationResult {
