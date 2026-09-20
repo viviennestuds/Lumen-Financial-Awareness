@@ -39,6 +39,10 @@ final class EvidencePassCConfirmationTests: XCTestCase {
             source.stored_file_uri,
             RetainedEvidenceLocator(sourceID: fixture.sourceID).serialized
         )
+        XCTAssertNil(
+            fixture.draft.source?.stored_file_uri,
+            "The locator must become durable on the confirmation-time source copy, not the transient draft source"
+        )
         XCTAssertEqual(source.file_size_bytes, fixture.data.count)
         XCTAssertEqual(source.mime_type, "image/jpeg")
 
@@ -290,6 +294,54 @@ final class EvidencePassCConfirmationTests: XCTestCase {
             paths.finalPayload,
             fileSystem: harness.fileSystem
         )
+    }
+
+    @MainActor
+    func testFreshOwnerRecheckBlocksCommitWhenOwnerAppearsAfterFinalization() async throws {
+        let harness = try makeHarness()
+        let fixture = try makeEvidenceDraft(in: harness, seed: 30)
+        let paths = harness.store.paths(for: fixture.sourceID)
+
+        harness.fileSystem.afterAtomicReplacement = {
+            try LedgerWrite.perform(in: harness.context) {
+                harness.context.insert(
+                    TransactionSource(
+                        id: fixture.sourceID.uuidString.lowercased(),
+                        source_type: .screenshot
+                    )
+                )
+            }
+        }
+
+        let result = await harness.coordinator.confirm(
+            draft: fixture.draft,
+            allTags: harness.tags,
+            in: harness.context,
+            intent: .retainEvidence
+        )
+
+        guard case .nonterminal(let failure) = result,
+              case .preCommitIdentityConflict = failure.state else {
+            return XCTFail("Fresh post-finalization owner recheck must block ledger commit")
+        }
+
+        XCTAssertEqual(
+            try harness.context.fetchCount(FetchDescriptor<Transaction>()),
+            0
+        )
+        XCTAssertEqual(
+            try harness.context.fetchCount(FetchDescriptor<TransactionSource>()),
+            1
+        )
+        XCTAssertEqual(
+            try Data(contentsOf: paths.finalPayload),
+            fixture.data
+        )
+        XCTAssertEqual(
+            try Data(contentsOf: paths.stagedPayload),
+            fixture.data
+        )
+        XCTAssertNil(fixture.draft.source?.stored_file_uri)
     }
 
     @MainActor
@@ -968,6 +1020,7 @@ private final class PassCFileSystem: EvidenceFileSystem {
     var writeFailureURL: URL?
     var removeFailureURL: URL?
     var removedURLs: [URL] = []
+    var afterAtomicReplacement: (() throws -> Void)?
 
     init(
         temporaryDirectory: URL,
@@ -1028,6 +1081,8 @@ private final class PassCFileSystem: EvidenceFileSystem {
             at: destinationURL,
             withItemAt: sourceURL
         )
+        try afterAtomicReplacement?()
+        afterAtomicReplacement = nil
     }
 
     func applyCompleteFileProtection(at url: URL) throws {}
