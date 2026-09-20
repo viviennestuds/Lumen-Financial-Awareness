@@ -1,16 +1,24 @@
 import Foundation
 import Darwin
 
+enum EvidenceFileNodeKind: Equatable {
+    case missing
+    case regularFile
+    case directory
+    case symbolicLink
+    case other
+}
+
 protocol EvidenceFileSystem {
     var temporaryDirectory: URL { get }
 
     func applicationSupportDirectory() throws -> URL
+    func nodeKind(at url: URL) throws -> EvidenceFileNodeKind
     func createDirectory(at url: URL) throws
     func write(_ data: Data, to url: URL, atomically: Bool) throws
     func read(_ url: URL) throws -> Data
-    func fileExists(at url: URL) -> Bool
     func contentsOfDirectory(at url: URL) throws -> [URL]
-    func removeItem(at url: URL) throws
+    func removeRegularFile(at url: URL) throws
     func removeDirectoryIfEmpty(at url: URL) throws
     func replaceItemAtomically(at destinationURL: URL, withItemAt sourceURL: URL) throws
     func applyCompleteFileProtection(at url: URL) throws
@@ -40,48 +48,118 @@ struct LocalEvidenceFileSystem: EvidenceFileSystem {
         return url
     }
 
+    func nodeKind(at url: URL) throws -> EvidenceFileNodeKind {
+        var information = stat()
+        let result = url.path.withCString { path in
+            Darwin.lstat(path, &information)
+        }
+
+        if result == 0 {
+            switch information.st_mode & S_IFMT {
+            case S_IFREG:
+                return .regularFile
+            case S_IFDIR:
+                return .directory
+            case S_IFLNK:
+                return .symbolicLink
+            default:
+                return .other
+            }
+        }
+
+        if errno == ENOENT {
+            return .missing
+        }
+
+        let code = POSIXErrorCode(rawValue: errno) ?? .EIO
+        throw POSIXError(code)
+    }
+
     func createDirectory(at url: URL) throws {
         try fileManager.createDirectory(
             at: url,
             withIntermediateDirectories: true
         )
+
+        let kind = try nodeKind(at: url)
+        guard kind == .directory else {
+            throw EvidenceFileSystemError.expectedDirectory(url, kind)
+        }
     }
 
     func write(_ data: Data, to url: URL, atomically: Bool) throws {
+        let parent = url.deletingLastPathComponent()
+        let parentKind = try nodeKind(at: parent)
+        guard parentKind == .directory else {
+            throw EvidenceFileSystemError.expectedDirectory(parent, parentKind)
+        }
+
+        let existingKind = try nodeKind(at: url)
+        guard existingKind == .missing || existingKind == .regularFile else {
+            throw EvidenceFileSystemError.expectedRegularFile(url, existingKind)
+        }
+
         try data.write(
             to: url,
             options: atomically ? [.atomic] : []
         )
+
+        let writtenKind = try nodeKind(at: url)
+        guard writtenKind == .regularFile else {
+            throw EvidenceFileSystemError.expectedRegularFile(url, writtenKind)
+        }
     }
 
     func read(_ url: URL) throws -> Data {
-        try Data(contentsOf: url)
-    }
-
-    func fileExists(at url: URL) -> Bool {
-        fileManager.fileExists(atPath: url.path)
+        let kind = try nodeKind(at: url)
+        guard kind == .regularFile else {
+            throw EvidenceFileSystemError.expectedRegularFile(url, kind)
+        }
+        return try Data(contentsOf: url)
     }
 
     func contentsOfDirectory(at url: URL) throws -> [URL] {
-        guard fileExists(at: url) else {
-            return []
+        let kind = try nodeKind(at: url)
+        guard kind == .directory else {
+            throw EvidenceFileSystemError.expectedDirectory(url, kind)
         }
+
         return try fileManager.contentsOfDirectory(
             at: url,
             includingPropertiesForKeys: nil
         )
     }
 
-    func removeItem(at url: URL) throws {
-        guard fileExists(at: url) else {
+    func removeRegularFile(at url: URL) throws {
+        let kind = try nodeKind(at: url)
+
+        if kind == .missing {
             return
         }
-        try fileManager.removeItem(at: url)
+
+        guard kind == .regularFile else {
+            throw EvidenceFileSystemError.expectedRegularFile(url, kind)
+        }
+
+        let result = url.path.withCString { path in
+            Darwin.unlink(path)
+        }
+
+        guard result == 0 else {
+            let code = POSIXErrorCode(rawValue: errno) ?? .EIO
+            throw POSIXError(code)
+        }
     }
 
     func removeDirectoryIfEmpty(at url: URL) throws {
-        guard fileExists(at: url) else {
+        let kind = try nodeKind(at: url)
+
+        if kind == .missing {
             return
+        }
+
+        guard kind == .directory else {
+            throw EvidenceFileSystemError.expectedDirectory(url, kind)
         }
 
         let result = url.path.withCString { path in
@@ -98,7 +176,42 @@ struct LocalEvidenceFileSystem: EvidenceFileSystem {
         at destinationURL: URL,
         withItemAt sourceURL: URL
     ) throws {
-        if fileExists(at: destinationURL) {
+        let sourceKind = try nodeKind(at: sourceURL)
+        guard sourceKind == .regularFile else {
+            throw EvidenceFileSystemError.expectedRegularFile(
+                sourceURL,
+                sourceKind
+            )
+        }
+
+        let sourceParent = sourceURL.deletingLastPathComponent()
+        let destinationParent = destinationURL.deletingLastPathComponent()
+
+        let sourceParentKind = try nodeKind(at: sourceParent)
+        guard sourceParentKind == .directory else {
+            throw EvidenceFileSystemError.expectedDirectory(
+                sourceParent,
+                sourceParentKind
+            )
+        }
+
+        let destinationParentKind = try nodeKind(at: destinationParent)
+        guard destinationParentKind == .directory else {
+            throw EvidenceFileSystemError.expectedDirectory(
+                destinationParent,
+                destinationParentKind
+            )
+        }
+
+        let destinationKind = try nodeKind(at: destinationURL)
+        guard destinationKind == .missing || destinationKind == .regularFile else {
+            throw EvidenceFileSystemError.expectedRegularFile(
+                destinationURL,
+                destinationKind
+            )
+        }
+
+        if destinationKind == .regularFile {
             _ = try fileManager.replaceItemAt(
                 destinationURL,
                 withItemAt: sourceURL,
@@ -111,9 +224,18 @@ struct LocalEvidenceFileSystem: EvidenceFileSystem {
                 to: destinationURL
             )
         }
+
+        let finalKind = try nodeKind(at: destinationURL)
+        guard finalKind == .regularFile else {
+            throw EvidenceFileSystemError.expectedRegularFile(
+                destinationURL,
+                finalKind
+            )
+        }
     }
 
     func applyCompleteFileProtection(at url: URL) throws {
+        try requireRegularFile(at: url)
         try (url as NSURL).setResourceValue(
             URLFileProtection.complete,
             forKey: .fileProtectionKey
@@ -121,9 +243,11 @@ struct LocalEvidenceFileSystem: EvidenceFileSystem {
     }
 
     func fileProtection(at url: URL) throws -> URLFileProtection? {
+        try requireRegularFile(at: url)
+
         let freshURL = URL(
             fileURLWithPath: url.path,
-            isDirectory: url.hasDirectoryPath
+            isDirectory: false
         )
         let values = try freshURL.resourceValues(
             forKeys: [.fileProtectionKey]
@@ -132,6 +256,7 @@ struct LocalEvidenceFileSystem: EvidenceFileSystem {
     }
 
     func clearBackupExclusion(at url: URL) throws {
+        try requireRegularFile(at: url)
         try (url as NSURL).setResourceValue(
             false,
             forKey: .isExcludedFromBackupKey
@@ -139,17 +264,28 @@ struct LocalEvidenceFileSystem: EvidenceFileSystem {
     }
 
     func isExcludedFromBackup(at url: URL) throws -> Bool {
+        try requireRegularFile(at: url)
+
         let freshURL = URL(
             fileURLWithPath: url.path,
-            isDirectory: url.hasDirectoryPath
+            isDirectory: false
         )
         let values = try freshURL.resourceValues(
             forKeys: [.isExcludedFromBackupKey]
         )
         return values.isExcludedFromBackup ?? false
     }
+
+    private func requireRegularFile(at url: URL) throws {
+        let kind = try nodeKind(at: url)
+        guard kind == .regularFile else {
+            throw EvidenceFileSystemError.expectedRegularFile(url, kind)
+        }
+    }
 }
 
 enum EvidenceFileSystemError: Error, Equatable {
     case applicationSupportUnavailable
+    case expectedDirectory(URL, EvidenceFileNodeKind)
+    case expectedRegularFile(URL, EvidenceFileNodeKind)
 }
