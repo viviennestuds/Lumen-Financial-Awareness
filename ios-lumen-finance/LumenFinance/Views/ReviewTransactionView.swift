@@ -211,12 +211,14 @@ struct ReviewTransactionView: View {
                     || terminalOutcomeReached
                     || isSaving
                     || isPreCommitIdentityConflict
+                    || pendingAbandonmentIntent != nil
             )
             .opacity(
                 draft.canConfirm
                     && !terminalOutcomeReached
                     && !isSaving
                     && !isPreCommitIdentityConflict
+                    && pendingAbandonmentIntent == nil
                     ? 1 : 0.5
             )
             .accessibilityIdentifier("confirmTransaction")
@@ -245,24 +247,52 @@ struct ReviewTransactionView: View {
                     .foregroundStyle(Theme.inkSecondary)
             }
 
-            HStack(spacing: Theme.s2) {
+            if let abandonmentIntent = pendingAbandonmentIntent {
+                secondaryButton(
+                    abandonmentRetryTitle(abandonmentIntent),
+                    icon: "arrow.clockwise"
+                ) {
+                    Task {
+                        await finishWithoutSave(
+                            reviewOutcome(for: abandonmentIntent)
+                        )
+                    }
+                }
+
+                Text("Evidence cleanup must finish before this draft can close. Retained-photo confirmation is no longer available for this session.")
+                    .font(.footnote)
+                    .foregroundStyle(Theme.inkSecondary)
+            } else if isSaveWithoutCleanupPending {
                 secondaryButton(
                     editing ? "Done editing" : "Edit fields",
                     icon: "slider.horizontal.3"
                 ) {
                     withAnimation { editing.toggle() }
                 }
-                secondaryButton("Discard draft", icon: "eye.slash") {
-                    Task { await finishWithoutSave(.discarded) }
-                }
-            }
 
-            Button("Cancel") {
-                Task { await finishWithoutSave(.cancelled) }
+                Text("Finish the authorized save-without-evidence cleanup before leaving Review.")
+                    .font(.footnote)
+                    .foregroundStyle(Theme.inkSecondary)
+            } else {
+                HStack(spacing: Theme.s2) {
+                    secondaryButton(
+                        editing ? "Done editing" : "Edit fields",
+                        icon: "slider.horizontal.3"
+                    ) {
+                        withAnimation { editing.toggle() }
+                    }
+                    secondaryButton("Discard draft", icon: "eye.slash") {
+                        Task { await finishWithoutSave(.discarded) }
+                    }
+                }
+
+                Button("Cancel") {
+                    Task { await finishWithoutSave(.cancelled) }
+                }
+                .disabled(isSaving || terminalOutcomeReached)
+                .font(.system(size: 14, weight: .medium))
+                .foregroundStyle(Theme.muted)
             }
-            .disabled(isSaving || terminalOutcomeReached)
-            .font(.system(size: 14, weight: .medium))
-            .foregroundStyle(Theme.muted)
         }
         .padding(.horizontal, Theme.s5)
         .padding(.top, Theme.s3)
@@ -284,6 +314,26 @@ struct ReviewTransactionView: View {
         return false
     }
 
+    private var pendingAbandonmentIntent: EvidenceAbandonmentIntent? {
+        guard case .cleanupPending(
+            _,
+            .abandon(let intent)
+        ) = draft.evidenceRetentionState else {
+            return nil
+        }
+        return intent
+    }
+
+    private var isSaveWithoutCleanupPending: Bool {
+        guard case .cleanupPending(
+            _,
+            .saveWithoutEvidence
+        ) = draft.evidenceRetentionState else {
+            return false
+        }
+        return true
+    }
+
     private var primaryIntent: EvidenceConfirmationIntent {
         if case .ledgerFailedRetryable(let mode) = confirmationState {
             switch mode {
@@ -296,20 +346,45 @@ struct ReviewTransactionView: View {
             }
         }
 
-        if draft.evidenceRetentionState.canAttemptRetainedEvidence {
-            return .retainEvidence
-        }
+        switch draft.evidenceRetentionState {
+        case .none:
+            return .plain
 
-        if draft.evidenceRetentionState.sourceID != nil {
+        case .staged:
+            return .retainEvidence
+
+        case .cleanupPending(_, let destructiveIntent):
+            switch destructiveIntent {
+            case .saveWithoutEvidence:
+                return .saveWithoutRetainedEvidence
+            case .abandon:
+                return .plain
+            }
+
+        case .saveWithoutEvidenceOnly:
             return .saveWithoutRetainedEvidence
         }
-
-        return .plain
     }
 
     private var primaryActionTitle: String {
         if case .retentionFailedRetryable = confirmationState {
-            return "Retry retaining photo"
+            if draft.evidenceRetentionState.canAttemptRetainedEvidence {
+                return "Retry retaining photo"
+            }
+
+            if isSaveWithoutCleanupPending {
+                return "Retry cleanup and save without photo"
+            }
+
+            if case .saveWithoutEvidenceOnly = draft.evidenceRetentionState {
+                return "Retry save without photo"
+            }
+
+            if pendingAbandonmentIntent != nil {
+                return "Evidence cleanup pending"
+            }
+
+            return "Retry save"
         }
 
         if case .ledgerFailedRetryable(let mode) = confirmationState {
@@ -351,7 +426,7 @@ struct ReviewTransactionView: View {
     private func save(
         intent: EvidenceConfirmationIntent
     ) async {
-        guard !terminalOutcomeReached else {
+        guard !terminalOutcomeReached, !isSaving else {
             return
         }
 
@@ -405,9 +480,16 @@ struct ReviewTransactionView: View {
 
         if draft.evidenceRetentionState.sourceID != nil {
             let coordinator = EvidenceConfirmationCoordinator.live()
+            guard let intent = abandonmentIntent(for: outcome) else {
+                confirmationState = .retentionFailedRetryable
+                saveError = "Lumen could not determine the authorized draft cleanup action."
+                return
+            }
+
             let abandonment = await coordinator.abandonEvidence(
                 for: draft,
-                in: modelContext
+                in: modelContext,
+                intent: intent
             )
 
             if case .stagingCleanupFailed = abandonment {
@@ -419,5 +501,42 @@ struct ReviewTransactionView: View {
 
         terminalOutcomeReached = true
         onComplete(outcome)
+    }
+
+    private func abandonmentIntent(
+        for outcome: ReviewFlowOutcome
+    ) -> EvidenceAbandonmentIntent? {
+        switch outcome {
+        case .cancelled:
+            return .cancelled
+        case .discarded:
+            return .discarded
+        case .saved,
+             .savedWithoutEvidence,
+             .savedWithEvidenceConflict:
+            return nil
+        }
+    }
+
+    private func reviewOutcome(
+        for intent: EvidenceAbandonmentIntent
+    ) -> ReviewFlowOutcome {
+        switch intent {
+        case .cancelled:
+            return .cancelled
+        case .discarded:
+            return .discarded
+        }
+    }
+
+    private func abandonmentRetryTitle(
+        _ intent: EvidenceAbandonmentIntent
+    ) -> String {
+        switch intent {
+        case .cancelled:
+            return "Retry cancel cleanup"
+        case .discarded:
+            return "Retry discard cleanup"
+        }
     }
 }
