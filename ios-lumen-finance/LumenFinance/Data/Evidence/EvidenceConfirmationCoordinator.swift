@@ -123,6 +123,11 @@ struct EvidenceConfirmationCoordinator {
             return .completed
         }
 
+        if case .saveWithoutEvidenceOnly = draft.evidenceRetentionState {
+            draft.evidenceRetentionState = .none
+            return .completed
+        }
+
         guard let source = draft.source,
               EvidenceIdentity.uuid(fromSourceID: source.id) == sourceID else {
             return .stagingCleanupFailed
@@ -306,7 +311,8 @@ struct EvidenceConfirmationCoordinator {
             )
         } catch {
             try? cleanupPreparedDurableMaterialForRetry(
-                sourceID: sourceID
+                sourceID: sourceID,
+                store: store
             )
             await operationCoordinator.release(lease)
             return .nonterminal(
@@ -355,13 +361,17 @@ struct EvidenceConfirmationCoordinator {
             )
         }
 
-        let store: RetainedEvidenceStore
-        do {
-            store = try storeProvider()
-        } catch {
-            return retentionFailure(
-                "Lumen could not initialize retained-evidence storage. No evidence was deleted."
-            )
+        let store: RetainedEvidenceStore?
+        if draft.evidenceRetentionState.canAttemptRetainedEvidence {
+            do {
+                store = try storeProvider()
+            } catch {
+                return retentionFailure(
+                    "Lumen could not initialize retained-evidence storage. No evidence was deleted."
+                )
+            }
+        } else {
+            store = nil
         }
 
         let lease = await operationCoordinator.acquire(for: sourceID)
@@ -376,6 +386,13 @@ struct EvidenceConfirmationCoordinator {
             }
 
             if draft.evidenceRetentionState.canAttemptRetainedEvidence {
+                guard let store else {
+                    await operationCoordinator.release(lease)
+                    return retentionFailure(
+                        "Lumen could not access retained-evidence storage. Nothing was saved."
+                    )
+                }
+
                 let durableOutcome = try store.cleanupPreparedDurableMaterial(
                     for: sourceID
                 )
