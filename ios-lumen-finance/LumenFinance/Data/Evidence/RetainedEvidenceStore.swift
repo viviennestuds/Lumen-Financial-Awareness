@@ -285,8 +285,8 @@ struct RetainedEvidenceStore {
             paths.durableDirectory,
             sourceID: sourceID,
             knownItems: [
-                paths.incomingPayload,
-                paths.finalPayload
+                paths.finalPayload,
+                paths.incomingPayload
             ]
         )
     }
