@@ -415,6 +415,205 @@ final class EvidencePassBStorageTests: XCTestCase {
         XCTAssertEqual(names, ["payload"])
     }
 
+    func testCleanupRetainsDirectoryNamedPayloadWithoutRecursiveDeletion() throws {
+        let harness = try makeHarness()
+        let sourceID = UUID()
+        let paths = harness.store.paths(for: sourceID)
+
+        try FileManager.default.createDirectory(
+            at: paths.finalPayload,
+            withIntermediateDirectories: true
+        )
+        let nested = paths.finalPayload
+            .appendingPathComponent("nested-material", isDirectory: false)
+        let nestedData = Data([0xA1, 0xB2, 0xC3])
+        try nestedData.write(to: nested)
+
+        let outcome = try harness.store
+            .cleanupPreparedDurableMaterial(for: sourceID)
+
+        guard case .retainedUnexpectedNodeKinds(let retained) = outcome else {
+            return XCTFail("Expected unsafe payload node kind to be retained")
+        }
+
+        XCTAssertEqual(retained, ["payload:directory"])
+        XCTAssertEqual(try Data(contentsOf: nested), nestedData)
+        XCTAssertEqual(
+            try harness.fileSystem.nodeKind(at: paths.finalPayload),
+            .directory
+        )
+    }
+
+    func testPrepareRejectsDirectoryNamedIncomingPayloadWithoutDeletingNestedMaterial() throws {
+        let harness = try makeHarness()
+        let sourceID = UUID()
+        let data = testPayload(seed: 55)
+        let paths = harness.store.paths(for: sourceID)
+
+        _ = try harness.store.stage(data, for: sourceID)
+
+        try FileManager.default.createDirectory(
+            at: paths.incomingPayload,
+            withIntermediateDirectories: true
+        )
+        let nested = paths.incomingPayload
+            .appendingPathComponent("nested-material", isDirectory: false)
+        let nestedData = Data([0x11, 0x22, 0x33])
+        try nestedData.write(to: nested)
+
+        XCTAssertThrowsError(
+            try harness.store.prepareDurablePayload(for: sourceID)
+        ) { error in
+            XCTAssertEqual(
+                error as? RetainedEvidenceStoreError,
+                .unexpectedControlledNodeKind(
+                    sourceID,
+                    "payload.incoming",
+                    .directory
+                )
+            )
+        }
+
+        XCTAssertEqual(try Data(contentsOf: paths.stagedPayload), data)
+        XCTAssertEqual(try Data(contentsOf: nested), nestedData)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: paths.finalPayload.path))
+    }
+
+    func testPrepareRejectsNonRegularStagedPayloadWithoutCreatingDurableMaterial() throws {
+        let harness = try makeHarness()
+        let sourceID = UUID()
+        let data = testPayload(seed: 56)
+        let paths = harness.store.paths(for: sourceID)
+
+        _ = try harness.store.stage(data, for: sourceID)
+        try FileManager.default.removeItem(at: paths.stagedPayload)
+        try FileManager.default.createDirectory(
+            at: paths.stagedPayload,
+            withIntermediateDirectories: false
+        )
+
+        let nested = paths.stagedPayload
+            .appendingPathComponent("nested-material", isDirectory: false)
+        let nestedData = Data([0x44, 0x55])
+        try nestedData.write(to: nested)
+
+        XCTAssertThrowsError(
+            try harness.store.prepareDurablePayload(for: sourceID)
+        ) { error in
+            XCTAssertEqual(
+                error as? RetainedEvidenceStoreError,
+                .unexpectedControlledNodeKind(
+                    sourceID,
+                    "payload",
+                    .directory
+                )
+            )
+        }
+
+        XCTAssertEqual(try Data(contentsOf: nested), nestedData)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: paths.finalPayload.path))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: paths.incomingPayload.path))
+    }
+
+    func testPrepareRejectsIncomingSymbolicLinkWithoutTouchingTarget() throws {
+        let harness = try makeHarness()
+        let sourceID = UUID()
+        let data = testPayload(seed: 57)
+        let paths = harness.store.paths(for: sourceID)
+
+        _ = try harness.store.stage(data, for: sourceID)
+        try FileManager.default.createDirectory(
+            at: paths.durableDirectory,
+            withIntermediateDirectories: true
+        )
+
+        let externalTarget = harness.root
+            .appendingPathComponent("external-target", isDirectory: false)
+        let targetData = Data([0x61, 0x62, 0x63, 0x64])
+        try targetData.write(to: externalTarget)
+
+        do {
+            try FileManager.default.createSymbolicLink(
+                at: paths.incomingPayload,
+                withDestinationURL: externalTarget
+            )
+        } catch {
+            throw XCTSkip("Symbolic links are unavailable in this test environment")
+        }
+
+        XCTAssertThrowsError(
+            try harness.store.prepareDurablePayload(for: sourceID)
+        ) { error in
+            XCTAssertEqual(
+                error as? RetainedEvidenceStoreError,
+                .unexpectedControlledNodeKind(
+                    sourceID,
+                    "payload.incoming",
+                    .symbolicLink
+                )
+            )
+        }
+
+        XCTAssertEqual(try Data(contentsOf: paths.stagedPayload), data)
+        XCTAssertEqual(try Data(contentsOf: externalTarget), targetData)
+        XCTAssertEqual(
+            try harness.fileSystem.nodeKind(at: paths.incomingPayload),
+            .symbolicLink
+        )
+        XCTAssertFalse(FileManager.default.fileExists(atPath: paths.finalPayload.path))
+    }
+
+    func testPrepareRejectsSymbolicLinkSourceDirectoryWithoutTouchingTarget() throws {
+        let harness = try makeHarness()
+        let sourceID = UUID()
+        let data = testPayload(seed: 58)
+        let paths = harness.store.paths(for: sourceID)
+
+        _ = try harness.store.stage(data, for: sourceID)
+        try FileManager.default.createDirectory(
+            at: harness.store.roots.durableV1Root,
+            withIntermediateDirectories: true
+        )
+
+        let externalDirectory = harness.root
+            .appendingPathComponent("external-directory", isDirectory: true)
+        try FileManager.default.createDirectory(
+            at: externalDirectory,
+            withIntermediateDirectories: true
+        )
+        let sentinel = externalDirectory
+            .appendingPathComponent("sentinel", isDirectory: false)
+        let sentinelData = Data([0x71, 0x72])
+        try sentinelData.write(to: sentinel)
+
+        do {
+            try FileManager.default.createSymbolicLink(
+                at: paths.durableDirectory,
+                withDestinationURL: externalDirectory
+            )
+        } catch {
+            throw XCTSkip("Symbolic links are unavailable in this test environment")
+        }
+
+        XCTAssertThrowsError(
+            try harness.store.prepareDurablePayload(for: sourceID)
+        )
+
+        XCTAssertEqual(try Data(contentsOf: paths.stagedPayload), data)
+        XCTAssertEqual(try Data(contentsOf: sentinel), sentinelData)
+        XCTAssertEqual(
+            try harness.fileSystem.nodeKind(at: paths.durableDirectory),
+            .symbolicLink
+        )
+        XCTAssertFalse(
+            FileManager.default.fileExists(
+                atPath: externalDirectory
+                    .appendingPathComponent("payload.incoming")
+                    .path
+            )
+        )
+    }
+
     func testCleanupRetainsEntireControlledDirectoryWhenUnexpectedMaterialExists() throws {
         let harness = try makeHarness()
         let sourceID = UUID()
@@ -627,19 +826,19 @@ private final class FaultInjectingEvidenceFileSystem: EvidenceFileSystem {
         try base.read(url)
     }
 
-    func fileExists(at url: URL) -> Bool {
-        base.fileExists(at: url)
+    func nodeKind(at url: URL) throws -> EvidenceFileNodeKind {
+        try base.nodeKind(at: url)
     }
 
     func contentsOfDirectory(at url: URL) throws -> [URL] {
         try base.contentsOfDirectory(at: url)
     }
 
-    func removeItem(at url: URL) throws {
+    func removeRegularFile(at url: URL) throws {
         if url == removeFailureURL {
             throw EvidencePassBInjectedFailure.injected
         }
-        try base.removeItem(at: url)
+        try base.removeRegularFile(at: url)
     }
 
     func removeDirectoryIfEmpty(at url: URL) throws {
