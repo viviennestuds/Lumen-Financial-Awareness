@@ -563,6 +563,55 @@ final class EvidencePassBStorageTests: XCTestCase {
         XCTAssertFalse(FileManager.default.fileExists(atPath: paths.finalPayload.path))
     }
 
+    func testPrepareRejectsSymbolicLinkDurableContainerWithoutCreatingV1InTarget() throws {
+        let harness = try makeHarness()
+        let sourceID = UUID()
+        let data = testPayload(seed: 58)
+        let paths = harness.store.paths(for: sourceID)
+        let durableContainer = harness.store.roots.durableV1Root
+            .deletingLastPathComponent()
+
+        _ = try harness.store.stage(data, for: sourceID)
+
+        let externalDirectory = harness.root
+            .appendingPathComponent("external-container", isDirectory: true)
+        try FileManager.default.createDirectory(
+            at: externalDirectory,
+            withIntermediateDirectories: true
+        )
+        let sentinel = externalDirectory
+            .appendingPathComponent("sentinel", isDirectory: false)
+        let sentinelData = Data([0x70, 0x71])
+        try sentinelData.write(to: sentinel)
+
+        do {
+            try FileManager.default.createSymbolicLink(
+                at: durableContainer,
+                withDestinationURL: externalDirectory
+            )
+        } catch {
+            throw XCTSkip("Symbolic links are unavailable in this test environment")
+        }
+
+        XCTAssertThrowsError(
+            try harness.store.prepareDurablePayload(for: sourceID)
+        )
+
+        XCTAssertEqual(try Data(contentsOf: paths.stagedPayload), data)
+        XCTAssertEqual(try Data(contentsOf: sentinel), sentinelData)
+        XCTAssertEqual(
+            try harness.fileSystem.nodeKind(at: durableContainer),
+            .symbolicLink
+        )
+        XCTAssertFalse(
+            FileManager.default.fileExists(
+                atPath: externalDirectory
+                    .appendingPathComponent("v1", isDirectory: true)
+                    .path
+            )
+        )
+    }
+
     func testPrepareRejectsSymbolicLinkSourceDirectoryWithoutTouchingTarget() throws {
         let harness = try makeHarness()
         let sourceID = UUID()
