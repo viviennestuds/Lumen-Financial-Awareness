@@ -45,6 +45,17 @@ struct LocalEvidenceFileSystem: EvidenceFileSystem {
         ).first else {
             throw EvidenceFileSystemError.applicationSupportUnavailable
         }
+
+        try fileManager.createDirectory(
+            at: url,
+            withIntermediateDirectories: true
+        )
+
+        let kind = try nodeKind(at: url)
+        guard kind == .directory else {
+            throw EvidenceFileSystemError.expectedDirectory(url, kind)
+        }
+
         return url
     }
 
@@ -76,14 +87,39 @@ struct LocalEvidenceFileSystem: EvidenceFileSystem {
     }
 
     func createDirectory(at url: URL) throws {
+        let existingKind = try nodeKind(at: url)
+
+        if existingKind == .directory {
+            return
+        }
+
+        guard existingKind == .missing else {
+            throw EvidenceFileSystemError.expectedDirectory(
+                url,
+                existingKind
+            )
+        }
+
+        let parent = url.deletingLastPathComponent()
+        let parentKind = try nodeKind(at: parent)
+        guard parentKind == .directory else {
+            throw EvidenceFileSystemError.expectedDirectory(
+                parent,
+                parentKind
+            )
+        }
+
         try fileManager.createDirectory(
             at: url,
-            withIntermediateDirectories: true
+            withIntermediateDirectories: false
         )
 
-        let kind = try nodeKind(at: url)
-        guard kind == .directory else {
-            throw EvidenceFileSystemError.expectedDirectory(url, kind)
+        let createdKind = try nodeKind(at: url)
+        guard createdKind == .directory else {
+            throw EvidenceFileSystemError.expectedDirectory(
+                url,
+                createdKind
+            )
         }
     }
 
