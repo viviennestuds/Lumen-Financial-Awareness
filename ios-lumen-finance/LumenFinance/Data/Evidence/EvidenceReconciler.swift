@@ -248,8 +248,8 @@ struct EvidenceReconciler {
     ) -> [Scope] {
         var scopes: [Scope] = []
 
-        if candidate.materials.contains(.final)
-            || candidate.materials.contains(.incoming) {
+        if candidate.materials.contains(.finalPayload)
+            || candidate.materials.contains(.incomingPayload) {
             scopes.append(.durable)
         }
 
@@ -389,10 +389,10 @@ struct EvidenceReconciler {
 
                 switch item.lastPathComponent {
                 case "payload":
-                    materialKind = .final
+                    materialKind = .finalPayload
 
                 case "payload.incoming":
-                    materialKind = .incoming
+                    materialKind = .incomingPayload
 
                 default:
                     continue
