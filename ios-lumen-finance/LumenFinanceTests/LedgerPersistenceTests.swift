@@ -536,6 +536,212 @@ final class LedgerPersistenceTests: XCTestCase {
     }
 
     @MainActor
+    func testCommittedEvidenceSourceSurvivesLastTransactionDeletionAndReopen() throws {
+        try withStore { url in
+            let sourceID = UUID().uuidString
+            let locator = "lumen-evidence://v1/\(sourceID)/payload"
+            let transactionID = "evidence-zero-reference-unique"
+
+            try autoreleasepool {
+                let store = try container(at: url)
+                defer { withExtendedLifetime(store) {} }
+                let context = store.mainContext
+                let source = TransactionSource(
+                    id: sourceID,
+                    source_type: .receipt_photo,
+                    stored_file_uri: locator,
+                    file_size_bytes: 321,
+                    mime_type: "image/jpeg",
+                    parse_status: .manual_review
+                )
+                try LedgerWrite.perform(in: context) {
+                    context.insert(
+                        Transaction(
+                            id: transactionID,
+                            amount: 12.34,
+                            merchant_name: "Committed evidence",
+                            source: source
+                        )
+                    )
+                }
+            }
+
+            try autoreleasepool {
+                let store = try container(at: url)
+                defer { withExtendedLifetime(store) {} }
+                let context = store.mainContext
+                let transaction = try fetchTransaction(
+                    transactionID,
+                    in: context
+                )
+                let source = try XCTUnwrap(transaction.source)
+                XCTAssertEqual(source.id, sourceID)
+                XCTAssertEqual(source.stored_file_uri, locator)
+                XCTAssertEqual(source.file_size_bytes, 321)
+                XCTAssertEqual(source.mime_type, "image/jpeg")
+
+                try LedgerWrite.perform(in: context) {
+                    context.delete(transaction)
+                }
+            }
+
+            try autoreleasepool {
+                let store = try container(at: url)
+                defer { withExtendedLifetime(store) {} }
+                let context = store.mainContext
+
+                XCTAssertEqual(
+                    try context.fetchCount(FetchDescriptor<Transaction>()),
+                    0
+                )
+
+                let sources = try context.fetch(
+                    FetchDescriptor<TransactionSource>()
+                )
+                let source = try XCTUnwrap(
+                    sources.first { $0.id == sourceID }
+                )
+
+                XCTAssertEqual(sources.count, 1)
+                XCTAssertEqual(source.stored_file_uri, locator)
+                XCTAssertEqual(source.file_size_bytes, 321)
+                XCTAssertEqual(source.mime_type, "image/jpeg")
+            }
+        }
+    }
+
+    @MainActor
+    func testSharedCommittedEvidenceSourceSurvivesTransitionToZeroReferencesAcrossReopens() throws {
+        try withStore { url in
+            let sourceID = "00000000-0000-4000-8000-0000000001B2"
+            let locator = "lumen-evidence://v1/\(sourceID)/payload"
+            let firstID = "phase1b-shared-A"
+            let secondID = "phase1b-shared-B"
+
+            try autoreleasepool {
+                let store = try container(at: url)
+                defer { withExtendedLifetime(store) {} }
+                let context = store.mainContext
+
+                try LedgerWrite.perform(in: context) {
+                    let source = TransactionSource(
+                        id: sourceID,
+                        source_type: .receipt_photo,
+                        stored_file_uri: locator,
+                        file_size_bytes: 654,
+                        mime_type: "image/jpeg",
+                        parse_status: .manual_review
+                    )
+
+                    context.insert(
+                        Transaction(
+                            id: firstID,
+                            amount: 10,
+                            merchant_name: "Shared evidence one",
+                            source: source
+                        )
+                    )
+                    context.insert(
+                        Transaction(
+                            id: secondID,
+                            amount: 20,
+                            merchant_name: "Shared evidence two",
+                            source: source
+                        )
+                    )
+                }
+            }
+
+            try autoreleasepool {
+                let store = try container(at: url)
+                defer { withExtendedLifetime(store) {} }
+                let context = store.mainContext
+
+                XCTAssertEqual(
+                    try context.fetchCount(FetchDescriptor<Transaction>()),
+                    2
+                )
+                XCTAssertEqual(
+                    try context.fetchCount(
+                        FetchDescriptor<TransactionSource>()
+                    ),
+                    1
+                )
+                XCTAssertEqual(
+                    try fetchTransaction(firstID, in: context).source?.id,
+                    sourceID
+                )
+                XCTAssertEqual(
+                    try fetchTransaction(secondID, in: context).source?.id,
+                    sourceID
+                )
+
+                try LedgerWrite.perform(in: context) {
+                    context.delete(
+                        try fetchTransaction(firstID, in: context)
+                    )
+                }
+            }
+
+            try autoreleasepool {
+                let store = try container(at: url)
+                defer { withExtendedLifetime(store) {} }
+                let context = store.mainContext
+
+                XCTAssertEqual(
+                    try context.fetchCount(FetchDescriptor<Transaction>()),
+                    1
+                )
+                XCTAssertEqual(
+                    try context.fetchCount(
+                        FetchDescriptor<TransactionSource>()
+                    ),
+                    1
+                )
+                XCTAssertEqual(
+                    try fetchTransaction(secondID, in: context).source?.id,
+                    sourceID
+                )
+
+                let sources = try context.fetch(
+                    FetchDescriptor<TransactionSource>()
+                )
+                XCTAssertEqual(sources.first?.id, sourceID)
+                XCTAssertEqual(sources.first?.stored_file_uri, locator)
+
+                try LedgerWrite.perform(in: context) {
+                    context.delete(
+                        try fetchTransaction(secondID, in: context)
+                    )
+                }
+            }
+
+            try autoreleasepool {
+                let store = try container(at: url)
+                defer { withExtendedLifetime(store) {} }
+                let context = store.mainContext
+
+                XCTAssertEqual(
+                    try context.fetchCount(FetchDescriptor<Transaction>()),
+                    0
+                )
+
+                let sources = try context.fetch(
+                    FetchDescriptor<TransactionSource>()
+                )
+                let source = try XCTUnwrap(
+                    sources.first { $0.id == sourceID }
+                )
+
+                XCTAssertEqual(sources.count, 1)
+                XCTAssertEqual(source.stored_file_uri, locator)
+                XCTAssertEqual(source.file_size_bytes, 654)
+                XCTAssertEqual(source.mime_type, "image/jpeg")
+            }
+        }
+    }
+
+    @MainActor
     func testAllLegacyValuesRoundTripUnchangedSchemaAndSharedSourceSurvivesDelete() throws {
         // Same-schema round-trip only. NOT an authentic baseline migration fixture.
         try withStore { url in

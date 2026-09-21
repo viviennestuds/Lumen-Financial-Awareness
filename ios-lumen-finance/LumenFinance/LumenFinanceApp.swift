@@ -39,9 +39,22 @@ struct LumenFinanceApp: App {
             try Seed.bootstrapIfNeeded(opened.mainContext)
             container = opened
             didFailToOpen = false
+            reconcileEvidence(in: opened.mainContext)
         } catch {
             // Do not expose file paths or private financial content in errors.
             didFailToOpen = true
+        }
+    }
+
+    private func reconcileEvidence(
+        in context: ModelContext
+    ) {
+        Task { @MainActor in
+            guard let reconciler = try? EvidenceReconciler.live() else {
+                return
+            }
+
+            _ = await reconciler.reconcile(in: context)
         }
     }
 }
