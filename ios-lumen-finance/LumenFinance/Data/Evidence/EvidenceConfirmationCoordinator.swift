@@ -129,13 +129,6 @@ struct EvidenceConfirmationCoordinator {
             return .stagingCleanupFailed
         }
 
-        let store: RetainedEvidenceStore
-        do {
-            store = try storeProvider()
-        } catch {
-            return .stagingCleanupFailed
-        }
-
         let lease = await operationCoordinator.acquire(
             for: initialSourceID
         )
@@ -189,6 +182,14 @@ struct EvidenceConfirmationCoordinator {
             draft.evidenceRetentionState = .none
             await operationCoordinator.release(lease)
             return .completed
+        }
+
+        let store: RetainedEvidenceStore
+        do {
+            store = try storeProvider()
+        } catch {
+            await operationCoordinator.release(lease)
+            return .stagingCleanupFailed
         }
 
         var durableMaterialRetained = false
