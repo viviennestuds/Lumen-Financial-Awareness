@@ -217,10 +217,18 @@ final class LumenFinanceUITests: XCTestCase {
         )
         app.buttons["Settings"].tap()
 
+        let privacyCopy =
+            "Lumen stores your financial data locally and does not require a Lumen-operated cloud service. Your device’s backup settings may include Lumen data in platform-managed Apple backups."
         XCTAssertTrue(
-            app.staticTexts[
-                "Lumen stores your financial data locally and does not require a Lumen-operated cloud service. Your device’s backup settings may include Lumen data in platform-managed Apple backups."
-            ].waitForExistence(timeout: 10)
+            app.staticTexts
+                .matching(
+                    NSPredicate(
+                        format: "label == %@",
+                        privacyCopy
+                    )
+                )
+                .firstMatch
+                .waitForExistence(timeout: 10)
         )
     }
 
@@ -237,10 +245,18 @@ final class LumenFinanceUITests: XCTestCase {
         XCTAssertTrue(add.waitForExistence(timeout: 10))
         add.tap()
 
+        let uploadCopy =
+            "No OCR runs in this preview. Photos are staged locally for review. Confirming with retained evidence keeps a local copy; Save without retained evidence removes the staged copy before saving. Check every sample field before saving."
         XCTAssertTrue(
-            app.staticTexts[
-                "No OCR runs in this preview. Photos are staged locally for review. Confirming with retained evidence keeps a local copy; Save without retained evidence removes the staged copy before saving. Check every sample field before saving."
-            ].waitForExistence(timeout: 10)
+            app.staticTexts
+                .matching(
+                    NSPredicate(
+                        format: "label == %@",
+                        uploadCopy
+                    )
+                )
+                .firstMatch
+                .waitForExistence(timeout: 10)
         )
     }
 
