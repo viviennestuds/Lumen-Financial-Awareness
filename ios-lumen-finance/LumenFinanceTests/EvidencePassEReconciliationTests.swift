@@ -17,7 +17,7 @@ final class EvidencePassEReconciliationTests: XCTestCase {
         let candidates = harness.reconciler.discoverCandidates()
         XCTAssertEqual(candidates.count, 1)
         XCTAssertEqual(candidates[0].sourceID, sourceID)
-        XCTAssertEqual(candidates[0].materials, [.final])
+        XCTAssertEqual(candidates[0].materials, [.finalPayload])
 
         let result = await harness.reconciler.reconcile(
             candidates[0],
@@ -478,7 +478,7 @@ final class EvidencePassEReconciliationTests: XCTestCase {
         )
         XCTAssertEqual(
             candidate.materials,
-            [.final, .incoming, .staging]
+            [.finalPayload, .incomingPayload, .staging]
         )
 
         harness.fileSystem.removeFailureURLs.insert(
