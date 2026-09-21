@@ -8,6 +8,59 @@
 
 import SwiftUI
 
+struct StagedEvidenceContext: Sendable {
+    let sourceID: UUID
+    let stagedURL: URL
+    let byteCount: Int
+}
+
+enum EvidenceAbandonmentIntent {
+    case cancelled
+    case discarded
+}
+
+enum EvidenceDestructiveIntent {
+    case saveWithoutEvidence
+    case abandon(EvidenceAbandonmentIntent)
+}
+
+enum DraftEvidenceRetentionState {
+    case none
+    case staged(StagedEvidenceContext)
+    case cleanupPending(UUID, EvidenceDestructiveIntent)
+    case saveWithoutEvidenceOnly(UUID)
+
+    var sourceID: UUID? {
+        switch self {
+        case .none:
+            return nil
+        case .staged(let context):
+            return context.sourceID
+        case .cleanupPending(let sourceID, _),
+             .saveWithoutEvidenceOnly(let sourceID):
+            return sourceID
+        }
+    }
+
+    var canAttemptRetainedEvidence: Bool {
+        if case .staged = self {
+            return true
+        }
+        return false
+    }
+
+    var hasActiveEvidenceSession: Bool {
+        sourceID != nil
+    }
+
+    var destructiveIntent: EvidenceDestructiveIntent? {
+        if case .cleanupPending(_, let intent) = self {
+            return intent
+        }
+        return nil
+    }
+}
+
 @Observable
 final class TransactionDraft {
     var transaction_type: TransactionType = .expense
@@ -25,6 +78,7 @@ final class TransactionDraft {
     // Source / parse context (used in Review for uploads).
     var source: TransactionSource? = nil
     var confidence_score: Double? = nil
+    var evidenceRetentionState: DraftEvidenceRetentionState = .none
 
     private(set) var isEditingExisting: Bool = false
     private var originalAmount: Double?
@@ -71,7 +125,10 @@ final class TransactionDraft {
     }
 
     /// Call only inside the confirmed write boundary: relationships may attach to a context.
-    func makeTransaction(allTags: [Tag]) throws -> Transaction {
+    func makeTransaction(
+        allTags: [Tag],
+        storedFileURI: String? = nil
+    ) throws -> Transaction {
         guard canConfirm else { throw LedgerWriteError.invalidDraft }
         return Transaction(
             amount: abs(amount),
@@ -83,7 +140,7 @@ final class TransactionDraft {
             status: status,
             notes: notes.isEmpty ? nil : notes,
             confidence_score: nil,
-            source: confirmationSource(),
+            source: confirmationSource(storedFileURI: storedFileURI),
             category: category,
             payment_method: payment_method,
             tags: allTags.filter { tagIDs.contains($0.id) }
@@ -91,11 +148,13 @@ final class TransactionDraft {
     }
 
     /// Copy transient upload metadata so a failed insert/rollback never invalidates the draft's source.
-    private func confirmationSource() -> TransactionSource? {
+    private func confirmationSource(
+        storedFileURI: String?
+    ) -> TransactionSource? {
         guard let source else { return nil }
         return TransactionSource(
             id: source.id, source_type: source.source_type,
-            original_filename: source.original_filename, stored_file_uri: source.stored_file_uri,
+            original_filename: source.original_filename, stored_file_uri: storedFileURI,
             compressed_file_uri: source.compressed_file_uri, file_size_bytes: source.file_size_bytes,
             mime_type: source.mime_type, uploaded_at: source.uploaded_at, captured_at: source.captured_at,
             source_timezone: source.source_timezone, metadata_json: source.metadata_json,
