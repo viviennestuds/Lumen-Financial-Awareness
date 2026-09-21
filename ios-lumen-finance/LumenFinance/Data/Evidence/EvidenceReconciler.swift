@@ -3,8 +3,8 @@ import SwiftData
 
 enum EvidenceReconciliationMaterialKind: Hashable {
     case staging
-    case incoming
-    case final
+    case incomingPayload
+    case finalPayload
 }
 
 struct EvidenceReconciliationCandidate: Equatable {
