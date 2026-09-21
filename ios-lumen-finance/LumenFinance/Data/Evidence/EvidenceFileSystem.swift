@@ -9,6 +9,14 @@ enum EvidenceFileNodeKind: Equatable {
     case other
 }
 
+protocol EvidenceAvailabilityFileSystem {
+    var temporaryDirectory: URL { get }
+
+    func applicationSupportDirectoryURL() throws -> URL
+    func nodeKind(at url: URL) throws -> EvidenceFileNodeKind
+    func read(_ url: URL) throws -> Data
+}
+
 protocol EvidenceFileSystem {
     var temporaryDirectory: URL { get }
 
@@ -27,7 +35,7 @@ protocol EvidenceFileSystem {
     func isExcludedFromBackup(at url: URL) throws -> Bool
 }
 
-struct LocalEvidenceFileSystem: EvidenceFileSystem {
+struct LocalEvidenceFileSystem: EvidenceFileSystem, EvidenceAvailabilityFileSystem {
     private let fileManager: FileManager
 
     init(fileManager: FileManager = .default) {
@@ -38,13 +46,19 @@ struct LocalEvidenceFileSystem: EvidenceFileSystem {
         fileManager.temporaryDirectory
     }
 
-    func applicationSupportDirectory() throws -> URL {
+    func applicationSupportDirectoryURL() throws -> URL {
         guard let url = fileManager.urls(
             for: .applicationSupportDirectory,
             in: .userDomainMask
         ).first else {
             throw EvidenceFileSystemError.applicationSupportUnavailable
         }
+
+        return url
+    }
+
+    func applicationSupportDirectory() throws -> URL {
+        let url = try applicationSupportDirectoryURL()
 
         try fileManager.createDirectory(
             at: url,
