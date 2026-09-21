@@ -207,6 +207,38 @@ struct EvidenceAvailabilityResolver {
             return unavailable(.inspectionFailure)
         }
 
+        let evidenceRoot = roots.durableV1Root
+            .deletingLastPathComponent()
+        let applicationSupportRoot = evidenceRoot
+            .deletingLastPathComponent()
+
+        for directory in [
+            applicationSupportRoot,
+            evidenceRoot,
+            roots.durableV1Root,
+            paths.durableDirectory
+        ] {
+            let directoryKind: EvidenceFileNodeKind
+
+            do {
+                directoryKind = try fileSystem.nodeKind(
+                    at: directory
+                )
+            } catch {
+                return unavailable(.inspectionFailure)
+            }
+
+            if directoryKind == .missing {
+                return unavailable(.missing)
+            }
+
+            guard directoryKind == .directory else {
+                return unavailable(
+                    .unexpectedNodeKind(directoryKind)
+                )
+            }
+        }
+
         let kind: EvidenceFileNodeKind
 
         do {
