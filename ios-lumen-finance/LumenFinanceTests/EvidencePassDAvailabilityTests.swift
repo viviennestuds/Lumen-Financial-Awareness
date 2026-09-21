@@ -302,20 +302,7 @@ final class EvidencePassDAvailabilityTests: XCTestCase {
                 "ExternalLumenEvidence",
                 isDirectory: true
             )
-        let externalPaths = RetainedEvidenceStorageRoots.located(
-            temporaryDirectory: harness.temporaryDirectory,
-            applicationSupportDirectory: harness.root
-        )
-        .paths(for: sourceID)
-
-        try FileManager.default.createDirectory(
-            at: externalPaths.durableDirectory,
-            withIntermediateDirectories: true
-        )
         let externalData = Data([0x91, 0x92, 0x93])
-        try externalData.write(
-            to: externalPaths.finalPayload
-        )
 
         let controlledEvidenceRoot = harness.evidenceRoot
         try FileManager.default.createSymbolicLink(
@@ -376,6 +363,10 @@ final class EvidencePassDAvailabilityTests: XCTestCase {
             ).serialized
         )
         let paths = harness.paths(for: sourceID)
+        try FileManager.default.createDirectory(
+            at: paths.durableDirectory,
+            withIntermediateDirectories: true
+        )
         harness.fileSystem.forcedNodeKinds[
             paths.finalPayload
         ] = .other
@@ -406,6 +397,10 @@ final class EvidencePassDAvailabilityTests: XCTestCase {
             ).serialized
         )
         let paths = harness.paths(for: sourceID)
+        try FileManager.default.createDirectory(
+            at: paths.durableDirectory,
+            withIntermediateDirectories: true
+        )
         harness.fileSystem.nodeKindFailureURLs.insert(
             paths.finalPayload
         )
