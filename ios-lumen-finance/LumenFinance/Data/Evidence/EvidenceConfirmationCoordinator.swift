@@ -120,31 +120,12 @@ struct EvidenceConfirmationCoordinator {
         in context: ModelContext,
         intent: EvidenceAbandonmentIntent
     ) async -> EvidenceAbandonmentResult {
-        guard let sourceID = draft.evidenceRetentionState.sourceID else {
+        guard let initialSourceID = draft.evidenceRetentionState.sourceID else {
             return .completed
-        }
-
-        if case .saveWithoutEvidenceOnly = draft.evidenceRetentionState {
-            draft.evidenceRetentionState = .none
-            return .completed
-        }
-
-        if case .cleanupPending(
-            let pendingSourceID,
-            let pendingIntent
-        ) = draft.evidenceRetentionState {
-            guard pendingSourceID == sourceID,
-                  case .abandon(let pendingAbandonment) = pendingIntent,
-                  abandonmentIntent(
-                    pendingAbandonment,
-                    matches: intent
-                  ) else {
-                return .stagingCleanupFailed
-            }
         }
 
         guard let source = draft.source,
-              EvidenceIdentity.uuid(fromSourceID: source.id) == sourceID else {
+              EvidenceIdentity.uuid(fromSourceID: source.id) == initialSourceID else {
             return .stagingCleanupFailed
         }
 
@@ -155,13 +136,59 @@ struct EvidenceConfirmationCoordinator {
             return .stagingCleanupFailed
         }
 
-        let lease = await operationCoordinator.acquire(for: sourceID)
+        let lease = await operationCoordinator.acquire(
+            for: initialSourceID
+        )
 
-        if case .staged = draft.evidenceRetentionState {
+        guard let sourceID = draft.evidenceRetentionState.sourceID,
+              sourceID == initialSourceID,
+              let currentSource = draft.source,
+              EvidenceIdentity.uuid(fromSourceID: currentSource.id) == sourceID else {
+            await operationCoordinator.release(lease)
+            return .stagingCleanupFailed
+        }
+
+        switch draft.evidenceRetentionState {
+        case .none:
+            await operationCoordinator.release(lease)
+            return .completed
+
+        case .staged:
             draft.evidenceRetentionState = .cleanupPending(
                 sourceID,
                 .abandon(intent)
             )
+
+        case .cleanupPending(
+            let pendingSourceID,
+            let pendingIntent
+        ):
+            guard pendingSourceID == sourceID else {
+                await operationCoordinator.release(lease)
+                return .stagingCleanupFailed
+            }
+
+            switch pendingIntent {
+            case .saveWithoutEvidence:
+                draft.evidenceRetentionState = .cleanupPending(
+                    sourceID,
+                    .abandon(intent)
+                )
+
+            case .abandon(let pendingAbandonment):
+                guard abandonmentIntent(
+                    pendingAbandonment,
+                    matches: intent
+                ) else {
+                    await operationCoordinator.release(lease)
+                    return .stagingCleanupFailed
+                }
+            }
+
+        case .saveWithoutEvidenceOnly:
+            draft.evidenceRetentionState = .none
+            await operationCoordinator.release(lease)
+            return .completed
         }
 
         var durableMaterialRetained = false
