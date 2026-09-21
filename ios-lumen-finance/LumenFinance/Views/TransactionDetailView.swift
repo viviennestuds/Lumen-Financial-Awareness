@@ -25,6 +25,8 @@ struct TransactionDetailView: View {
     @State private var draft: TransactionDraft?
     @State private var showDeleteConfirm = false
     @State private var writeError: String?
+    @State private var evidenceResolution: EvidenceAvailabilityResolution?
+    @State private var evidenceResolutionFailed = false
 
     var body: some View {
         ScrollView {
@@ -56,6 +58,9 @@ struct TransactionDetailView: View {
             .padding(.top, Theme.s3)
         }
         .background(Theme.canvas)
+        .task(id: evidenceResolutionKey) {
+            refreshEvidenceAvailability()
+        }
         .scrollIndicators(.hidden)
         .scrollDismissesKeyboard(.interactively)
         .alert("Change not saved", isPresented: Binding(
@@ -188,28 +193,148 @@ struct TransactionDetailView: View {
     }
 
     private var attachmentCard: some View {
-        FormCard(title: "Attachment") {
-            let isUpload = transaction.source?.source_type == .screenshot || transaction.source?.source_type == .receipt_photo
+        let presentation = attachmentPresentation
+
+        return FormCard(title: "Attachment") {
             HStack(spacing: Theme.s3) {
                 ZStack {
                     RoundedRectangle(cornerRadius: 12)
                         .fill(Theme.canvasDeep)
                         .frame(width: 56, height: 56)
-                    Image(systemName: isUpload ? "doc.text.image" : "tray")
+                    Image(systemName: presentation.systemImage)
                         .font(.system(size: 20))
                         .foregroundStyle(Theme.muted)
                 }
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(isUpload ? "Original capture" : "No attachment")
+                    Text(presentation.title)
                         .font(.system(size: 14, weight: .semibold))
                         .foregroundStyle(Theme.ink)
-                    Text(isUpload ? "Preview available in a later phase." : "Manual entries have no file.")
+                    Text(presentation.detail)
                         .font(.system(size: 12))
                         .foregroundStyle(Theme.inkSecondary)
                 }
                 Spacer(minLength: 0)
             }
         }
+    }
+
+    private var evidenceResolutionKey: String {
+        [
+            transaction.source?.id ?? "no-source",
+            transaction.source?.stored_file_uri ?? "no-locator",
+            String(transaction.updated_at.timeIntervalSince1970)
+        ]
+        .joined(separator: "|")
+    }
+
+    private var attachmentPresentation: AttachmentPresentation {
+        if evidenceResolutionFailed {
+            return AttachmentPresentation(
+                systemImage: "exclamationmark.triangle",
+                title: "Attachment status unavailable",
+                detail: "Lumen couldn’t determine the retained attachment status right now."
+            )
+        }
+
+        guard let evidenceResolution else {
+            return AttachmentPresentation(
+                systemImage: "hourglass",
+                title: "Checking attachment",
+                detail: "Lumen is checking the retained attachment on this device."
+            )
+        }
+
+        switch evidenceResolution.state {
+        case .noEvidenceExpected:
+            return AttachmentPresentation(
+                systemImage: "tray",
+                title: "No attachment",
+                detail: "No retained evidence is associated with this transaction."
+            )
+
+        case .noRetainedLocator:
+            let isImageOrigin =
+                transaction.source?.source_type == .screenshot
+                || transaction.source?.source_type == .receipt_photo
+
+            return AttachmentPresentation(
+                systemImage: isImageOrigin ? "photo" : "tray",
+                title: isImageOrigin
+                    ? "Original image not retained"
+                    : "No retained attachment",
+                detail: "No retained-evidence locator was recorded for this source."
+            )
+
+        case .available:
+            return AttachmentPresentation(
+                systemImage: "doc.text.image",
+                title: "Retained image available",
+                detail: "The retained image is readable on this device."
+            )
+
+        case .expectedButUnavailable:
+            return AttachmentPresentation(
+                systemImage: "exclamationmark.triangle",
+                title: "Retained image currently unavailable",
+                detail: "Lumen can’t read the expected retained image on this device."
+            )
+
+        case .legacyOpaque:
+            return AttachmentPresentation(
+                systemImage: "clock.arrow.circlepath",
+                title: "Historical source context",
+                detail: "This source uses a historical attachment reference that Lumen does not interpret as retained v1 evidence."
+            )
+
+        case .unsupportedVersion(let version):
+            return AttachmentPresentation(
+                systemImage: "questionmark.folder",
+                title: "Unsupported attachment format",
+                detail: "This version of Lumen does not support retained-evidence locator version \(version)."
+            )
+
+        case .invalidLocator:
+            return AttachmentPresentation(
+                systemImage: "exclamationmark.triangle",
+                title: "Attachment unavailable",
+                detail: "The retained attachment reference is invalid."
+            )
+
+        case .invalidAssociation:
+            return AttachmentPresentation(
+                systemImage: "exclamationmark.triangle",
+                title: "Attachment unavailable",
+                detail: "The retained attachment reference does not match this source."
+            )
+
+        case .identityConflict:
+            return AttachmentPresentation(
+                systemImage: "exclamationmark.triangle",
+                title: "Attachment unavailable",
+                detail: "Lumen can’t safely determine the retained attachment for this record."
+            )
+        }
+    }
+
+    private func refreshEvidenceAvailability() {
+        do {
+            evidenceResolution = try EvidenceAvailabilityResolver
+                .live()
+                .resolve(
+                    source: transaction.source,
+                    in: modelContext
+                )
+            evidenceResolutionFailed = false
+        } catch {
+            evidenceResolution = nil
+            evidenceResolutionFailed = true
+        }
+    }
+
+    private struct AttachmentPresentation {
+        let systemImage: String
+        let title: String
+        let detail: String
     }
 
     private var statusControls: some View {
