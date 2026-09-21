@@ -903,6 +903,130 @@ final class EvidencePassCConfirmationTests: XCTestCase {
     }
 
     @MainActor
+    func testPendingSaveWithoutConflictCanExplicitlyCancelWithoutDeletingOwnedDurableEvidence() async throws {
+        let harness = try makeHarness()
+        let fixture = try makeEvidenceDraft(in: harness, seed: 61)
+        let paths = harness.store.paths(for: fixture.sourceID)
+
+        harness.fileSystem.removeDirectoryFailureURL = paths.stagingDirectory
+
+        let partialCleanup = await harness.coordinator.confirm(
+            draft: fixture.draft,
+            allTags: harness.tags,
+            in: harness.context,
+            intent: .saveWithoutRetainedEvidence
+        )
+
+        guard case .nonterminal(let partialFailure) = partialCleanup,
+              case .retentionFailedRetryable = partialFailure.state else {
+            return XCTFail("Expected partial save-without cleanup to remain nonterminal")
+        }
+
+        try assertMissing(
+            paths.stagedPayload,
+            fileSystem: harness.fileSystem
+        )
+
+        guard case .cleanupPending(
+            let pendingSourceID,
+            let destructiveIntent
+        ) = fixture.draft.evidenceRetentionState,
+              pendingSourceID == fixture.sourceID,
+              case .saveWithoutEvidence = destructiveIntent else {
+            return XCTFail("Expected pending save-without destructive intent")
+        }
+
+        harness.fileSystem.removeDirectoryFailureURL = nil
+
+        try createDurableDirectory(paths, in: harness)
+        try harness.fileSystem.write(
+            fixture.data,
+            to: paths.finalPayload,
+            atomically: false
+        )
+
+        let locator = RetainedEvidenceLocator(
+            sourceID: fixture.sourceID
+        ).serialized
+
+        try LedgerWrite.perform(in: harness.context) {
+            harness.context.insert(
+                TransactionSource(
+                    id: fixture.sourceID.uuidString.lowercased(),
+                    source_type: .screenshot,
+                    stored_file_uri: locator,
+                    file_size_bytes: fixture.data.count
+                )
+            )
+        }
+
+        let conflictedRetry = await harness.coordinator.confirm(
+            draft: fixture.draft,
+            allTags: harness.tags,
+            in: harness.context,
+            intent: .saveWithoutRetainedEvidence
+        )
+
+        guard case .nonterminal(let conflictFailure) = conflictedRetry,
+              case .preCommitIdentityConflict = conflictFailure.state else {
+            return XCTFail("Owner appearing during pending cleanup must block nil-locator commitment")
+        }
+
+        XCTAssertEqual(
+            try harness.context.fetchCount(FetchDescriptor<Transaction>()),
+            0
+        )
+        XCTAssertEqual(
+            try harness.context.fetchCount(FetchDescriptor<TransactionSource>()),
+            1
+        )
+        XCTAssertEqual(
+            try Data(contentsOf: paths.finalPayload),
+            fixture.data
+        )
+
+        guard case .cleanupPending(
+            let conflictSourceID,
+            let conflictIntent
+        ) = fixture.draft.evidenceRetentionState,
+              conflictSourceID == fixture.sourceID,
+              case .saveWithoutEvidence = conflictIntent else {
+            return XCTFail("Identity conflict must preserve pending save-without intent until explicit abandonment")
+        }
+
+        let cancellation = await harness.coordinator.abandonEvidence(
+            for: fixture.draft,
+            in: harness.context,
+            intent: .cancelled
+        )
+
+        guard case .completedWithDurableMaterialRetained = cancellation else {
+            return XCTFail("Explicit cancellation must retain owner-associated durable material")
+        }
+
+        guard case .none = fixture.draft.evidenceRetentionState else {
+            return XCTFail("Completed explicit cancellation must clear the abandoned draft evidence state")
+        }
+
+        XCTAssertEqual(
+            try harness.context.fetchCount(FetchDescriptor<Transaction>()),
+            0
+        )
+        XCTAssertEqual(
+            try harness.context.fetchCount(FetchDescriptor<TransactionSource>()),
+            1
+        )
+        XCTAssertEqual(
+            try Data(contentsOf: paths.finalPayload),
+            fixture.data
+        )
+        try assertMissing(
+            paths.stagingDirectory,
+            fileSystem: harness.fileSystem
+        )
+    }
+
+    @MainActor
     func testCancelPartialStagingCleanupPreservesCancelIntentAndRetriesAbandonment() async throws {
         let harness = try makeHarness()
         let fixture = try makeEvidenceDraft(in: harness, seed: 62)
