@@ -7,16 +7,61 @@ struct RetainedEvidenceStorageRoots: Equatable {
     static func live(
         fileSystem: any EvidenceFileSystem
     ) throws -> RetainedEvidenceStorageRoots {
-        let stagingRoot = fileSystem.temporaryDirectory
-            .appendingPathComponent("LumenEvidenceStaging", isDirectory: true)
+        located(
+            temporaryDirectory: fileSystem.temporaryDirectory,
+            applicationSupportDirectory: try fileSystem.applicationSupportDirectory()
+        )
+    }
 
-        let durableV1Root = try fileSystem.applicationSupportDirectory()
-            .appendingPathComponent("LumenEvidence", isDirectory: true)
-            .appendingPathComponent("v1", isDirectory: true)
+    static func observational(
+        fileSystem: any EvidenceAvailabilityFileSystem
+    ) throws -> RetainedEvidenceStorageRoots {
+        located(
+            temporaryDirectory: fileSystem.temporaryDirectory,
+            applicationSupportDirectory: try fileSystem.applicationSupportDirectoryURL()
+        )
+    }
 
-        return RetainedEvidenceStorageRoots(
-            stagingRoot: stagingRoot,
-            durableV1Root: durableV1Root
+    static func located(
+        temporaryDirectory: URL,
+        applicationSupportDirectory: URL
+    ) -> RetainedEvidenceStorageRoots {
+        RetainedEvidenceStorageRoots(
+            stagingRoot: temporaryDirectory
+                .appendingPathComponent(
+                    "LumenEvidenceStaging",
+                    isDirectory: true
+                ),
+            durableV1Root: applicationSupportDirectory
+                .appendingPathComponent(
+                    "LumenEvidence",
+                    isDirectory: true
+                )
+                .appendingPathComponent(
+                    "v1",
+                    isDirectory: true
+                )
+        )
+    }
+
+    func paths(for sourceID: UUID) -> RetainedEvidencePaths {
+        let identity = EvidenceIdentity.canonicalString(for: sourceID)
+
+        let stagingDirectory = stagingRoot
+            .appendingPathComponent(identity, isDirectory: true)
+
+        let durableDirectory = durableV1Root
+            .appendingPathComponent(identity, isDirectory: true)
+
+        return RetainedEvidencePaths(
+            stagingDirectory: stagingDirectory,
+            stagedPayload: stagingDirectory
+                .appendingPathComponent("payload", isDirectory: false),
+            durableDirectory: durableDirectory,
+            incomingPayload: durableDirectory
+                .appendingPathComponent("payload.incoming", isDirectory: false),
+            finalPayload: durableDirectory
+                .appendingPathComponent("payload", isDirectory: false)
         )
     }
 }
@@ -77,24 +122,7 @@ struct RetainedEvidenceStore {
     }
 
     func paths(for sourceID: UUID) -> RetainedEvidencePaths {
-        let identity = EvidenceIdentity.canonicalString(for: sourceID)
-
-        let stagingDirectory = roots.stagingRoot
-            .appendingPathComponent(identity, isDirectory: true)
-
-        let durableDirectory = roots.durableV1Root
-            .appendingPathComponent(identity, isDirectory: true)
-
-        return RetainedEvidencePaths(
-            stagingDirectory: stagingDirectory,
-            stagedPayload: stagingDirectory
-                .appendingPathComponent("payload", isDirectory: false),
-            durableDirectory: durableDirectory,
-            incomingPayload: durableDirectory
-                .appendingPathComponent("payload.incoming", isDirectory: false),
-            finalPayload: durableDirectory
-                .appendingPathComponent("payload", isDirectory: false)
-        )
+        roots.paths(for: sourceID)
     }
 
     func stage(
