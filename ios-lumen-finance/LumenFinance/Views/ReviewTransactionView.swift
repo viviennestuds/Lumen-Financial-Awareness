@@ -263,14 +263,27 @@ struct ReviewTransactionView: View {
                     .font(.footnote)
                     .foregroundStyle(Theme.inkSecondary)
             } else if isSaveWithoutCleanupPending {
-                secondaryButton(
-                    editing ? "Done editing" : "Edit fields",
-                    icon: "slider.horizontal.3"
-                ) {
-                    withAnimation { editing.toggle() }
+                HStack(spacing: Theme.s2) {
+                    secondaryButton(
+                        editing ? "Done editing" : "Edit fields",
+                        icon: "slider.horizontal.3"
+                    ) {
+                        withAnimation { editing.toggle() }
+                    }
+
+                    secondaryButton("Discard draft", icon: "eye.slash") {
+                        Task { await finishWithoutSave(.discarded) }
+                    }
                 }
 
-                Text("Finish the authorized save-without-evidence cleanup before leaving Review.")
+                Button("Cancel") {
+                    Task { await finishWithoutSave(.cancelled) }
+                }
+                .disabled(isSaving || terminalOutcomeReached)
+                .font(.system(size: 14, weight: .medium))
+                .foregroundStyle(Theme.muted)
+
+                Text("Retry Save Without Evidence, or explicitly cancel or discard this draft. Retained-photo confirmation is no longer available for this session.")
                     .font(.footnote)
                     .foregroundStyle(Theme.inkSecondary)
             } else {
