@@ -163,7 +163,7 @@ struct UploadView: View {
     private var privacyNote: some View {
         HStack(spacing: Theme.s2) {
             Image(systemName: "lock.shield").foregroundStyle(Theme.accent)
-            Text("No OCR runs in this preview. Photos stay local in temporary storage and may be removed by the system. Check every sample field before saving.")
+            Text("No OCR runs in this preview. Photos are staged locally for review. Confirming with retained evidence keeps a local copy; Save without retained evidence removes the staged copy before saving. Check every sample field before saving.")
                 .font(.system(size: 12))
                 .foregroundStyle(Theme.inkSecondary)
         }
