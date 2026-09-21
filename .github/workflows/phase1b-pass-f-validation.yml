@@ -153,6 +153,7 @@ jobs:
             2>&1 | tee "$OUTPUT_DIR/xcodebuild-ui-acceptance.log"
 
       - name: Run complete UI target for classification evidence
+        if: always()
         id: full_ui
         continue-on-error: true
         run: |
