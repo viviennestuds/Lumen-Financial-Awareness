@@ -613,25 +613,26 @@ final class LedgerPersistenceTests: XCTestCase {
     @MainActor
     func testSharedCommittedEvidenceSourceSurvivesTransitionToZeroReferencesAcrossReopens() throws {
         try withStore { url in
-            let sourceID = UUID().uuidString
+            let sourceID = "00000000-0000-4000-8000-0000000001B2"
             let locator = "lumen-evidence://v1/\(sourceID)/payload"
-            let firstID = "evidence-zero-reference-shared-1"
-            let secondID = "evidence-zero-reference-shared-2"
+            let firstID = "phase1b-shared-A"
+            let secondID = "phase1b-shared-B"
 
             try autoreleasepool {
                 let store = try container(at: url)
                 defer { withExtendedLifetime(store) {} }
                 let context = store.mainContext
-                let source = TransactionSource(
-                    id: sourceID,
-                    source_type: .screenshot,
-                    stored_file_uri: locator,
-                    file_size_bytes: 654,
-                    mime_type: "image/png",
-                    parse_status: .manual_review
-                )
 
                 try LedgerWrite.perform(in: context) {
+                    let source = TransactionSource(
+                        id: sourceID,
+                        source_type: .receipt_photo,
+                        stored_file_uri: locator,
+                        file_size_bytes: 654,
+                        mime_type: "image/jpeg",
+                        parse_status: .manual_review
+                    )
+
                     context.insert(
                         Transaction(
                             id: firstID,
@@ -656,13 +657,29 @@ final class LedgerPersistenceTests: XCTestCase {
                 defer { withExtendedLifetime(store) {} }
                 let context = store.mainContext
 
-                let first = try fetchTransaction(firstID, in: context)
-                let second = try fetchTransaction(secondID, in: context)
-                XCTAssertEqual(first.source?.id, sourceID)
-                XCTAssertEqual(second.source?.id, sourceID)
+                XCTAssertEqual(
+                    try context.fetchCount(FetchDescriptor<Transaction>()),
+                    2
+                )
+                XCTAssertEqual(
+                    try context.fetchCount(
+                        FetchDescriptor<TransactionSource>()
+                    ),
+                    1
+                )
+                XCTAssertEqual(
+                    try fetchTransaction(firstID, in: context).source?.id,
+                    sourceID
+                )
+                XCTAssertEqual(
+                    try fetchTransaction(secondID, in: context).source?.id,
+                    sourceID
+                )
 
                 try LedgerWrite.perform(in: context) {
-                    context.delete(first)
+                    context.delete(
+                        try fetchTransaction(firstID, in: context)
+                    )
                 }
             }
 
@@ -671,22 +688,31 @@ final class LedgerPersistenceTests: XCTestCase {
                 defer { withExtendedLifetime(store) {} }
                 let context = store.mainContext
 
-                XCTAssertThrowsError(
-                    try fetchTransaction(firstID, in: context)
+                XCTAssertEqual(
+                    try context.fetchCount(FetchDescriptor<Transaction>()),
+                    1
                 )
-
-                let second = try fetchTransaction(secondID, in: context)
-                XCTAssertEqual(second.source?.id, sourceID)
+                XCTAssertEqual(
+                    try context.fetchCount(
+                        FetchDescriptor<TransactionSource>()
+                    ),
+                    1
+                )
+                XCTAssertEqual(
+                    try fetchTransaction(secondID, in: context).source?.id,
+                    sourceID
+                )
 
                 let sources = try context.fetch(
                     FetchDescriptor<TransactionSource>()
                 )
-                XCTAssertEqual(sources.count, 1)
                 XCTAssertEqual(sources.first?.id, sourceID)
                 XCTAssertEqual(sources.first?.stored_file_uri, locator)
 
                 try LedgerWrite.perform(in: context) {
-                    context.delete(second)
+                    context.delete(
+                        try fetchTransaction(secondID, in: context)
+                    )
                 }
             }
 
@@ -710,7 +736,7 @@ final class LedgerPersistenceTests: XCTestCase {
                 XCTAssertEqual(sources.count, 1)
                 XCTAssertEqual(source.stored_file_uri, locator)
                 XCTAssertEqual(source.file_size_bytes, 654)
-                XCTAssertEqual(source.mime_type, "image/png")
+                XCTAssertEqual(source.mime_type, "image/jpeg")
             }
         }
     }
