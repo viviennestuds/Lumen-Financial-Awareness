@@ -281,6 +281,90 @@ final class EvidencePassDAvailabilityTests: XCTestCase {
     }
 
     @MainActor
+    func testSymlinkedControlledEvidenceRootFailsClosedBeforePayloadRead() throws {
+        let harness = try makeHarness()
+        let sourceID = UUID()
+        let source = try persistSource(
+            in: harness,
+            sourceID: sourceID,
+            storedFileURI: RetainedEvidenceLocator(
+                sourceID: sourceID
+            ).serialized
+        )
+
+        try FileManager.default.createDirectory(
+            at: harness.applicationSupportDirectory,
+            withIntermediateDirectories: true
+        )
+
+        let externalEvidenceRoot = harness.root
+            .appendingPathComponent(
+                "ExternalLumenEvidence",
+                isDirectory: true
+            )
+        let externalPaths = RetainedEvidenceStorageRoots.located(
+            temporaryDirectory: harness.temporaryDirectory,
+            applicationSupportDirectory: harness.root
+        )
+        .paths(for: sourceID)
+
+        try FileManager.default.createDirectory(
+            at: externalPaths.durableDirectory,
+            withIntermediateDirectories: true
+        )
+        let externalData = Data([0x91, 0x92, 0x93])
+        try externalData.write(
+            to: externalPaths.finalPayload
+        )
+
+        let controlledEvidenceRoot = harness.evidenceRoot
+        try FileManager.default.createSymbolicLink(
+            at: controlledEvidenceRoot,
+            withDestinationURL: externalEvidenceRoot
+        )
+
+        let externalV1 = externalEvidenceRoot
+            .appendingPathComponent("v1", isDirectory: true)
+        let externalUUID = externalV1
+            .appendingPathComponent(
+                sourceID.uuidString,
+                isDirectory: true
+            )
+        try FileManager.default.createDirectory(
+            at: externalUUID,
+            withIntermediateDirectories: true
+        )
+        let externalPayload = externalUUID
+            .appendingPathComponent(
+                "payload",
+                isDirectory: false
+            )
+        try externalData.write(to: externalPayload)
+
+        let resolution = try harness.resolver.resolve(
+            source: source,
+            in: harness.context
+        )
+
+        XCTAssertEqual(
+            resolution,
+            EvidenceAvailabilityResolution(
+                state: .expectedButUnavailable,
+                physicalObservation: .unexpectedNodeKind(.symbolicLink)
+            )
+        )
+        XCTAssertFalse(
+            harness.fileSystem.readURLs.contains(
+                externalPayload
+            )
+        )
+        XCTAssertEqual(
+            try Data(contentsOf: externalPayload),
+            externalData
+        )
+    }
+
+    @MainActor
     func testOtherNodeKindIsPreservedAsUnavailableDiagnostic() throws {
         let harness = try makeHarness()
         let sourceID = UUID()
@@ -668,7 +752,6 @@ final class EvidencePassDAvailabilityTests: XCTestCase {
     }
 }
 
-@MainActor
 private final class PassDAvailabilityFileSystem:
     EvidenceAvailabilityFileSystem {
     private let base = LocalEvidenceFileSystem()
