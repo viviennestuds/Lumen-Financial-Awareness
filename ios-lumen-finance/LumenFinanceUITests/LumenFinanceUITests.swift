@@ -204,6 +204,27 @@ final class LumenFinanceUITests: XCTestCase {
     }
 
     @MainActor
+    func testSettingsPrivacyCopyReflectsLocalAndPlatformBackupPosture() {
+        let app = XCUIApplication()
+        app.launch()
+
+        if app.buttons["Get Started"].waitForExistence(timeout: 3) {
+            app.buttons["Get Started"].tap()
+        }
+
+        XCTAssertTrue(
+            app.buttons["Settings"].waitForExistence(timeout: 10)
+        )
+        app.buttons["Settings"].tap()
+
+        XCTAssertTrue(
+            app.staticTexts[
+                "Lumen stores your financial data locally and does not require a Lumen-operated cloud service. Your device’s backup settings may include Lumen data in platform-managed Apple backups."
+            ].waitForExistence(timeout: 10)
+        )
+    }
+
+    @MainActor
     func testB2IsolatedOnboardingRelaunch() {
         let app = XCUIApplication()
         app.launch()
