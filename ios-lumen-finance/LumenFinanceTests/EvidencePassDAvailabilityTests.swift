@@ -621,6 +621,7 @@ final class EvidencePassDAvailabilityTests: XCTestCase {
         let temporaryDirectory: URL
         let applicationSupportDirectory: URL
         let evidenceRoot: URL
+        let container: ModelContainer
         let context: ModelContext
         let fileSystem: PassDAvailabilityFileSystem
         let resolver: EvidenceAvailabilityResolver
@@ -688,6 +689,7 @@ final class EvidencePassDAvailabilityTests: XCTestCase {
                     "LumenEvidence",
                     isDirectory: true
                 ),
+            container: container,
             context: container.mainContext,
             fileSystem: fileSystem,
             resolver: EvidenceAvailabilityResolver(
