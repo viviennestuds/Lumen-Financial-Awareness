@@ -196,10 +196,11 @@ struct EvidenceAvailabilityResolver {
     private func observePayload(
         for sourceID: UUID
     ) -> EvidenceAvailabilityResolution {
+        let roots: RetainedEvidenceStorageRoots
         let paths: RetainedEvidencePaths
 
         do {
-            let roots = try RetainedEvidenceStorageRoots.observational(
+            roots = try RetainedEvidenceStorageRoots.observational(
                 fileSystem: fileSystem
             )
             paths = roots.paths(for: sourceID)
