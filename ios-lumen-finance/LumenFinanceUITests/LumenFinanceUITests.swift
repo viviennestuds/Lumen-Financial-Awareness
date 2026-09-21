@@ -225,6 +225,26 @@ final class LumenFinanceUITests: XCTestCase {
     }
 
     @MainActor
+    func testUploadCopyReflectsRetainedAndSaveWithoutEvidenceOutcomes() {
+        let app = XCUIApplication()
+        app.launch()
+
+        if app.buttons["Get Started"].waitForExistence(timeout: 3) {
+            app.buttons["Get Started"].tap()
+        }
+
+        let add = app.buttons["addActivity"]
+        XCTAssertTrue(add.waitForExistence(timeout: 10))
+        add.tap()
+
+        XCTAssertTrue(
+            app.staticTexts[
+                "No OCR runs in this preview. Photos are staged locally for review. Confirming with retained evidence keeps a local copy; Save without retained evidence removes the staged copy before saving. Check every sample field before saving."
+            ].waitForExistence(timeout: 10)
+        )
+    }
+
+    @MainActor
     func testB2IsolatedOnboardingRelaunch() {
         let app = XCUIApplication()
         app.launch()
