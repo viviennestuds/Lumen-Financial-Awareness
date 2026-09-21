@@ -573,39 +573,72 @@ final class EvidencePassEReconciliationTests: XCTestCase {
     }
 
     @MainActor
-    func testPersistedMalformedOwnerStillDeniesCleanupAuthority() async throws {
-        let harness = try makeHarness()
-        let sourceID = UUID()
-        let paths = harness.paths(for: sourceID)
+    func testPersistedOwnerLocatorQualityNeverGrantsCleanupAuthority() async throws {
+        let mismatchID = UUID()
 
-        _ = try persistSource(
-            in: harness,
-            sourceIDString: sourceID.uuidString,
-            storedFileURI: "lumen-evidence://v1/not-a-uuid/payload"
-        )
+        let locatorCases: [(String, (UUID) -> String?)] = [
+            ("nil", { _ in nil }),
+            ("legacy", { _ in "file:///legacy/receipt.jpg" }),
+            ("malformed", { _ in "lumen-evidence://v1/not-a-uuid/payload" }),
+            ("unsupported", {
+                "lumen-evidence://v2/\($0.uuidString)/payload"
+            }),
+            ("mismatched", {
+                _ in RetainedEvidenceLocator(
+                    sourceID: mismatchID
+                ).serialized
+            })
+        ]
 
-        try createPayload(
-            Data([0xF1, 0xF2]),
-            at: paths.finalPayload
-        )
+        for (name, makeLocator) in locatorCases {
+            let harness = try makeHarness()
+            let sourceID = UUID()
+            let paths = harness.paths(for: sourceID)
 
-        let candidate = try XCTUnwrap(
-            harness.reconciler.discoverCandidates().first
-        )
+            _ = try persistSource(
+                in: harness,
+                sourceIDString: sourceID.uuidString,
+                storedFileURI: makeLocator(sourceID)
+            )
 
-        let result = await harness.reconciler.reconcile(
-            candidate,
-            in: harness.context
-        )
+            try createPayload(
+                Data([0xF1, 0xF2]),
+                at: paths.finalPayload
+            )
 
-        XCTAssertEqual(
-            result.disposition,
-            .retainedPersistedOwner
-        )
-        XCTAssertEqual(
-            try harness.fileSystem.nodeKind(at: paths.finalPayload),
-            .regularFile
-        )
+            let candidate = try XCTUnwrap(
+                harness.reconciler.discoverCandidates().first,
+                name
+            )
+
+            let result = await harness.reconciler.reconcile(
+                candidate,
+                in: harness.context
+            )
+
+            XCTAssertEqual(
+                result.disposition,
+                .retainedPersistedOwner,
+                name
+            )
+            XCTAssertEqual(
+                try harness.fileSystem.nodeKind(
+                    at: paths.finalPayload
+                ),
+                .regularFile,
+                name
+            )
+            XCTAssertTrue(
+                harness.fileSystem.removedURLs.isEmpty,
+                name
+            )
+
+            let owners = try EvidenceIdentity.semanticOwners(
+                of: sourceID,
+                in: harness.context
+            )
+            XCTAssertEqual(owners.count, 1, name)
+        }
     }
 
     @MainActor
