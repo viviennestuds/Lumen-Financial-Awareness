@@ -417,9 +417,10 @@ final class EvidencePassDAvailabilityTests: XCTestCase {
                 physicalObservation: .inspectionFailure
             )
         )
+        XCTAssertTrue(harness.fileSystem.readURLs.isEmpty)
         XCTAssertFalse(
             FileManager.default.fileExists(
-                atPath: harness.evidenceRoot.path
+                atPath: paths.finalPayload.path
             )
         )
     }
