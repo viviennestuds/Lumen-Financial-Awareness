@@ -7,6 +7,30 @@ enum EvidenceFileNodeKind: Equatable {
     case directory
     case symbolicLink
     case other
+
+    nonisolated static func == (
+        lhs: EvidenceFileNodeKind,
+        rhs: EvidenceFileNodeKind
+    ) -> Bool {
+        switch (lhs, rhs) {
+        case (.missing, .missing),
+             (.regularFile, .regularFile),
+             (.directory, .directory),
+             (.symbolicLink, .symbolicLink),
+             (.other, .other):
+            return true
+        default:
+            return false
+        }
+    }
+}
+
+protocol EvidenceAvailabilityFileSystem {
+    var temporaryDirectory: URL { get }
+
+    func applicationSupportDirectoryURL() throws -> URL
+    func nodeKind(at url: URL) throws -> EvidenceFileNodeKind
+    func read(_ url: URL) throws -> Data
 }
 
 protocol EvidenceFileSystem {
@@ -27,7 +51,7 @@ protocol EvidenceFileSystem {
     func isExcludedFromBackup(at url: URL) throws -> Bool
 }
 
-struct LocalEvidenceFileSystem: EvidenceFileSystem {
+struct LocalEvidenceFileSystem: EvidenceFileSystem, EvidenceAvailabilityFileSystem {
     private let fileManager: FileManager
 
     init(fileManager: FileManager = .default) {
@@ -38,13 +62,19 @@ struct LocalEvidenceFileSystem: EvidenceFileSystem {
         fileManager.temporaryDirectory
     }
 
-    func applicationSupportDirectory() throws -> URL {
+    func applicationSupportDirectoryURL() throws -> URL {
         guard let url = fileManager.urls(
             for: .applicationSupportDirectory,
             in: .userDomainMask
         ).first else {
             throw EvidenceFileSystemError.applicationSupportUnavailable
         }
+
+        return url
+    }
+
+    func applicationSupportDirectory() throws -> URL {
+        let url = try applicationSupportDirectoryURL()
 
         try fileManager.createDirectory(
             at: url,
