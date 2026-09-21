@@ -58,7 +58,7 @@ struct SettingsView: View {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Local-first mode").font(.system(size: 15, weight: .medium)).foregroundStyle(Theme.ink)
-                    Text("Data stays on this device.").font(.system(size: 12)).foregroundStyle(Theme.inkSecondary)
+                    Text("Lumen stores your financial data locally and does not require a Lumen-operated cloud service. Your device’s backup settings may include Lumen data in platform-managed Apple backups.").font(.system(size: 12)).foregroundStyle(Theme.inkSecondary)
                 }
                 Spacer()
                 SoftTag(text: "On", tint: Theme.income)
