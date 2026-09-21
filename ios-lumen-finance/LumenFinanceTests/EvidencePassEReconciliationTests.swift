@@ -59,6 +59,38 @@ final class EvidencePassEReconciliationTests: XCTestCase {
     }
 
     @MainActor
+    func testCanonicalStagingWithZeroOwnersIsCleaned() async throws {
+        let harness = try makeHarness()
+        let sourceID = UUID()
+        let paths = harness.paths(for: sourceID)
+
+        try createPayload(
+            Data([0x21, 0x22]),
+            at: paths.stagedPayload
+        )
+
+        let candidates = harness.reconciler.discoverCandidates()
+        XCTAssertEqual(candidates.count, 1)
+        XCTAssertEqual(candidates[0].sourceID, sourceID)
+        XCTAssertEqual(candidates[0].materials, [.staging])
+
+        let result = await harness.reconciler.reconcile(
+            candidates[0],
+            in: harness.context
+        )
+
+        XCTAssertEqual(result.disposition, .cleaned)
+        XCTAssertEqual(
+            try harness.fileSystem.nodeKind(at: paths.stagedPayload),
+            .missing
+        )
+        XCTAssertEqual(
+            try harness.fileSystem.nodeKind(at: paths.stagingDirectory),
+            .missing
+        )
+    }
+
+    @MainActor
     func testCommittedSourceWithZeroTransactionReferencesPreservesFinalPayload() async throws {
         let harness = try makeHarness()
         let sourceID = UUID()
