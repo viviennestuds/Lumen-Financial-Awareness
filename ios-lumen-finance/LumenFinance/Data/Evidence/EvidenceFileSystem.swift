@@ -7,6 +7,22 @@ enum EvidenceFileNodeKind: Equatable {
     case directory
     case symbolicLink
     case other
+
+    nonisolated static func == (
+        lhs: EvidenceFileNodeKind,
+        rhs: EvidenceFileNodeKind
+    ) -> Bool {
+        switch (lhs, rhs) {
+        case (.missing, .missing),
+             (.regularFile, .regularFile),
+             (.directory, .directory),
+             (.symbolicLink, .symbolicLink),
+             (.other, .other):
+            return true
+        default:
+            return false
+        }
+    }
 }
 
 protocol EvidenceAvailabilityFileSystem {
