@@ -606,9 +606,11 @@ is:
 
 The final rule must be deterministic.
 
-## 14.4 Trailing zeros and source scale — EVIDENCE GATED
+## 14.4 Trailing zeros and source scale — PROPOSED
 
-The contract does not yet assume that the textual spellings:
+Portable v1 monetary equivalence does **not** preserve arbitrary source lexical scale as transaction provenance.
+
+The characterization observed that:
 
 ```text
 "52.3"
@@ -616,15 +618,19 @@ The contract does not yet assume that the textual spellings:
 "52.300"
 ```
 
-represent different financial facts.
+all enter the current durable `Double` representation as the same monetary value.
 
-The likely portable responsibility is monetary value, not preservation of arbitrary source lexical scale, but that is not frozen until characterization establishes a defensible canonical serialization rule.
+Therefore those spellings must not be treated as three distinct portable financial facts merely because their source text used different trailing-zero scale.
+
+The exact canonical decimal spelling remains governed by Section 14.8, but the portable semantic is monetary value rather than source trailing-zero preservation.
 
 ## 14.5 Maximum magnitude — EVIDENCE GATED
 
 Portable v1 has not yet frozen its maximum admitted magnitude.
 
-The final limit must be supported by durable round-trip evidence through the current canonical representation or by a separately admitted persistence change.
+The completed characterization found that magnitude alone is not the storage-safety boundary: some large values preserve their decimal monetary meaning while nearby values at the same general magnitude do not.
+
+The final magnitude rule must therefore be justified independently from significant-decimal-precision and currency-scale rules. It must not be inferred merely from the largest individual passing probe.
 
 ## 14.6 Maximum scale — EVIDENCE GATED
 
@@ -635,7 +641,11 @@ Portable v1 has not yet frozen:
 - whether scale beyond a currency's ordinary minor unit is rejected or resolved;
 - how historical/current Lumen values outside a candidate scale rule are exported.
 
-These are characterization and standards-research questions.
+The completed characterization demonstrated create/save/reopen monetary equivalence for explicit tiny-value probes through scale 18 when significant decimal precision remained low.
+
+Therefore scale alone must not be treated as a `Double` storage-safety boundary.
+
+Currency-specific scale semantics remain a separate standards/product admission question.
 
 ## 14.7 Precision, scale, value, and spelling are distinct
 
@@ -654,19 +664,52 @@ the format review must distinguish:
 
 Those concepts must not be used interchangeably.
 
-## 14.8 Canonical decimal serialization — EVIDENCE GATED
+### Characterization finding — significant precision
 
-Portable v1 must eventually define one deterministic decimal spelling for canonical export.
+The refined characterization sampled values across decimal positions and observed:
 
-The format must **not** canonize:
+```text
+1–15 significant decimal digits
+522 / 522 pass
+0 monetary-value changes
+
+16 significant decimal digits
+34 / 38 pass
+4 monetary-value changes
+
+17 significant decimal digits
+3 / 35 pass
+32 monetary-value changes
+```
+
+This makes **no more than 15 significant decimal digits** the current evidence-supported candidate precision bound for PortableMoneyV1.
+
+That bound remains subject to independent review and sufficient standards/reasoning support before final format acceptance. The characterization is sampled evidence, not exhaustive enumeration of every <=15-digit decimal.
+
+## 14.8 Canonical decimal serialization — RESEARCH / ADMISSION REQUIRED
+
+Portable v1 must define one deterministic plain-decimal spelling for canonical export.
+
+The completed characterization rejects direct:
 
 ```swift
 String(transaction.amount)
 ```
 
-merely because it is current implementation behavior.
+as the public serializer because sufficiently large values can be emitted in exponent notation, which is outside the PortableMoneyV1 lexical grammar.
 
-The exact serializer must be chosen from the bounded characterization described later in this contract.
+A test-only candidate that:
+
+1. starts from a shortest-round-trip binary64 decimal spelling;
+2. expands exponent notation into ordinary decimal notation;
+3. removes insignificant leading integer zeros;
+4. removes insignificant trailing fractional zeros;
+
+produced lexically valid plain-decimal output for every create-valid probe in the refined run.
+
+That demonstrates feasibility without a storage migration.
+
+It does **not** yet define the language-independent Portable v1 canonicalization algorithm. The final contract must specify that algorithm without making Swift's `String(Double)` implementation itself the public standard.
 
 ---
 
@@ -744,7 +787,9 @@ Whether a registry identifier must travel in every document depends on the final
 
 # 16. Candidate Money Characterization Invariant
 
-The later characterization must answer one bounded question.
+The bounded characterization has now been executed against this candidate invariant.
+
+Its governing question was:
 
 For a precisely defined candidate PortableMoneyV1 domain:
 
@@ -839,7 +884,7 @@ The decision tree remains:
 characterization
         ↓
 useful safe PortableMoneyV1 domain demonstrated?
-        ├─ yes → freeze that admitted domain
+        ├─ yes → continue format admission against that bounded domain
         └─ no / materially inadequate
                 ↓
           separate money-persistence admission
@@ -849,7 +894,41 @@ A failed characterization is evidence.
 
 It is not automatic authorization to migrate away from `Double`.
 
-This proposal does not run the characterization.
+The completed runs demonstrate a useful bounded candidate domain, so this evidence does **not** earn a money-storage migration.
+
+## 16.5 Characterization evidence — COMPLETED, FORMAT STILL PROPOSED
+
+Sanitized evidence is recorded in:
+
+`docs/knowledge/investigations/phase1c-portable-money-double-characterization.md`
+
+The refined successful run exercised:
+
+- 1,723 total probes;
+- 1,721 values accepted by the current create path and durably persisted;
+- 1,385 monetary-equivalence passes;
+- 336 monetary-value changes;
+- 2 current-domain rejections for zero;
+- zero observed SwiftData `Double.bitPattern` changes across save/reopen;
+- zero exponent/lexical failures with the normalized plain-decimal candidate serializer.
+
+The decisive precision-position result is:
+
+```text
+<=15 significant decimal digits: 522 / 522 sampled passes
+16 significant decimal digits:    4 sampled monetary-value failures
+17 significant decimal digits:   32 sampled monetary-value failures
+```
+
+The characterization therefore narrows, but does not by itself finalize:
+
+- maximum admitted precision;
+- maximum magnitude;
+- maximum scale;
+- currency-specific scale;
+- the exact language-independent canonical serializer.
+
+No unrelated currency, date, identity, timestamp, type/direction, provenance, or non-Transaction schema gate is resolved by this evidence.
 
 ---
 
@@ -1557,12 +1636,12 @@ The first proposal intentionally leaves these questions open.
 
 ## PortableMoneyV1
 
-- canonical leading-zero rule — EVIDENCE GATED;
-- canonical trailing-zero / decimal spelling — EVIDENCE GATED;
+- canonical leading-zero input rule — RESEARCH / ADMISSION REQUIRED;
+- final admission of the <=15 significant-decimal-digit candidate bound — EVIDENCE GATED / independent review required;
 - maximum admitted magnitude — EVIDENCE GATED;
 - maximum admitted scale — EVIDENCE GATED;
 - currency-specific scale semantics — EVIDENCE GATED;
-- exact Double → portable-decimal serializer — EVIDENCE GATED.
+- exact language-independent plain-decimal canonical serializer — RESEARCH / ADMISSION REQUIRED.
 
 ## Currency
 
@@ -1614,41 +1693,34 @@ These gates must be closed before this document moves from proposed to accepted/
 
 # 33. Next Evidence Step
 
-The next evidence step for money is **not** a production importer and not a migration.
+The bounded `Double` characterization is complete.
 
-It is a bounded characterization designed against the candidate PortableMoneyV1 invariant in Section 16.
+The next money-specific step is independent review of the evidence-backed candidate rules:
 
-The characterization should be represented as:
+- source trailing-zero scale is not portable transaction meaning;
+- direct `String(Double)` is rejected as the public serializer;
+- <=15 significant decimal digits is the current candidate precision bound;
+- magnitude and scale remain separate unresolved contract axes;
+- a language-independent plain-decimal canonical serializer still requires exact admission.
 
-- a diagnostic/probe or characterization role;
-- non-production;
-- no schema change;
-- no canonical format acceptance implied by the test merely existing.
+No production importer, migration, schema change, or money-storage redesign is authorized by this transition.
 
-Its result must feed this document.
-
-A useful safe domain may allow this format contract to freeze PortableMoneyV1 without any storage migration.
-
-An inadequate result may justify a **separate** money-persistence admission.
+If independent review rejects the candidate precision/serialization interpretation, revise the format contract or gather narrower evidence before implementation.
 
 ---
 
 # 34. Next Design Step After This Proposal
 
-This proposal should receive independent review before characterization is built.
-
-The intended progression is:
+The current progression is now:
 
 ```text
 PROPOSED Portable JSON / CSV v1 contract
         ↓
-review candidate invariants and explicit gates
+bounded money characterization
+        ↓ complete
+review evidence-backed money refinements
         ↓
-design/run bounded money characterization
-        ↓
-resolve money gates from evidence
-        ↓
-resolve remaining format gates
+resolve remaining money + non-money format gates
         ↓
 accept/canonicalize Portable JSON / CSV v1 contract
         ↓
@@ -1657,4 +1729,6 @@ exact capability/persistence admission where required
 only then implementation
 ```
 
-This document deliberately stops before importer implementation, workspace persistence, promotion-control persistence, schema changes, or implementation-pass decomposition.
+This document remains **PROPOSED FOR REVIEW**.
+
+The characterization did not accept the format contract and did not authorize importer implementation, workspace persistence, promotion-control persistence, schema changes, or implementation-pass decomposition.
