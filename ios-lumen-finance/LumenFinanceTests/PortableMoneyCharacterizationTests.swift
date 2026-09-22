@@ -144,8 +144,12 @@ final class PortableMoneyCharacterizationTests: XCTestCase {
         let digits = text.replacingOccurrences(of: ".", with: "")
         let withoutLeadingZeros = digits.drop(while: { $0 == "0" })
         guard !withoutLeadingZeros.isEmpty else { return 1 }
-        let withoutTrailingZeros = withoutLeadingZeros.dropLast(while: { $0 == "0" })
-        return max(1, withoutTrailingZeros.count)
+
+        var significant = String(withoutLeadingZeros)
+        while significant.last == "0" {
+            significant.removeLast()
+        }
+        return max(1, significant.count)
     }
 
     private func positionedDecimal(significantDigits: String, decimalPosition: Int) -> String {
