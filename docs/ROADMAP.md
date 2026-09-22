@@ -43,7 +43,7 @@ Lumen follows these implementation principles:
 
 The current production priority is:
 
-**Phase 1B — Evidence & Provenance Foundation**
+**Phase 1C — Ownership, Portability & Data Management**
 
 ---
 
@@ -613,9 +613,9 @@ Which future phase owns them?
 
 ## Status
 
-**Active production phase.**
+**Accepted / closed 2026-09-22.**
 
-Phase 1A closure is recorded in `docs/PHASE_1A_CLOSURE.md`. Phase 1B should begin with responsibility-boundary design before production evidence/provenance implementation expands.
+Phase 1B — Confirmed Evidence Retention v1 is canonical on `main` at `3e9272f70bab230ad09301783ed69a80499e3873` through PR #16. Its representation/identity, controlled storage, confirmation authority, truthful availability, conservative reconciliation, and release-correctness contracts are frozen dependencies for later phases unless new concrete defect evidence reopens them.
 
 ## Purpose
 
@@ -735,6 +735,12 @@ Phase 1B is complete when:
 ---
 
 # Phase 1C — Ownership, Portability & Data Management
+
+## Status
+
+**Active production phase.**
+
+Phase 1C begins with an ownership/portability responsibility and admission contract before implementation sequencing or persistence mechanisms are selected.
 
 ## Purpose
 
