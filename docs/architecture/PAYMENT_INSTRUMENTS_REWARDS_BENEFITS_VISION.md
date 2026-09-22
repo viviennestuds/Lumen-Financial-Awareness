@@ -375,7 +375,7 @@ Lumen should remain conservative about regulated or tax-sensitive eligibility la
 
 # Evidence & Provenance Connection
 
-This future domain reinforces why Phase 1B evidence/provenance work should be general enough to support financial knowledge beyond OCR-derived Transactions.
+This future domain illustrates why Phase 1B's completed evidence/provenance contracts were designed to remain general enough to support financial knowledge beyond OCR-derived Transactions.
 
 Possible future flows include:
 
@@ -425,7 +425,7 @@ Benefit / reimbursement context
 
 These examples are future compatibility scenarios only.
 
-**They do not expand Phase 1B implementation scope into rewards, payment instruments, benefits, or generalized rules.**
+**They do not authorize reopening or expanding the completed Phase 1B implementation into rewards, payment instruments, benefits, or generalized rules.**
 
 ---
 
@@ -600,6 +600,6 @@ The future opportunity is not merely "build a cashback engine."
 
 It is to let Lumen represent reusable financial instruments, temporal program context, benefit/reimbursement context, and realized outcomes in ways that can later produce richer, explainable financial awareness without contaminating canonical Transaction truth.
 
-As with Phase 1B itself:
+Consistent with the discipline used to complete Phase 1B:
 
 > **Earn abstractions through demonstrated domain behavior. Do not create persisted complexity merely because the conceptual model is cleaner.**
