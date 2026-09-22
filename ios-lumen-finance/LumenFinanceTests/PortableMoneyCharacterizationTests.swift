@@ -74,12 +74,90 @@ final class PortableMoneyCharacterizationTests: XCTestCase {
 
     /// Candidate serializer under characterization only.
     ///
-    /// The format proposal explicitly does not canonize String(Double). This probe tests it as
-    /// one deterministic candidate so failures/safe observations can be measured before a
-    /// serializer is admitted.
+    /// Start from Swift's shortest round-trip Double spelling, expand exponent notation into
+    /// ordinary base-10 text, and remove only lexically insignificant decimal zeros.
+    ///
+    /// This is evidence machinery, not an admitted Portable v1 production serializer.
     private func candidateSerialize(_ value: Double) -> String? {
         guard value.isFinite, value > 0 else { return nil }
-        return String(value)
+        return canonicalPlainDecimal(fromShortestRoundTrip: String(value))
+    }
+
+    private func canonicalPlainDecimal(fromShortestRoundTrip text: String) -> String? {
+        let lower = text.lowercased()
+        let parts = lower.split(separator: "e", maxSplits: 1, omittingEmptySubsequences: false)
+
+        let plain: String
+        if parts.count == 1 {
+            plain = String(parts[0])
+        } else {
+            guard parts.count == 2, let exponent = Int(parts[1]) else { return nil }
+            let mantissa = String(parts[0])
+            guard !mantissa.hasPrefix("-"), !mantissa.hasPrefix("+") else { return nil }
+
+            let mantissaParts = mantissa.split(separator: ".", maxSplits: 1, omittingEmptySubsequences: false)
+            guard mantissaParts.count <= 2 else { return nil }
+
+            let integer = String(mantissaParts[0])
+            let fraction = mantissaParts.count == 2 ? String(mantissaParts[1]) : ""
+            guard !integer.isEmpty else { return nil }
+
+            let digits = integer + fraction
+            guard !digits.isEmpty, digits.allSatisfy({ $0.isNumber }) else { return nil }
+
+            let originalPoint = integer.count
+            let shiftedPoint = originalPoint + exponent
+
+            if shiftedPoint <= 0 {
+                plain = "0." + String(repeating: "0", count: -shiftedPoint) + digits
+            } else if shiftedPoint >= digits.count {
+                plain = digits + String(repeating: "0", count: shiftedPoint - digits.count)
+            } else {
+                let split = digits.index(digits.startIndex, offsetBy: shiftedPoint)
+                plain = String(digits[..<split]) + "." + String(digits[split...])
+            }
+        }
+
+        let components = plain.split(separator: ".", maxSplits: 1, omittingEmptySubsequences: false)
+        guard components.count <= 2 else { return nil }
+
+        var integer = String(components[0])
+        var fraction = components.count == 2 ? String(components[1]) : ""
+
+        while integer.count > 1 && integer.first == "0" {
+            integer.removeFirst()
+        }
+        while fraction.last == "0" {
+            fraction.removeLast()
+        }
+
+        guard !integer.isEmpty, integer.allSatisfy({ $0.isNumber }),
+              fraction.allSatisfy({ $0.isNumber }) else {
+            return nil
+        }
+
+        return fraction.isEmpty ? integer : "\(integer).\(fraction)"
+    }
+
+    private func significantDigitCount(_ text: String) -> Int? {
+        guard isCandidateLexical(text) else { return nil }
+        let digits = text.replacingOccurrences(of: ".", with: "")
+        let withoutLeadingZeros = digits.drop(while: { $0 == "0" })
+        guard !withoutLeadingZeros.isEmpty else { return 1 }
+        let withoutTrailingZeros = withoutLeadingZeros.dropLast(while: { $0 == "0" })
+        return max(1, withoutTrailingZeros.count)
+    }
+
+    private func positionedDecimal(significantDigits: String, decimalPosition: Int) -> String {
+        precondition(!significantDigits.isEmpty)
+        if decimalPosition <= 0 {
+            return "0." + String(repeating: "0", count: -decimalPosition) + significantDigits
+        }
+        if decimalPosition >= significantDigits.count {
+            return significantDigits + String(repeating: "0", count: decimalPosition - significantDigits.count)
+        }
+        let split = significantDigits.index(significantDigits.startIndex, offsetBy: decimalPosition)
+        return String(significantDigits[..<split]) + "." + String(significantDigits[split...])
     }
 
     private func digitString(count: Int, seed: UInt64, nonZeroFirst: Bool) -> String {
@@ -263,6 +341,58 @@ final class PortableMoneyCharacterizationTests: XCTestCase {
             }
         }
 
+        // Explicit tiny-value probes exercise exponent expansion in the candidate serializer.
+        for (index, value) in [
+            "0.0000001",
+            "0.000000000001",
+            "0.000000000000001",
+            "0.0000000000000001",
+            "0.00000000000000001",
+            "0.000000000000000001"
+        ].enumerated() {
+            append(value, group: "tiny_probe", integerDigits: 1, scale: value.count - 2, variant: index)
+        }
+
+        // Precision-position matrix: distinguish decimal significant precision from lexical scale.
+        // Each generated significant digit string starts and ends non-zero so its intended
+        // significant-digit count is unambiguous before decimal positioning.
+        let decimalPositions = [-6, -3, -1, 0, 1, 2, 5, 10, 15, 16, 17]
+        for precision in 1...17 {
+            for decimalPosition in decimalPositions {
+                for variant in 0..<6 {
+                    let seed = UInt64(precision * 100_000 + (decimalPosition + 10) * 100 + variant)
+                    var digits = digitString(
+                        count: precision,
+                        seed: seed,
+                        nonZeroFirst: true
+                    )
+                    if digits.last == "0" {
+                        digits.removeLast()
+                        digits.append(Character(String((variant % 9) + 1)))
+                    }
+                    let value = positionedDecimal(
+                        significantDigits: digits,
+                        decimalPosition: decimalPosition
+                    )
+                    let scale: Int
+                    if decimalPosition <= 0 {
+                        scale = -decimalPosition + precision
+                    } else if decimalPosition < precision {
+                        scale = precision - decimalPosition
+                    } else {
+                        scale = 0
+                    }
+                    append(
+                        value,
+                        group: "precision_position_matrix",
+                        integerDigits: max(1, decimalPosition),
+                        scale: scale,
+                        variant: precision * 100 + variant
+                    )
+                }
+            }
+        }
+
         return probes
     }
 
@@ -406,7 +536,11 @@ final class PortableMoneyCharacterizationTests: XCTestCase {
             }
         }
 
-        let generated = observations.filter { $0.probe.group == "generated_matrix" || $0.probe.group == "subunit_matrix" }
+        let generated = observations.filter {
+            $0.probe.group == "generated_matrix"
+                || $0.probe.group == "subunit_matrix"
+                || $0.probe.group == "precision_position_matrix"
+        }
         let passed = observations.filter { $0.classification == "pass" }
         let generatedPassed = generated.filter { $0.classification == "pass" }
 
@@ -416,8 +550,9 @@ final class PortableMoneyCharacterizationTests: XCTestCase {
         emit([
             "record_type": "meta",
             "test_role": "characterization",
-            "serializer_candidate": "Swift.String(Double)",
-            "persistence_path": "TransactionDraft -> Transaction.amount(Double) -> LedgerWrite/SwiftData save -> store close/reopen -> String(Double)",
+            "characterization_version": 2,
+            "serializer_candidate": "Swift shortest-round-trip Double spelling expanded/canonicalized to plain decimal",
+            "persistence_path": "TransactionDraft -> Transaction.amount(Double) -> LedgerWrite/SwiftData save -> store close/reopen -> plain shortest-round-trip decimal",
             "comparison": "Decimal monetary-value equality; source spelling is not compared",
             "total_probe_count": observations.count,
             "generated_probe_count": generated.count,
@@ -453,12 +588,32 @@ final class PortableMoneyCharacterizationTests: XCTestCase {
             ])
         }
 
+        let precisionRows = observations.filter { $0.probe.group == "precision_position_matrix" }
+        let precisionGroups = Dictionary(grouping: precisionRows) {
+            significantDigitCount($0.probe.input) ?? -1
+        }
+        for precision in precisionGroups.keys.sorted() {
+            guard let rows = precisionGroups[precision] else { continue }
+            let counts = Dictionary(grouping: rows, by: \.classification).mapValues(\.count)
+            emit([
+                "record_type": "precision_summary",
+                "significant_digits": precision,
+                "total": rows.count,
+                "pass": counts["pass", default: 0],
+                "monetary_value_changed": counts["monetary_value_changed", default: 0],
+                "serializer_nonportable_lexical": counts["candidate_serializer_nonportable_lexical", default: 0],
+                "current_create_rejected": counts["current_create_rejected", default: 0],
+                "persistence_bit_pattern_changed": counts["double_bit_pattern_changed_after_reopen", default: 0]
+            ])
+        }
+
         // Always preserve the required/open-gate probes and currency/binary/magnitude probes.
         let alwaysReportGroups = Set([
             "required_probe",
             "currency_probe",
             "binary_boundary_probe",
-            "magnitude_probe"
+            "magnitude_probe",
+            "tiny_probe"
         ])
 
         for observation in observations where alwaysReportGroups.contains(observation.probe.group) {
