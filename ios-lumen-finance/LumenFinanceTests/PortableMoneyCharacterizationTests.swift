@@ -324,43 +324,36 @@ final class PortableMoneyCharacterizationTests: XCTestCase {
                     context.insert(category)
                 }
 
-                var transactions: [Transaction] = []
-                transactions.reserveCapacity(observations.count)
-
-                for index in observations.indices {
-                    guard observations[index].lexicalValid, observations[index].expected != nil else {
-                        continue
-                    }
-
-                    let probe = observations[index].probe
-                    let draft = TransactionDraft()
-                    draft.amountText = probe.input
-                    draft.currency = probe.currency
-                    draft.transaction_type = .expense
-                    draft.merchant_name = "Portable Money Characterization"
-                    draft.category = category
-                    draft.transaction_date = Date(timeIntervalSince1970: 1_700_000_000)
-                    draft.status = .pending
-
-                    observations[index].parsedDouble = draft.amount
-                    observations[index].currentCreateValid = draft.canConfirm
-
-                    guard draft.canConfirm else {
-                        observations[index].classification = "current_create_rejected"
-                        continue
-                    }
-
-                    let transaction = try draft.makeTransaction(allTags: [])
-                    transaction.id = probe.id
-                    transaction.created_at = Date(timeIntervalSince1970: 1_700_000_000)
-                    transaction.updated_at = transaction.created_at
-
-                    observations[index].insertedBitPattern = transaction.amount.bitPattern
-                    transactions.append(transaction)
-                }
-
                 try LedgerWrite.perform(in: context) {
-                    for transaction in transactions {
+                    for index in observations.indices {
+                        guard observations[index].lexicalValid, observations[index].expected != nil else {
+                            continue
+                        }
+
+                        let probe = observations[index].probe
+                        let draft = TransactionDraft()
+                        draft.amountText = probe.input
+                        draft.currency = probe.currency
+                        draft.transaction_type = .expense
+                        draft.merchant_name = "Portable Money Characterization"
+                        draft.category = category
+                        draft.transaction_date = Date(timeIntervalSince1970: 1_700_000_000)
+                        draft.status = .pending
+
+                        observations[index].parsedDouble = draft.amount
+                        observations[index].currentCreateValid = draft.canConfirm
+
+                        guard draft.canConfirm else {
+                            observations[index].classification = "current_create_rejected"
+                            continue
+                        }
+
+                        let transaction = try draft.makeTransaction(allTags: [])
+                        transaction.id = probe.id
+                        transaction.created_at = Date(timeIntervalSince1970: 1_700_000_000)
+                        transaction.updated_at = transaction.created_at
+
+                        observations[index].insertedBitPattern = transaction.amount.bitPattern
                         context.insert(transaction)
                     }
                 }
