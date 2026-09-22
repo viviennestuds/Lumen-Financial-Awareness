@@ -204,6 +204,63 @@ final class LumenFinanceUITests: XCTestCase {
     }
 
     @MainActor
+    func testSettingsPrivacyCopyReflectsLocalAndPlatformBackupPosture() {
+        let app = XCUIApplication()
+        app.launch()
+
+        if app.buttons["Get Started"].waitForExistence(timeout: 3) {
+            app.buttons["Get Started"].tap()
+        }
+
+        XCTAssertTrue(
+            app.buttons["Settings"].waitForExistence(timeout: 10)
+        )
+        app.buttons["Settings"].tap()
+
+        let privacyCopy =
+            "Lumen stores your financial data locally and does not require a Lumen-operated cloud service. Your device’s backup settings may include Lumen data in platform-managed Apple backups."
+        XCTAssertTrue(
+            app.staticTexts
+                .matching(
+                    NSPredicate(
+                        format: "label == %@",
+                        privacyCopy
+                    )
+                )
+                .firstMatch
+                .waitForExistence(timeout: 10)
+        )
+    }
+
+    @MainActor
+    func testUploadCopyReflectsRetainedAndSaveWithoutEvidenceOutcomes() {
+        let app = XCUIApplication()
+        app.launch()
+
+        if app.buttons["Get Started"].waitForExistence(timeout: 3) {
+            app.buttons["Get Started"].tap()
+        }
+
+        let add = app.buttons["addActivity"]
+        XCTAssertTrue(add.waitForExistence(timeout: 10))
+        add.tap()
+
+        let uploadCopy =
+            "No OCR runs in this preview. Photos are staged locally for review. Confirming with retained evidence keeps a local copy; Save without retained evidence removes the staged copy before saving. Check every sample field before saving."
+        XCTAssertTrue(
+            app.staticTexts
+                .matching(
+                    NSPredicate(
+                        format: "label == %@",
+                        uploadCopy
+                    )
+                )
+                .firstMatch
+                .waitForExistence(timeout: 10)
+        )
+    }
+
+    @MainActor
     func testB2IsolatedOnboardingRelaunch() {
         let app = XCUIApplication()
         app.launch()
