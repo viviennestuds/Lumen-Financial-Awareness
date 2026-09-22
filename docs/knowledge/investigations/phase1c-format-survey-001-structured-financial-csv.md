@@ -237,7 +237,7 @@ Format Survey Evidence 001 is **descriptive evidence only**.
 It must not be used as authority for:
 
 - provider-specific compatibility;
-- a Robinhood or other named-provider adapter;
+- a provider-specific or named-provider adapter;
 - required support for Points, Balance, Cardholder, Payment, Purchase, Declined, or any other surveyed source field/value;
 - a new canonical Transaction property;
 - a new PaymentMethod/payment-instrument identity rule;
