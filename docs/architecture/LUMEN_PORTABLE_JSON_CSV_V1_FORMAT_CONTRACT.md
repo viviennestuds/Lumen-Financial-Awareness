@@ -774,7 +774,7 @@ At minimum, the characterization design must cover cases in these families:
 52.30
 52.300
 12.345
-999999999999.99
+987654321098.76
 052.30
 ```
 
@@ -1276,14 +1276,14 @@ For example:
 }
 ```
 
-and:
+and the corresponding fields in a complete Lumen CSV v1 row:
 
 ```text
-amount,currency,type
-52.30,USD,expense
+transaction_date,posted_date,amount,currency,type,status,merchant_name,category_name,category_group,payment_method_name,notes
+2026-01-04,,52.30,USD,expense,posted,Example Market,Example Category,custom,,
 ```
 
-represent the same candidate PortableMoneyV1 + type meaning.
+represent the same candidate PortableMoneyV1 + type meaning for the shared fields.
 
 CSV must not invent:
 
