@@ -153,7 +153,7 @@ The portable-domain representation is a contract boundary. It must not be implem
 
 # 5. Lumen Portable JSON
 
-Lumen Portable JSON is the **authoritative, highest-fidelity portable representation of the durable state explicitly admitted to the current portability contract**.
+Lumen Portable JSON is the **normative, highest-fidelity portable representation of the durable state explicitly admitted to the current portability contract**.
 
 It is not described as a lossless image of the entire application container.
 
@@ -286,7 +286,7 @@ Portable representation must not inherit ambiguous internal encoding merely beca
 
 ## Money
 
-Lumen Portable JSON v1 should represent monetary values as canonical decimal strings plus explicit currency semantics rather than making a JSON binary floating-point number the normative financial representation.
+Lumen Portable JSON v1 must represent monetary values as canonical decimal strings plus explicit currency semantics rather than making a JSON binary floating-point number the normative financial representation.
 
 Example semantic shape:
 
@@ -307,9 +307,9 @@ Financial calendar-date meaning must be distinguished from event timestamps.
 
 The format specification must not blindly encode every Swift `Date` with identical semantics.
 
-Where a field represents a financial calendar date, the portable contract should use an explicit calendar-date representation with documented timezone assumptions.
+Where a field represents a financial calendar date, the portable contract must use an explicit calendar-date representation with documented timezone assumptions.
 
-Where a field represents an instant such as creation/export time, use an explicit timestamp representation with timezone/offset semantics.
+Where a field represents an instant such as creation/export time, the portable contract must use an explicit timestamp representation with timezone/offset semantics.
 
 The exact v1 field encoding must be frozen before implementation and tested against the existing Phase 1A date/timezone contract.
 
@@ -412,17 +412,19 @@ delete all Transactions
 and:
 
 ```text
-erase all user-owned Lumen data
+erase all Lumen-managed local data
 ```
 
 Committed Phase 1B evidence/source state may legitimately outlive the final current Transaction association.
 
+User-controlled portable exports that have been saved, copied, or moved outside Lumen-managed storage are outside Lumen's erasure authority. A Lumen-managed erasure operation must not claim to delete external copies that the user controls elsewhere.
+
 Therefore:
 
-- Phase 1C must not implement "Clear all data" by deleting Transactions and imply complete erasure;
-- a true full-erasure capability must account for every admitted canonical, reference, source, retained-evidence, workspace, and relevant preference responsibility;
+- Phase 1C must not implement "Clear all data" by deleting Transactions and imply complete local erasure;
+- a capability that claims to erase all Lumen-managed local data must account for every admitted canonical, reference, source, retained-evidence, workspace, and relevant preference responsibility under Lumen's control;
 - committed-evidence deletion requires an explicit evidence-aware deletion authority and must not bypass Phase 1B conservative retention semantics;
-- if full erasure is not safely admitted, the first Phase 1C slice must not claim to provide it;
+- if complete Lumen-managed local erasure is not safely admitted, the first Phase 1C slice must not claim to provide it;
 - ordinary Category, PaymentMethod, Tag, source inspection, and other management capabilities remain independently admissible within their exact contracts.
 
 ---
@@ -461,18 +463,22 @@ Missing optional context does not make an otherwise valid proposal unresolved.
 
 The portability/import format specification must classify fields by semantic responsibility rather than simply whether a source column exists.
 
-At minimum, current canonical creation requires resolved semantics for:
+The current `TransactionDraft → Review → Confirm` path mechanically requires:
 
-- monetary amount;
-- transaction direction/type;
-- merchant/counterparty representation required by the current canonical model;
-- sufficiently interpretable transaction date;
-- currency;
-- any financial lifecycle/status meaning that would otherwise require Lumen to invent a canonical state.
+- a positive finite monetary amount accepted by the current money validation;
+- a currency accepted by the current ISO-currency validation;
+- a non-empty merchant/counterparty representation;
+- a resolved `Category` association;
+- a financial status of `pending` or `posted`.
+
+For structured import, Phase 1C additionally requires transaction direction/type and transaction-date meaning to be resolved before a proposal is READY. Draft defaults must not conceal unresolved importer meaning.
+
+A source file does **not** need to contain a dedicated Category column. If Category is absent or cannot be mapped deterministically, Import Review must resolve the required Category association through an admitted mapping, file/group default, or user decision before confirmation.
+
+Making Category optional in canonical creation would be a separate product/domain change and is not authorized by this contract.
 
 Potentially optional context includes, subject to the exact format specification:
 
-- Category;
 - PaymentMethod;
 - Tags;
 - Notes;
@@ -494,9 +500,9 @@ The requirement is resolved meaning, not necessarily a dedicated source column f
 
 # 18. Resolution Scope
 
-Import Review should resolve ambiguity at the broadest valid scope.
+When the same ambiguity can be validly resolved at more than one scope, Import Review must resolve it at the broadest valid scope.
 
-Preferred order:
+Resolution progression:
 
 ```text
 file-level resolution
@@ -542,7 +548,7 @@ confirmation summary:
 
 Excluded proposals do not become canonical and must not silently reappear as imported Transactions.
 
-Exclusion is an explicit import-workspace decision and should survive ordinary interruption while the workspace remains active.
+Exclusion is an explicit import-workspace decision and must survive ordinary interruption while the workspace remains active.
 
 ---
 
@@ -550,7 +556,7 @@ Exclusion is an explicit import-workspace decision and should survive ordinary i
 
 Import Review is a durable workspace, not a canonical ledger state.
 
-Lumen should automatically preserve meaningful accepted review progress so normal interruption does not cause substantial work loss.
+Lumen must automatically preserve meaningful accepted review progress so normal interruption does not cause substantial work loss.
 
 Meaningful semantic autosave events include:
 
@@ -566,9 +572,9 @@ Meaningful semantic autosave events include:
 
 Ephemeral presentation state such as exact scroll offset does not need the same durability guarantee.
 
-The user should not have to press a second "Save Import" action merely to preserve noncanonical review progress.
+The user must not be required to press a second "Save Import" action merely to preserve noncanonical review progress.
 
-UI language should distinguish:
+UI language must distinguish:
 
 - Import in progress;
 - Resume import;
@@ -602,9 +608,11 @@ Requirements:
 - the import must not depend indefinitely on an external Files-picker URL remaining available;
 - the controlled copy contains potentially sensitive financial information and must use appropriate local protection;
 - durability is justified only while required for the admitted workspace/recovery behavior;
-- confirmation or discard must establish retirement eligibility;
+- canonical commitment or a durably accepted explicit discard must establish retirement eligibility;
+- once canonical commitment succeeds or explicit discard is durably accepted, the workspace must immediately lose edit and promotion authority;
 - cleanup failure may temporarily over-retain the workspace material;
-- cleanup failure must never restore edit or promotion authority after canonical commitment;
+- surviving workspace files after canonical commitment or durably accepted discard must never restore edit or promotion authority;
+- the implementation must preserve accepted discard across interruption strongly enough that physical cleanup failure cannot resurrect the discarded workspace as resumable/promotable;
 - the controlled import source is not automatically Phase 1B retained evidence.
 
 The exact directory layout, file-protection API, and snapshot representation are implementation decisions requiring review.
@@ -626,7 +634,7 @@ However:
 
 > **Physical workspace existence is not import authority.**
 
-A workspace whose canonical promotion is already established but whose cleanup has not completed is nonpromotable cleanup residue, not an active import.
+A workspace whose canonical promotion is already established **or whose explicit discard has been durably accepted**, but whose cleanup has not completed, is nonpromotable cleanup residue, not an active import.
 
 Such residue:
 
@@ -635,7 +643,7 @@ Such residue:
 - does not conceptually regain the active-import slot merely because files remain;
 - must not permanently strand future importing solely because cleanup residue cannot be deleted.
 
-An implementation may temporarily sequence new-import creation behind safe cleanup where necessary, but persistent cleanup failure must have a recovery posture that does not convert successful prior canonicalization into an indefinite denial of all future imports.
+An implementation may temporarily sequence new-import creation behind safe cleanup where necessary, but persistent cleanup failure must have a recovery posture that does not convert successful prior canonicalization or durably accepted discard into an indefinite denial of all future imports.
 
 ---
 
@@ -668,11 +676,31 @@ These are responsibility states, not an authorization to add persisted enums.
 
 After canonical commitment succeeds, stale workspace material must not permit the accepted proposal set to be promoted again.
 
-The product should present committed cleanup residue as equivalent to:
+Explicit discard is the symmetric non-promotion terminal boundary:
+
+```text
+ACTIVE WORKSPACE
+        ↓
+explicit user discard
+        ↓
+discard durably accepted
+        ↓
+workspace loses edit/promotion authority
+        ↓
+RETIRING
+        ↓
+RETIRED
+```
+
+If physical cleanup fails after either canonical commitment or durably accepted discard, the residue remains noneditable and nonpromotable.
+
+The product must treat committed cleanup residue as completed/nonpromotable; UI may use wording equivalent to:
 
 > Import completed — finishing cleanup.
 
-It must not present it as:
+Discard cleanup residue must likewise be treated as discarded/nonpromotable rather than resumable.
+
+Neither kind of residue may be presented as:
 
 > Resume import.
 
@@ -680,12 +708,12 @@ It must not present it as:
 
 # 24. Confirmation / Recovery Authority
 
-The durable fact proving that a promotion crossed into canonical state cannot rely only on a separately written workspace flag.
+The durable fact proving that a confirmation boundary's canonical effects crossed into canonical state cannot rely only on a separately written workspace flag.
 
 The following is insufficient:
 
 ```text
-canonical Transactions commit
+canonical effects commit
         +
 session.json later writes "finished=true"
 ```
@@ -694,6 +722,8 @@ because process termination can occur between those writes.
 
 The reverse ordering is also insufficient.
 
+All canonical effects authorized by one import confirmation boundary must obey that boundary's atomicity/replay-safety contract. If reference-entity proposals are confirmed through a separate explicit confirmation boundary, that boundary is evaluated separately. If reference-entity effects and Transactions are authorized together, they share the same atomicity/replay-safety obligation.
+
 A valid implementation must satisfy one of these property families:
 
 ## A. Atomic canonical promotion proof
@@ -701,7 +731,7 @@ A valid implementation must satisfy one of these property families:
 The canonical persistence authority commits:
 
 ```text
-accepted canonical Transactions
+all canonical effects authorized by the confirmation
 +
 durable promotion proof
 ```
@@ -712,7 +742,7 @@ or:
 
 ## B. Provably idempotent promotion
 
-A stable promotion identity and canonical persistence behavior guarantee that replaying the same promotion cannot produce a second canonical result.
+A stable promotion identity and canonical persistence behavior guarantee that replaying the same promotion cannot duplicate or inconsistently reapply any canonical effect authorized by that confirmation boundary.
 
 This contract does not select between those mechanisms.
 
@@ -724,9 +754,9 @@ Any new canonical-control persistence required by the selected mechanism needs a
 
 # 25. Batch Atomicity
 
-Phase 1C v1 should target all-or-nothing canonicalization for one explicitly confirmed accepted proposal set within a deliberately supported import-size envelope.
+Phase 1C v1 must use all-or-nothing canonicalization for the canonical effects authorized by one explicitly confirmed accepted proposal set within a deliberately supported import-size envelope.
 
-Conceptually:
+For a transaction-only confirmation boundary, this is conceptually:
 
 ```text
 298 accepted proposals
@@ -738,6 +768,8 @@ either:
 or:
 298 canonical Transactions created
 ```
+
+If the same confirmation boundary also authorizes reference-entity creation or updates, those effects participate in the same all-or-nothing boundary. Reference entities confirmed through a separate explicit boundary are evaluated independently.
 
 Chunked/partial canonicalization is not admitted merely for implementation convenience.
 
@@ -938,12 +970,15 @@ Future implementation plans must define deterministic evidence for at least:
 
 - accepted semantic decisions survive relaunch;
 - noncanonical workspace does not create Transactions by itself;
-- discard removes workspace responsibility without modifying existing canonical Transactions;
+- a durably accepted discard removes edit/promotion authority without modifying existing canonical Transactions;
+- process termination or cleanup failure after accepted discard does not resurrect the workspace as resumable/promotable;
+- discard cleanup residue does not permanently consume the active/promotable workspace slot;
 - controlled source lifetime follows the admitted lifecycle.
 
 ## Promotion/recovery
 
-- successful canonical promotion cannot be replayed into duplicate canonical results;
+- successful canonical promotion cannot be replayed into duplicate or inconsistently repeated canonical effects;
+- every canonical effect authorized by one confirmation boundary obeys that boundary's atomicity/replay-safety contract;
 - process termination after canonical persistence but before workspace cleanup does not reopen promotion authority;
 - failed canonical persistence leaves the workspace retryable;
 - cleanup failure biases toward temporary over-retention rather than duplicate canonicalization;
@@ -961,7 +996,7 @@ This section maps the Phase 1C design questions to the responsibility decisions 
 
 ## 1. Portable v1 scope and round-trip guarantees
 
-**Decision:** Define an explicit supported portable-domain contract. JSON is highest-fidelity for admitted state; CSV is narrower. Round-trip means semantic equivalence for admitted fields/entities, not container identity.
+**Decision:** Define an explicit supported portable-domain contract. JSON is the normative, highest-fidelity portable representation for admitted state; CSV is narrower. Round-trip means semantic equivalence for admitted fields/entities, not container identity.
 
 ## 2. Portable identity and repeated-import semantics
 
@@ -989,11 +1024,11 @@ This section maps the Phase 1C design questions to the responsibility decisions 
 
 ## 8. Data deletion / clear-data authority
 
-**Decision:** Do not claim complete erasure unless all admitted durable responsibilities, including retained evidence, are covered. Transaction deletion alone is not "clear all Lumen data."
+**Decision:** Do not claim erasure of all Lumen-managed local data unless every admitted durable responsibility under Lumen's control, including retained evidence, is covered. Transaction deletion alone is not complete local erasure, and user-controlled exported copies outside Lumen-managed storage remain outside that authority.
 
 ## 9. Batch persistence / failure semantics
 
-**Decision:** Target all-or-nothing v1 promotion within the supported size envelope. Partial/chunked canonicalization requires contract revision backed by evidence.
+**Decision:** Use all-or-nothing v1 promotion for all canonical effects authorized by one confirmation boundary within the supported size envelope. Partial/chunked canonicalization requires contract revision backed by evidence.
 
 ## 10. Transient vs durable import concepts
 
@@ -1005,19 +1040,19 @@ This section maps the Phase 1C design questions to the responsibility decisions 
 
 ## 12. Import readiness / required vs optional meaning
 
-**Decision:** READY / NEEDS RESOLUTION / INVALID-UNSUPPORTED are pre-canonical proposal states. Required meaning must be resolved; optional context may remain absent.
+**Decision:** READY / NEEDS RESOLUTION / INVALID-UNSUPPORTED are pre-canonical proposal states. Required meaning must be resolved; optional context may remain absent. Under the current canonical creation contract, Category is required for confirmation even though a source file need not contain a Category column.
 
 ## 13. Resumable workspace durability
 
-**Decision:** Import Review is an automatically preserved, resumable noncanonical workspace. A controlled source copy may be retained while required and retired after confirm/discard. Persistence mechanism remains unselected.
+**Decision:** Import Review is an automatically preserved, resumable noncanonical workspace. A controlled source copy may be retained while required and retired after confirm/discard. Once explicit discard is durably accepted, edit/promotion authority is revoked even if cleanup residue remains. Persistence mechanism remains unselected.
 
 ## 14. Active import-session cardinality
 
-**Decision:** At most one active/promotable workspace in v1. Nonpromotable cleanup residue is not import authority and must not permanently consume the feature's active slot.
+**Decision:** At most one active/promotable workspace in v1. Nonpromotable residue after established promotion or durably accepted discard is not import authority and must not permanently consume the feature's active slot.
 
 ## 15. Confirmation/recovery authority
 
-**Decision:** Canonical promotion proof must share the canonical authority boundary or promotion must be provably idempotent. A separate workspace success flag is insufficient. Exact mechanism requires later admission.
+**Decision:** Every canonical effect authorized by one import confirmation boundary must share that boundary's atomicity/replay-safety contract. Canonical promotion proof must share the canonical authority boundary or promotion must be provably idempotent. A separate workspace success flag is insufficient. Exact mechanism requires later admission.
 
 ## 16. Promotion identity vs duplicate detection
 
