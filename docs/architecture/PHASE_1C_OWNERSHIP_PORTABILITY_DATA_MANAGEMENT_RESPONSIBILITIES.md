@@ -2,7 +2,7 @@
 
 ## Status
 
-**PROPOSED FOR REVIEW — Phase 1C responsibility contract and admission boundary.**
+**Accepted. Documentation-only Phase 1C responsibility / admission contract.**
 
 - **Proposal date:** 2026-09-22
 - **Canonical repository baseline reviewed:** `3e9272f70bab230ad09301783ed69a80499e3873`
