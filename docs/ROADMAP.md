@@ -866,7 +866,7 @@ Implement or harden:
 - payment-method management;
 - tag management;
 - evidence/source inspection;
-- clear-data controls;
+- scoped data-management/deletion controls with truthful erasure boundaries;
 - safe development reseed utilities;
 - import validation infrastructure.
 
