@@ -146,6 +146,26 @@ Purpose:
 - add a significant-precision / decimal-position matrix;
 - distinguish precision from scale and magnitude.
 
+#### Runs 5 and 6 — reproducibility confirmations
+
+The same characterization logic subsequently reran successfully after documentation-only commits.
+
+Run 5:
+
+- revision: `f9183d0c1df6c667162eddbff17c2eaccd9e0cc1`;
+- GitHub Actions run: `35780689494`;
+- conclusion: success.
+
+Run 6:
+
+- revision: `2a27e94614a18973f3f6de08390b1fba58a52814`;
+- GitHub Actions run: `35780843459`;
+- conclusion: success.
+
+Neither run changed the diagnostic implementation or widened the generated/tested domain from Run 4.
+
+They are retained as **reproducibility confirmations**, not as independent experiments establishing a broader PortableMoneyV1 guarantee.
+
 ### Harness-only failures
 
 Run 1 and Run 3 failed during XCTest compilation before characterization evidence executed.
@@ -697,7 +717,9 @@ A later review may still choose a narrower v1 domain for simplicity or product r
 | Evidence ID | Role | Repository / CI evidence | Establishes | Does not establish |
 | --- | --- | --- | --- | --- |
 | `phase1c.portable_money.run2` | Initial durable-money characterization | revision `cfcf4f8b...`, Actions run `35775523069` | SwiftData durable path exercised; direct `String(Double)` produces exponent lexical failures and decimal-value failures at higher precision | final serializer, final precision bound, migration requirement |
-| `phase1c.portable_money.run4` | Refined precision characterization | revision `bb247a32...`, Actions run `35779607064` | normalized plain-decimal candidate removes lexical exponent failures; 522/522 sampled <=15-digit precision probes passed; 16/17-digit counterexamples exist; no tested Double bit pattern changed across persistence | exhaustive proof for all <=15-digit decimals, currency scale rules, final Portable v1 acceptance |
+| `phase1c.portable_money.run4` | Primary refined precision characterization | revision `bb247a32...`, Actions run `35779607064` | normalized plain-decimal candidate removes lexical exponent failures; 522/522 sampled <=15-digit precision probes passed; 16/17-digit counterexamples exist; no tested Double bit pattern changed across persistence | exhaustive proof for all <=15-digit decimals, currency scale rules, final Portable v1 acceptance |
+| `phase1c.portable_money.run5` | Reproducibility confirmation | revision `f9183d0c...`, Actions run `35780689494` | the unchanged Run 4 diagnostic logic completed successfully again after a documentation-only commit | a broader tested domain, additional precision guarantees, final format acceptance |
+| `phase1c.portable_money.run6` | Reproducibility confirmation | revision `2a27e946...`, Actions run `35780843459` | the unchanged Run 4 diagnostic logic completed successfully again at the characterization/evidence branch head before standards reconciliation | a broader tested domain, additional precision guarantees, final format acceptance |
 
 Run 1 and Run 3 are intentionally excluded from architectural evidence because the XCTest target failed to compile before observations were produced.
 
