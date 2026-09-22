@@ -364,7 +364,7 @@ The example is synthetic and demonstrates shape only.
 | `portable_id` | yes | public relationship key | generation semantics RESEARCH / ADMISSION REQUIRED |
 | `amount` | yes | native monetary magnitude | lexical contract PROPOSED; semantic domain EVIDENCE GATED |
 | `currency` | yes | native transaction denomination | token grammar PROPOSED; admitted universe RESEARCH / ADMISSION REQUIRED |
-| `type` | yes | transaction direction/type | PROPOSED |
+| `type` | yes | transaction direction/type | token set PROPOSED; directional sufficiency RESEARCH / ADMISSION REQUIRED |
 | `merchant_name` | yes | merchant/counterparty | PROPOSED |
 | `transaction_date` | yes | financial transaction calendar date | PROPOSED encoding; conversion from current storage EVIDENCE GATED |
 | `posted_date` | nullable | financial posted calendar date | PROPOSED encoding; conversion from current storage EVIDENCE GATED |
@@ -374,8 +374,8 @@ The example is synthetic and demonstrates shape only.
 | `payment_method_ref` | nullable | PaymentMethod association | PROPOSED |
 | `tag_refs` | array | Tag associations | PROPOSED |
 | `source_ref` | nullable | limited source/provenance association | PROPOSED |
-| `created_at` | yes | canonical record creation instant | PROPOSED timestamp semantic |
-| `updated_at` | yes | canonical record update instant | PROPOSED timestamp semantic |
+| `created_at` | yes | canonical record creation instant | inclusion/restoration semantics RESEARCH / ADMISSION REQUIRED |
+| `updated_at` | yes | canonical record update instant | inclusion/restoration semantics RESEARCH / ADMISSION REQUIRED |
 
 ## 10.3 Deliberately excluded current Transaction fields
 
@@ -429,6 +429,23 @@ The following is not a valid PortableMoneyV1 direction encoding:
 ```
 
 A foreign signed amount may participate in mapping, but normalized Lumen portable semantics separate magnitude from transaction type.
+
+## 11.3 Directional sufficiency — RESEARCH / ADMISSION REQUIRED
+
+Because PortableMoneyV1 keeps `amount` unsigned, every admitted `type` token must be sufficient to interpret the transaction's financial flow semantics.
+
+Current repository behavior establishes only a limited implementation fact: `TransactionType.isOutflow` returns `true` for `expense` and `false` for the other current tokens. That implementation fact does **not** by itself establish that `transfer` has one unambiguous portable direction, nor does it freeze the intended portable flow semantics of every token.
+
+Before format acceptance, the contract must define for each admitted type whether its unsigned amount represents an:
+
+- outflow;
+- inflow;
+- direction-neutral/non-nettable movement;
+- or otherwise explicitly defined flow semantic.
+
+If any admitted token cannot uniquely carry the required flow meaning with an unsigned amount, the portable representation must be refined before acceptance.
+
+This gate does not itself authorize an additional direction field or a change to the current `TransactionType` model.
 
 ---
 
@@ -922,6 +939,25 @@ They use an RFC 3339 / ISO-8601 offset-aware representation normalized to UTC fo
 
 Exact fractional-second canonicalization remains **RESEARCH / ADMISSION REQUIRED** before byte-level deterministic serialization is frozen.
 
+Whether lifecycle timestamps are themselves round-trip-preserved portable semantics is also **RESEARCH / ADMISSION REQUIRED**.
+
+Before format acceptance, the contract must decide whether fields such as:
+
+- `Transaction.created_at`;
+- `Transaction.updated_at`;
+- `Category.created_at`;
+- `PaymentMethod.created_at`;
+- `Tag.created_at`;
+- portable Source `created_at`;
+
+are:
+
+- restored as original portable semantics;
+- exported as informational metadata that may legitimately be regenerated on import;
+- or excluded from the final portable contract.
+
+The format must not simultaneously admit a timestamp as round-trip-preserved state and silently regenerate a different value during restoration.
+
 ## 18.4 Foreign temporal representations do not define Lumen format
 
 Foreign adapters may encounter:
@@ -966,7 +1002,11 @@ Current candidate v1 group values mirror the current canonical enum:
 - `income`;
 - `custom`.
 
-## 19.3 Conflict behavior is not identity
+## 19.3 Field exactness
+
+The candidate shape does not yet freeze the required/nullable/omitted disposition of every Category field or the round-trip role of `created_at`. Those decisions remain explicit format-acceptance gates in Section 32.
+
+## 19.4 Conflict behavior is not identity
 
 A matching name/group may support a merge proposal.
 
@@ -1006,7 +1046,11 @@ The example is synthetic.
 - `gift_card`;
 - `other`.
 
-## 20.3 Credential boundary
+## 20.3 Field exactness
+
+The candidate shape does not yet freeze the required/nullable/omitted disposition of every PaymentMethod field. In particular, `institution_name`, `last_four`, `notes`, and the round-trip role of `created_at` remain explicit format-acceptance gates in Section 32.
+
+## 20.4 Credential boundary
 
 Portable PaymentMethod data must not evolve into credential export by accident.
 
@@ -1034,6 +1078,8 @@ This contract does not authorize portability of:
 ```
 
 Tag relationships are represented from Transaction through `tag_refs`.
+
+The candidate shape does not yet freeze the required/nullable/omitted disposition of every Tag field or the round-trip role of `created_at`; those remain explicit format-acceptance gates in Section 32.
 
 Tags are intentionally omitted from initial CSV v1 because they are multi-valued and JSON is the higher-fidelity reference graph.
 
@@ -1072,6 +1118,10 @@ This record does **not** mean that the importing installation possesses the raw 
 | `mime_type` | PROPOSED | recorded supplied representation type when established |
 | `file_size_bytes` | PROPOSED | recorded supplied representation size when established |
 | `created_at` | PROPOSED | source-record lifecycle instant |
+
+The exact required/nullable/omitted disposition of the candidate Source fields is not yet frozen. In particular, `mime_type`, `file_size_bytes`, and lifecycle timestamp restoration remain explicit format-acceptance gates in Section 32.
+
+The normalized Portable v1 `source_type` token set is **RESEARCH / ADMISSION REQUIRED**. Current implementation enum values are not automatically public portable tokens merely because they exist in Swift code.
 
 ## 22.3 Source fields requiring further disposition
 
@@ -1211,6 +1261,8 @@ The first row contains the exact v1 header in the exact documented order.
 
 Alternate header aliases belong to foreign-file mapping, not Lumen CSV v1.
 
+This exact ordered header is also the Lumen CSV v1 recognition signature defined in Section 29.2.
+
 ## 25.4 Quoting — PROPOSED
 
 Fields containing comma, quote, or line-break characters use conventional CSV double-quote escaping:
@@ -1231,6 +1283,18 @@ The guaranteed Lumen importer may accept LF or CRLF without changing field seman
 CSV has no JSON `null`.
 
 For optional CSV fields, an empty cell represents absence.
+
+For optional textual fields, CSV v1 therefore intentionally collapses the distinction between:
+
+```text
+JSON null / semantic absence
+and
+an intentional zero-length string
+```
+
+into CSV absence unless a later field-specific rule explicitly defines another representation.
+
+CSV v1 does **not** promise JSON's null-versus-empty-string fidelity. If a future field requires an intentional empty string to remain semantically distinct from absence, that field needs an explicit CSV encoding rule or must remain JSON-only.
 
 An empty cell is **not** valid for a required portable semantic such as amount/currency/type/merchant/date.
 
@@ -1293,7 +1357,7 @@ CSV must not invent:
 - different date semantics;
 - different enum tokens.
 
-CSV is narrower in field coverage, not looser in the meaning of fields it shares with JSON.
+CSV is narrower in field coverage, not looser in the meaning of fields it shares with JSON, except for explicitly documented representation loss such as the optional-text null/empty-string collapse in Section 25.6.
 
 ---
 
@@ -1377,7 +1441,7 @@ Those are explicit contract gates, not implementation surprises.
 
 # 29. Version Handling
 
-## 29.1 Exact v1 recognition — PROPOSED
+## 29.1 Portable JSON v1 recognition — PROPOSED
 
 A Lumen Portable JSON v1 document requires:
 
@@ -1388,7 +1452,21 @@ version == 1
 
 A document with a different version must not be parsed as v1 by guesswork.
 
-## 29.2 Future versions — PROPOSED
+## 29.2 Lumen CSV v1 recognition — PROPOSED
+
+The exact ordered header defined in Section 24.1 is the recognition signature for Lumen CSV v1:
+
+```text
+transaction_date,posted_date,amount,currency,type,status,merchant_name,category_name,category_group,payment_method_name,notes
+```
+
+A CSV with a different header or different column order must not be silently interpreted as another Lumen CSV version.
+
+Alternate names, aliases, additional provider columns, missing columns, or different ordering belong to the foreign-CSV mapping path unless a future Lumen CSV version explicitly admits them.
+
+A later format revision may introduce another explicit version-recognition mechanism, but v1 does not infer version from approximate header similarity.
+
+## 29.3 Future versions — PROPOSED
 
 A future Lumen version may:
 
@@ -1398,7 +1476,7 @@ A future Lumen version may:
 
 It must not silently reinterpret incompatible future semantics through v1 rules.
 
-## 29.3 Currency-definition evolution — RESEARCH / ADMISSION REQUIRED
+## 29.4 Currency-definition evolution — RESEARCH / ADMISSION REQUIRED
 
 The final contract must decide how currency-registry evolution relates to the top-level format version and whether any registry identifier travels with the document.
 
@@ -1506,7 +1584,21 @@ The first proposal intentionally leaves these questions open.
 ## Transaction compatibility
 
 - portability/restoration of `ignored`, `duplicate`, and `review_needed` persisted statuses — RESEARCH / ADMISSION REQUIRED;
-- round-trip disposition for categoryless current/historical canonical Transactions — EVIDENCE GATED.
+- round-trip disposition for categoryless current/historical canonical Transactions — EVIDENCE GATED;
+- directional/flow sufficiency of each unsigned-amount `type` token, especially `transfer` — RESEARCH / ADMISSION REQUIRED.
+
+## Lifecycle timestamps
+
+- inclusion versus informational-only versus exclusion semantics for entity/source lifecycle timestamps — RESEARCH / ADMISSION REQUIRED;
+- if included as round-trip state, exact restoration requirements for original timestamp values — RESEARCH / ADMISSION REQUIRED.
+
+## Non-Transaction record schemas
+
+- exact required/nullable/omitted disposition for Category fields — RESEARCH / ADMISSION REQUIRED;
+- exact required/nullable/omitted disposition for PaymentMethod fields, including `institution_name`, `last_four`, and `notes` — RESEARCH / ADMISSION REQUIRED;
+- exact required/nullable/omitted disposition for Tag fields — RESEARCH / ADMISSION REQUIRED;
+- exact required/nullable/omitted disposition for Source fields, including `mime_type` and `file_size_bytes` — RESEARCH / ADMISSION REQUIRED;
+- normalized Portable v1 `source_type` token set — RESEARCH / ADMISSION REQUIRED.
 
 ## Provenance
 
