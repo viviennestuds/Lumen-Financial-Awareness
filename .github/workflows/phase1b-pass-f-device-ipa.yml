@@ -1,0 +1,84 @@
+name: Phase 1B Pass F Device IPA
+
+on:
+  push:
+    branches:
+      - build/phase1b-pass-f-device-ipa
+
+permissions:
+  contents: read
+
+jobs:
+  build-unsigned-device-ipa:
+    name: Build unsigned iphoneos IPA
+    runs-on: macos-26
+    timeout-minutes: 30
+
+    env:
+      CANDIDATE_SHA: 91c571bd3e16a3a252adca5b7385b280929335f2
+      EXPECTED_BUNDLE_ID: app.rork.8m36zsug0ex00d13e28li
+      PROJECT_PATH: ios-lumen-finance/LumenFinance.xcodeproj
+      SCHEME: LumenFinance
+
+    steps:
+      - name: Check out exact validated Pass F candidate
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ env.CANDIDATE_SHA }}
+          fetch-depth: 1
+
+      - name: Verify exact source candidate
+        run: |
+          set -euo pipefail
+          ACTUAL_SHA="$(git rev-parse HEAD)"
+          test "$ACTUAL_SHA" = "$CANDIDATE_SHA"
+          echo "source_sha=$ACTUAL_SHA" | tee build-provenance.txt
+          echo "platform=iphoneos" | tee -a build-provenance.txt
+          echo "signing=unsigned prior to Sideloadly" | tee -a build-provenance.txt
+          echo "source_bundle_identifier=$EXPECTED_BUNDLE_ID" | tee -a build-provenance.txt
+          xcodebuild -version | tee -a build-provenance.txt
+
+      - name: Build unsigned physical-device app
+        run: |
+          set -euo pipefail
+          xcodebuild build \
+            -project "$PROJECT_PATH" \
+            -scheme "$SCHEME" \
+            -configuration Debug \
+            -sdk iphoneos \
+            -destination "generic/platform=iOS" \
+            -derivedDataPath "$RUNNER_TEMP/LumenPassFDevice" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            DEVELOPMENT_TEAM="" \
+            2>&1 | tee xcodebuild-device.log
+
+          APP_PATH="$RUNNER_TEMP/LumenPassFDevice/Build/Products/Debug-iphoneos/LumenFinance.app"
+          test -d "$APP_PATH"
+
+          ACTUAL_BUNDLE_ID=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP_PATH/Info.plist")
+          echo "built_bundle_identifier=$ACTUAL_BUNDLE_ID" | tee -a build-provenance.txt
+          test "$ACTUAL_BUNDLE_ID" = "$EXPECTED_BUNDLE_ID"
+
+          mkdir -p package/Payload
+          cp -R "$APP_PATH" package/Payload/LumenFinance.app
+          (
+            cd package
+            /usr/bin/zip -qry ../LumenFinance-PassF-91c571bd-unsigned.ipa Payload
+          )
+
+          shasum -a 256 LumenFinance-PassF-91c571bd-unsigned.ipa | tee ipa-sha256.txt
+          cat ipa-sha256.txt >> build-provenance.txt
+
+      - name: Upload exact-candidate device IPA
+        uses: actions/upload-artifact@v7
+        with:
+          name: LumenFinance-PassF-91c571bd-Unsigned-IPA
+          path: |
+            LumenFinance-PassF-91c571bd-unsigned.ipa
+            build-provenance.txt
+            ipa-sha256.txt
+            xcodebuild-device.log
+          if-no-files-found: error
+          retention-days: 7
