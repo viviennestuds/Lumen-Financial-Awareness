@@ -115,8 +115,8 @@ Before Phase 1B is declared complete:
 - [x] Compare the production candidate schema/model files against canonical Pass E and confirm no unplanned schema change.
 - [x] Confirm no migration code was added for Phase 1B.
 - [x] Confirm no personal receipt/photo fixture, Picker Lab image, screenshot, PDF, xcresult, archive, or other private diagnostic asset entered the production repository.
-- [ ] Confirm temporary validation workflows are removed after their evidence is captured.
-- [ ] Record the final validation candidate SHA, workflow run IDs, artifact digests, physical-device result, and final branch head in PR/release evidence.
+- [x] Confirm temporary validation workflows are removed after their evidence is captured.
+- [x] Record the final validation candidate SHA, workflow run IDs, artifact digests, physical-device result, and final branch head in PR/release evidence.
 
 ## Completion rule
 
@@ -173,4 +173,4 @@ The canonical Pass F implementation plan requires physical retained-confirm/rela
 
 ### Closure disposition
 
-All substantive canonical Pass F acceptance criteria are supported by automated, authentic-store, and physical-device evidence. Remaining work after this record is release bookkeeping only: remove temporary validation workflow infrastructure, prove the validated-candidate → final-head delta is non-executable bookkeeping/infrastructure only, inspect the canonical Pass E → final Pass F diff, and package the evidence in the Pass F pull request.
+All substantive canonical Pass F acceptance criteria are supported by automated, authentic-store, and physical-device evidence. Release bookkeeping is complete: the temporary validation workflow has been removed, validated-candidate → final-head provenance is non-executable bookkeeping/infrastructure only, the canonical Pass E → final Pass F diff has been inspected, and the evidence is packaged in the Pass F pull request.
