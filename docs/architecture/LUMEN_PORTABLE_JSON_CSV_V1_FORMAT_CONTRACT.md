@@ -643,7 +643,7 @@ Portable v1 has not yet frozen:
 
 The completed characterization demonstrated create/save/reopen monetary equivalence for explicit tiny-value probes through scale 18 when significant decimal precision remained low.
 
-Therefore scale alone must not be treated as a `Double` storage-safety boundary.
+Within the characterized envelope, scale alone was not a predictor of monetary-value loss.
 
 Currency-specific scale semantics remain a separate standards/product admission question.
 
@@ -664,27 +664,79 @@ the format review must distinguish:
 
 Those concepts must not be used interchangeably.
 
-### Characterization finding — significant precision
+### Normalized significant decimal precision — PROPOSED
 
-The refined characterization sampled values across decimal positions and observed:
+For a nonzero positive exact decimal value `x`, PortableMoneyV1 defines its normalized decimal form as the unique pair `(C, E)` such that:
 
 ```text
-1–15 significant decimal digits
-522 / 522 pass
-0 monetary-value changes
-
-16 significant decimal digits
-34 / 38 pass
-4 monetary-value changes
-
-17 significant decimal digits
-3 / 35 pass
-32 monetary-value changes
+x = C × 10^E
 ```
 
-This makes **no more than 15 significant decimal digits** the current evidence-supported candidate precision bound for PortableMoneyV1.
+where:
 
-That bound remains subject to independent review and sufficient standards/reasoning support before final format acceptance. The characterization is sampled evidence, not exhaustive enumeration of every <=15-digit decimal.
+- `C` is a positive integer;
+- `C` is not divisible by 10;
+- `E` is an integer decimal exponent.
+
+The **normalized significant decimal precision** of `x` is the number of base-10 digits in `C`.
+
+Examples:
+
+```text
+52.300
+→ 523 × 10^-1
+→ precision 3
+
+0.000052300
+→ 523 × 10^-7
+→ precision 3
+
+1200000000000000
+→ 12 × 10^14
+→ precision 2
+
+1000.01
+→ 100001 × 10^-2
+→ precision 6
+
+0.00100
+→ 1 × 10^-3
+→ precision 1
+```
+
+Zero is not assigned normalized significant precision for the current Portable Transaction domain because current canonical creation requires `amount > 0`. Zero may remain lexically valid decimal text while being inadmissible as a Transaction amount.
+
+### Conservative v1 precision limit — PROPOSED
+
+PortableMoneyV1 uses a conservative precision limit of:
+
+> **at most 15 normalized significant decimal digits**
+
+This proposal is supported by both:
+
+- the bounded durable characterization, which observed 522 / 522 passes for sampled 1–15 digit values and direct monetary-value counterexamples beginning in the 16-digit sample; and
+- the established binary64 `digits10` / `DBL_DIG = 15` decimal text → double → decimal text round-trip guarantee, subject to representable-range constraints.
+
+Reference points:
+
+- Swift `Double` is a double-precision (64-bit) floating-point type: https://developer.apple.com/documentation/swift/double
+- Swift's decimal-string `Double` initializer documents IEEE 754 round-to-nearest, ties-to-even behavior plus underflow/overflow behavior: https://developer.apple.com/documentation/swift/double/init%28_%3A%29-5wmm8
+- `DBL_DIG` / `digits10` for IEEE `double` is 15: https://en.cppreference.com/w/c/types/limits and https://en.cppreference.com/w/cpp/types/numeric_limits/digits10
+
+Values exceeding 15 normalized significant decimal digits are **not** declared inherently unrepresentable. Some such values are exactly representable by binary64. PortableMoneyV1 simply provides no general precision guarantee for values above the conservative 15-digit v1 limit.
+
+The precision rule is **not sufficient by itself** for PortableMoneyV1 admission.
+
+A candidate amount must still satisfy independently admitted rules for:
+
+- decimal exponent / maximum magnitude;
+- maximum scale;
+- currency-specific scale semantics;
+- admitted currency;
+- canonical plain-decimal serialization;
+- ordinary Transaction-domain requirements.
+
+The completed characterization is sampled evidence, not exhaustive enumeration of every <=15-digit decimal across every exponent.
 
 ## 14.8 Canonical decimal serialization — RESEARCH / ADMISSION REQUIRED
 
@@ -1637,8 +1689,9 @@ The first proposal intentionally leaves these questions open.
 ## PortableMoneyV1
 
 - canonical leading-zero input rule — RESEARCH / ADMISSION REQUIRED;
-- final admission of the <=15 significant-decimal-digit candidate bound — EVIDENCE GATED / independent review required;
-- maximum admitted magnitude — EVIDENCE GATED;
+- normalized significant decimal precision definition — PROPOSED;
+- <=15 normalized significant decimal digits as the conservative PortableMoneyV1 precision limit — PROPOSED;
+- admitted decimal-exponent / maximum-magnitude envelope — EVIDENCE GATED;
 - maximum admitted scale — EVIDENCE GATED;
 - currency-specific scale semantics — EVIDENCE GATED;
 - exact language-independent plain-decimal canonical serializer — RESEARCH / ADMISSION REQUIRED.
