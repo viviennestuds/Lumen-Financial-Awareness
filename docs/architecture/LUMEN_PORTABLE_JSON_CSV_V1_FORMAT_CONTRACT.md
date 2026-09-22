@@ -10,7 +10,7 @@
 - **Responsibility authority:** `docs/architecture/PHASE_1C_OWNERSHIP_PORTABILITY_DATA_MANAGEMENT_RESPONSIBILITIES.md`
 - **Format disposition:** Proposed. This document intentionally contains explicit evidence/research gates that must be resolved before the format is accepted as final.
 - **Implementation disposition:** This document does **not** authorize importer implementation, workspace persistence, promotion-control persistence, SwiftData schema changes, migrations, production services, or implementation-pass sequencing.
-- **Characterization disposition:** The later bounded money characterization is defined here only far enough to establish its falsifiable question. The characterization has **not** been run by this proposal.
+- **Characterization disposition:** The bounded money characterization has been completed and incorporated as evidence. It does **not** by itself accept this format contract, authorize implementation, or close unrelated format gates.
 
 This document is subordinate to:
 
@@ -590,7 +590,7 @@ For example:
 → outside the current canonical Transaction amount > 0 domain
 ```
 
-## 14.3 Leading-zero policy — EVIDENCE GATED
+## 14.3 Leading-zero policy — RESEARCH / ADMISSION REQUIRED
 
 The lexical grammar above deliberately does not yet decide whether:
 
@@ -603,6 +603,10 @@ is:
 - accepted and normalized;
 - rejected as noncanonical input;
 - or handled by another explicit rule.
+
+The completed persistence characterization showed that a leading-zero probe can normalize through the current durable amount path without changing its monetary value.
+
+What remains is therefore a public-format policy/admission decision, not an unresolved persistence fact.
 
 The final rule must be deterministic.
 
@@ -1564,7 +1568,17 @@ The final v1 round-trip statement cannot be accepted until the format resolves a
 - current durable Transactions whose Category is nil;
 - exact Date → financial calendar-date conversion;
 - PortableMoneyV1 safe durable domain;
+- round-trip/export disposition for any current or historical canonical Transaction amount that falls outside the final PortableMoneyV1 admitted domain;
 - portable identity generation/stability sufficient for relationship reconstruction.
+
+For an existing canonical amount outside the final PortableMoneyV1 admitted domain, export/round-trip behavior must be explicit.
+
+The exporter/import path must **not** silently:
+
+- round the canonical monetary value;
+- coerce it into the admitted domain;
+- substitute another monetary value;
+- or omit the Transaction merely to make the export conform.
 
 Those are explicit contract gates, not implementation surprises.
 
@@ -1694,6 +1708,7 @@ The first proposal intentionally leaves these questions open.
 - admitted decimal-exponent / maximum-magnitude envelope — EVIDENCE GATED;
 - maximum admitted scale — EVIDENCE GATED;
 - currency-specific scale semantics — EVIDENCE GATED;
+- round-trip/export disposition for current or historical canonical Transaction amounts outside the final PortableMoneyV1 admitted domain — RESEARCH / ADMISSION REQUIRED;
 - exact language-independent plain-decimal canonical serializer — RESEARCH / ADMISSION REQUIRED.
 
 ## Currency
