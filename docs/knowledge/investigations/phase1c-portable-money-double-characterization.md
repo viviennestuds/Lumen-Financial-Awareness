@@ -75,8 +75,8 @@ The most important findings are:
 2. Direct `String(Double)` is unsuitable as the public PortableMoneyV1 serializer because it can emit exponent notation outside the proposed lexical grammar.
 3. Expanding the shortest-round-trip Double spelling into normalized plain decimal eliminates that lexical problem in the tested domain, but it cannot recover decimal meaning already lost when a higher-precision decimal is converted into `Double`.
 4. The refined precision-position sample had **522 / 522 passes for values characterized as 1–15 significant decimal digits**, **34 / 38 passes at 16 digits**, and **3 / 35 passes at 17 digits**.
-5. Therefore the evidence supports a **15-significant-decimal-digit candidate safety boundary for further contract review**, but the test is sampled evidence, not an exhaustive proof over every possible decimal spelling.
-6. Scale alone is not the storage-safety boundary: very small values through scale 18 passed when their significant precision remained small.
+5. Therefore the characterization supports a **15-normalized-significant-decimal-digit conservative precision boundary**, and a separate standards/reasoning reconciliation connects that observed boundary to the established binary64 `digits10` / `DBL_DIG = 15` decimal round-trip guarantee. The test remains sampled evidence rather than exhaustive enumeration.
+6. Within the characterized envelope, scale alone was not a predictor of monetary-value loss: very small values through scale 18 passed when their normalized significant precision remained small.
 7. Magnitude alone is not the storage-safety boundary: some large values survive exactly while nearby values at the same apparent magnitude/scale do not.
 8. Zero remains lexically parseable but is rejected by the current canonical Transaction creation domain.
 9. Source lexical scale is not preserved by the current canonical amount representation: equivalent inputs such as `52.3`, `52.30`, and `52.300` collapse to the same durable monetary value.
@@ -417,17 +417,80 @@ Run 4 precision-position results were:
 
 The first sampled precision band with direct counterexamples is therefore 16 significant decimal digits.
 
-This supports a **candidate** Portable v1 storage-safety rule centered on no more than 15 significant decimal digits.
+## Standards / reasoning reconciliation
 
-It does **not** by itself constitute an exhaustive mathematical proof that every possible <=15-digit decimal in every possible exponent position is safe.
+For PortableMoneyV1, normalized significant decimal precision is defined independently of source spelling.
 
-Before final format acceptance, the contract must either:
+For a nonzero positive exact decimal value `x`, define its normalized decimal form as the unique pair `(C, E)` such that:
 
-- support the 15-digit bound with sufficient standards/reasoning evidence in addition to this characterization;
-- define a stricter bounded magnitude/scale subset that is directly justified;
-- or use another explicit admission rule that rejects values whose monetary meaning cannot survive the current storage path.
+```text
+x = C × 10^E
+```
 
-What the characterization does establish is that Portable v1 must **not** infer safety for arbitrary 16- or 17-digit decimal values merely because some individual values happen to survive.
+where:
+
+- `C` is a positive integer;
+- `C` is not divisible by 10;
+- `E` is an integer decimal exponent.
+
+The **normalized significant decimal precision** of `x` is the number of base-10 digits in `C`.
+
+Examples:
+
+```text
+52.300
+→ 523 × 10^-1
+→ precision 3
+
+0.000052300
+→ 523 × 10^-7
+→ precision 3
+
+1200000000000000
+→ 12 × 10^14
+→ precision 2
+
+1000.01
+→ 100001 × 10^-2
+→ precision 6
+
+0.00100
+→ 1 × 10^-3
+→ precision 1
+```
+
+Zero remains outside this precision definition for the current Portable Transaction domain because current canonical creation requires `amount > 0`. Its decimal text may still be lexically valid.
+
+The external numeric model is consistent with the characterization:
+
+- Swift documents `Double` as a double-precision (64-bit) floating-point type.
+- Swift's decimal-string `Double` initializer uses IEEE 754 round-to-nearest, ties-to-even behavior and documents underflow to zero and overflow to infinity outside the representable range.
+- The conventional IEEE binary64 `digits10` / `DBL_DIG` value is 15: this is the conservative number of decimal digits guaranteed to survive a decimal text → double → decimal text round trip, subject to range constraints.
+- The standard 16-digit example `9007199254740993` failing that round trip as `9007199254740992` matches both the characterized counterexample and the binary64 precision model.
+- Swift separately guarantees that a finite `Double.description` parses back to the same `Double`; that is a binary-value round-trip guarantee, not preservation of the original decimal monetary fact and not a PortableMoneyV1 plain-decimal serialization contract.
+
+References:
+
+- Apple Swift `Double`: https://developer.apple.com/documentation/swift/double
+- Apple Swift `Double.init(_ text:)`: https://developer.apple.com/documentation/swift/double/init%28_%3A%29-5wmm8
+- Apple Swift `Double.description`: https://developer.apple.com/documentation/swift/double/description
+- cppreference `DBL_DIG` / C numeric limits: https://en.cppreference.com/w/c/types/limits
+- cppreference `std::numeric_limits<T>::digits10`: https://en.cppreference.com/w/cpp/types/numeric_limits/digits10
+
+Together, the bounded characterization and established binary64 decimal-round-trip model justify treating **at most 15 normalized significant decimal digits** as the conservative PortableMoneyV1 **precision** limit.
+
+This does **not** mean every value with more than 15 normalized significant decimal digits is unrepresentable. The characterization itself contains passing 16- and 17-digit examples. Rather, Portable v1 provides no general precision guarantee beyond 15 normalized significant decimal digits.
+
+The precision limit is also not a complete monetary-domain predicate. Admission remains independently subject to:
+
+- the still-open decimal-exponent / maximum-magnitude envelope;
+- the still-open maximum-scale rule;
+- currency-specific scale semantics;
+- the admitted currency definition;
+- the exact canonical plain-decimal serializer;
+- ordinary Transaction-domain requirements.
+
+Therefore a value satisfying the 15-digit precision limit can still be outside PortableMoneyV1 for another independently governed reason.
 
 ---
 
@@ -560,7 +623,7 @@ It does **not** establish:
 
 ### What is now strongly established
 
-- SwiftData persistence itself did not alter tested `Double` values.
+- No successful characterization probe showed SwiftData changing the persisted `Double` bit pattern across save, container release, and reopen.
 - Direct `String(Double)` is not an acceptable Portable v1 serializer.
 - Plain non-exponent decimal serialization is technically achievable without changing storage.
 - Source trailing-zero scale cannot be promised as durable transaction meaning under the current representation.
@@ -568,12 +631,19 @@ It does **not** establish:
 - Arbitrary 16/17-digit decimal values cannot be admitted safely under the current path.
 - A useful decimal domain exists without requiring an immediate storage migration.
 
+### What is now proposed for the Portable v1 contract
+
+- normalized decimal precision is defined by the normalized coefficient/exponent form `x = C × 10^E`, where `C` is a positive integer not divisible by 10;
+- at most **15 normalized significant decimal digits** is the conservative PortableMoneyV1 precision limit;
+- values above 15 normalized significant decimal digits may still be binary64-representable, but Portable v1 provides no general precision guarantee for them.
+
+This precision rule is standards-backed and consistent with the bounded characterization. It remains only one component of the eventual admissible monetary domain.
+
 ### What is supported but not yet final
 
-- no more than 15 significant decimal digits is a strong candidate storage-safe PortableMoneyV1 precision bound;
 - a canonical serializer can normalize to plain decimal and omit insignificant trailing fractional zeros.
 
-These require final contract review before becoming accepted Portable v1 rules.
+The exact language-independent serializer requires final contract work before acceptance.
 
 ### What remains open
 
@@ -601,8 +671,8 @@ The smallest justified Portable v1 consequences are:
 1. **Reject direct `String(Double)` as the canonical serializer.**
 2. **Do not promise preservation of source trailing-zero scale.**
 3. **Add significant decimal precision as an explicit monetary-domain axis.**
-4. **Treat <=15 significant digits as the evidence-supported candidate bound, not yet an accepted universal guarantee.**
-5. **Keep maximum magnitude and maximum scale gates open.**
+4. **Define normalized significant decimal precision using the unique normalized form `x = C × 10^E`, and propose <=15 normalized significant decimal digits as the conservative PortableMoneyV1 precision limit.**
+5. **State that this precision limit is not sufficient by itself; keep maximum decimal exponent/magnitude and maximum scale gates open.**
 6. **Keep currency-specific scale semantics open.**
 7. **Do not infer a need for a money-storage migration from this evidence alone.**
 
