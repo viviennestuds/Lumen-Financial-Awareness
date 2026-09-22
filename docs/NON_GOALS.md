@@ -317,50 +317,48 @@ They require deliberate future product scope.
 
 ---
 
-# Phase 1B Non-Goals
+# Phase 1C Non-Goals
 
-**This section is operational and applies while Phase 1B is the active production phase. It must be reviewed and replaced or retired when the Roadmap formally advances to the next phase.**
+**This section is operational and applies while Phase 1C is the active production phase. It must be reviewed and replaced or retired when the Roadmap formally advances to the next phase.**
 
 The active phase is:
 
-**Phase 1B — Evidence & Provenance Foundation**
+**Phase 1C — Ownership, Portability & Data Management**
 
-Phase 1B must not expand merely through implementation momentum into:
+Phase 1C must not expand merely through implementation momentum into:
 
-- sophisticated production OCR;
-- cloud OCR or VLM integration;
-- automatic transaction creation;
+- production OCR, Apple Vision extraction, cloud OCR, or hosted VLM extraction;
+- arbitrary JSON graph ingestion or a generalized ETL platform;
+- universal compatibility with every bank, card issuer, retailer, payment processor, finance application, or accounting export;
+- automatic creation of canonical Transactions without `TransactionDraft → Review → Confirm`;
+- cloud synchronization, user-facing cloud accounts, or a second canonical cloud persistence system;
+- mandatory cloud backup or cloud storage of portable files, import workspaces, or retained evidence;
+- redesign of Phase 1B evidence identity, locator grammar, retention, confirmation, availability, or reconciliation merely to simplify portability;
+- automatic conversion of an imported CSV/JSON file into retained transaction evidence or a `TransactionSource`;
+- user-facing deletion of committed retained evidence unless an explicit evidence-aware deletion capability is separately admitted;
+- a "clear all data" action that claims complete erasure without accounting for all admitted canonical and retained evidence state;
 - merchant-learning systems;
-- barcode/product infrastructure;
 - receipt itemization;
+- barcode/product infrastructure;
 - production Budgets or CashflowPhases;
 - advanced Insights;
-- Supabase synchronization;
-- cross-device synchronization;
-- user-facing cloud accounts;
 - family/shared functionality;
 - production model training;
 - a major visual redesign;
-- specific payment instruments or a wallet/payment-accounts feature;
-- reward calculation or reward accounting;
-- reward-rule versioning or card-program automation;
-- realized reward tracking;
-- HSA/FSA eligibility logic or reimbursement automation;
-- EBT/SNAP eligibility logic;
-- issuer/network program-classification infrastructure;
-- generalized financial rules or a generalized rules engine.
+- reward calculation, reward accounting, benefit automation, or generalized financial rules;
+- the full payment-instrument/rewards/benefits subsystem merely because some ownership/import/export responsibilities may later intersect it.
 
-Phase 1B should also avoid architecture-only persistence changes such as:
+Phase 1C must also avoid architecture-only persistence changes. In particular, do not:
 
-- renaming `TransactionSource` to `EvidenceArtifact` solely for terminology consistency;
-- persisting every `Observation`, `FieldCandidate`, `ValidationSignal`, `ResolvedField`, or `ExtractionRun` merely because the concept exists;
-- implementing a complete `EvidenceLink` many-to-many graph before a concrete requirement exists;
-- materializing conceptual entities from `docs/architecture/PAYMENT_INSTRUMENTS_REWARDS_BENEFITS_VISION.md` as SwiftData models without a later Roadmap decision and migration contract;
-- introducing speculative services or repositories only because future phases might eventually need them.
+- serialize the SwiftData object graph directly as the public portable contract;
+- expose every existing SwiftData identifier as permanent portable/public identity merely because the field exists;
+- persist `ImportSession`, `ImportRow`, `ColumnMapping`, `ImportIssue`, or similar concepts merely because the importer conceptually uses them;
+- add a promotion-receipt model, idempotency field, or other canonical-control state before the confirmation/recovery authority design demonstrates that the exact persisted mechanism is necessary;
+- stamp import-workflow identifiers onto every `Transaction` without a demonstrated per-record lineage requirement;
+- export machine-local evidence locators such as `stored_file_uri` as transferable data;
+- implement multiple concurrent active/promotable import workspaces before a concrete product need justifies the additional concurrency and recovery surface.
 
-Phase 1B may preserve compatibility with future domains without implementing those domains.
-
-Future issuer terms, statements, receipts, or other evidence may eventually feed program/rule/outcome domains through evidence and provenance. That architectural compatibility does not make those domains current Phase 1B scope.
+Phase 1B is a frozen dependency. Phase 1C may consume its contracts and project admitted provenance into portable representations, but it must not opportunistically "improve" Phase 1B internals as a side effect of portability work.
 
 ---
 
@@ -472,23 +470,28 @@ If the capability is already assigned to a later phase:
 
 Current production priority:
 
-**Phase 1B — Evidence & Provenance Foundation**
+**Phase 1C — Ownership, Portability & Data Management**
 
-The current engineering objective is not to build OCR, AI extraction, a wallet, reward accounting, benefits automation, cloud sync, or a generalized rules system.
+The current engineering objective is not to build OCR, AI extraction, universal financial-file normalization, cloud sync, a wallet, reward accounting, benefits automation, or a generalized rules system.
 
-It is to establish trustworthy responsibility boundaries for evidence and provenance without weakening the canonical Transaction boundary established in Phase 1A.
+It is to define and implement user-owned portability and safe structured import while preserving the canonical `TransactionDraft → Review → Confirm → Transaction` boundary and treating Phase 1B evidence retention as a frozen dependency.
 
 Current priorities include:
 
-- define the Phase 1B evidence/provenance responsibility contract before schema implementation;
-- audit what the current `TransactionSource` means and which responsibilities remain valid;
-- define evidence identity and metadata responsibilities;
-- define retention/deletion semantics for raw evidence and durable provenance;
-- preserve future one-to-many and many-to-many evidence relationships without prematurely implementing the full graph;
-- preserve `TransactionDraft → Review → Confirm` as the convergence boundary;
-- define the responsibilities of `Observation`, `FieldCandidate`, `ValidationSignal`, `ResolvedField`, and `ExtractionRun` before deciding what, if anything, persists;
-- define meaningful correction/provenance semantics;
-- require an explicit migration/compatibility story before the first Phase 1B persisted-model change.
+- define the Phase 1C ownership/portability responsibility and admission contract before implementation sequencing;
+- define a backend-neutral portable-domain representation rather than exposing SwiftData serialization as the public format;
+- define Lumen Portable JSON as the highest-fidelity representation of the durable state explicitly admitted to the portability contract;
+- define a deliberately narrower Lumen CSV projection and a guaranteed downloadable template/example path;
+- keep arbitrary JSON mapping and universal financial-file normalization out of the initial contract;
+- define import readiness so unresolved required financial meaning remains upstream of canonical Transactions;
+- support resolution at the broadest valid scope and row-level intervention only where ambiguity is row-specific;
+- admit resumable noncanonical import-workspace durability without conflating persistence with financial authority;
+- define the lifecycle of any temporarily retained import source copy;
+- define confirmation/recovery authority so a committed promotion cannot become promotable again after interruption;
+- keep promotion replay safety separate from ordinary transaction duplicate detection;
+- define evidence/provenance portability without exporting machine-local locators or falsely claiming local evidence availability;
+- define deletion/clear-data scope honestly rather than bypassing Phase 1B retention semantics;
+- require a concrete admission before any new SwiftData schema or canonical-control persistence mechanism is introduced.
 
 Future domains may inform compatibility constraints, but they do not become active scope merely because a vision document exists.
 

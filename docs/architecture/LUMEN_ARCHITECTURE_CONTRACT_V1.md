@@ -880,32 +880,26 @@ Extraction technology must not become the product objective.
 
 Current production priority is:
 
-## Phase 1A — Core Ledger Hardening
+## Phase 1C — Ownership, Portability & Data Management
 
 Focus on:
 
-- trustworthy SwiftData persistence;
-- explicit save failure handling;
-- schema/version/migration safety;
-- canonical Transaction semantics;
-- separation of financial lifecycle from ingestion disposition where justified;
-- manual entry reliability;
-- Draft → Review → Confirm behavior;
-- edit/delete correctness;
-- categories;
-- payment methods;
-- reusable tags;
-- notes;
-- timestamps;
-- currency/date correctness;
-- list/search/filter;
-- transaction inspection;
-- duplicate-awareness semantics;
-- realistic seed/reset behavior;
-- automated domain and persistence tests;
-- future Phase 1B compatibility.
+- a backend-neutral portable-domain representation for supported durable state;
+- stable versioned Lumen JSON and deliberately narrower CSV portability contracts;
+- guaranteed template/example paths derived from the same admitted format definitions;
+- structured import through `TransactionDraft → Review → Confirm`;
+- explicit import readiness and resolution of required financial meaning before canonicalization;
+- resumable noncanonical import-workspace durability with semantic autosave;
+- clear separation between portable, workspace, and canonical durability;
+- coherent export snapshots and deterministic portable representation;
+- reference-entity import/merge semantics;
+- truthful evidence/provenance projection that excludes machine-local locators;
+- explicit deletion/data-management scope that does not bypass Phase 1B retention semantics;
+- replay-safe confirmation/recovery authority across process termination and persistence failures;
+- separation of promotion replay safety from ordinary transaction duplicate detection;
+- migration/schema restraint unless a concrete Phase 1C correctness requirement earns persistence.
 
-Phase 1A should leave Lumen genuinely useful even if machine extraction never ships.
+Phase 1C must consume Phase 1B as a frozen dependency. Production Phase 2 extraction remains downstream of Phase 1C completion.
 
 ---
 

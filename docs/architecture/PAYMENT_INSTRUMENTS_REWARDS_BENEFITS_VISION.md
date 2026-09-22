@@ -18,7 +18,7 @@ It does not change the active phase or authorize implementation.
 
 > **The conceptual entities in this document describe responsibilities. They do not authorize new persisted SwiftData models or a schema migration.**
 
-The active production phase remains Phase 1B — Evidence & Provenance Foundation.
+The active production phase is Phase 1C — Ownership, Portability & Data Management.
 
 ---
 
@@ -375,7 +375,7 @@ Lumen should remain conservative about regulated or tax-sensitive eligibility la
 
 # Evidence & Provenance Connection
 
-This future domain reinforces why Phase 1B evidence/provenance work should be general enough to support financial knowledge beyond OCR-derived Transactions.
+This future domain illustrates why Phase 1B's completed evidence/provenance contracts were designed to remain general enough to support financial knowledge beyond OCR-derived Transactions.
 
 Possible future flows include:
 
@@ -425,7 +425,7 @@ Benefit / reimbursement context
 
 These examples are future compatibility scenarios only.
 
-**They do not expand Phase 1B implementation scope into rewards, payment instruments, benefits, or generalized rules.**
+**They do not authorize reopening or expanding the completed Phase 1B implementation into rewards, payment instruments, benefits, or generalized rules.**
 
 ---
 
@@ -550,11 +550,11 @@ Shared infrastructure should be extracted only after repeated domain behavior de
 
 # Explicit Current-Phase Non-Goals
 
-This vision is not Phase 1B implementation scope.
+This vision is not automatically Phase 1C implementation scope.
 
-Phase 1B does **not** implement:
+Phase 1C does **not** automatically implement:
 
-- specific payment instruments;
+- the full specific-payment-instrument subsystem;
 - a wallet/payment-accounts UI;
 - reward calculation;
 - reward-rule versioning;
@@ -567,7 +567,9 @@ Phase 1B does **not** implement:
 - issuer/network program classification;
 - a persisted schema corresponding to the conceptual diagrams above.
 
-The only required connection is that Phase 1B evidence/provenance design should avoid unnecessarily preventing these future domains from using evidence, observations, candidates, resolution, and provenance later.
+The Roadmap permits Phase 1C to consider specific payment-instrument identity/management only where a concrete ownership, management, export, or import requirement earns that scope. The broader rewards/benefits/program domain remains later work.
+
+Phase 1B evidence/provenance contracts remain frozen dependencies and may be consumed by later domains without being opportunistically redesigned.
 
 ---
 
@@ -598,6 +600,6 @@ The future opportunity is not merely "build a cashback engine."
 
 It is to let Lumen represent reusable financial instruments, temporal program context, benefit/reimbursement context, and realized outcomes in ways that can later produce richer, explainable financial awareness without contaminating canonical Transaction truth.
 
-As with Phase 1B itself:
+Consistent with the discipline used to complete Phase 1B:
 
 > **Earn abstractions through demonstrated domain behavior. Do not create persisted complexity merely because the conceptual model is cleaner.**
