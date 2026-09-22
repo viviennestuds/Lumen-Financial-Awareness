@@ -18,7 +18,7 @@ It does not change the active phase or authorize implementation.
 
 > **The conceptual entities in this document describe responsibilities. They do not authorize new persisted SwiftData models or a schema migration.**
 
-The active production phase remains Phase 1B — Evidence & Provenance Foundation.
+The active production phase is Phase 1C — Ownership, Portability & Data Management.
 
 ---
 
@@ -550,11 +550,11 @@ Shared infrastructure should be extracted only after repeated domain behavior de
 
 # Explicit Current-Phase Non-Goals
 
-This vision is not Phase 1B implementation scope.
+This vision is not automatically Phase 1C implementation scope.
 
-Phase 1B does **not** implement:
+Phase 1C does **not** automatically implement:
 
-- specific payment instruments;
+- the full specific-payment-instrument subsystem;
 - a wallet/payment-accounts UI;
 - reward calculation;
 - reward-rule versioning;
@@ -567,7 +567,9 @@ Phase 1B does **not** implement:
 - issuer/network program classification;
 - a persisted schema corresponding to the conceptual diagrams above.
 
-The only required connection is that Phase 1B evidence/provenance design should avoid unnecessarily preventing these future domains from using evidence, observations, candidates, resolution, and provenance later.
+The Roadmap permits Phase 1C to consider specific payment-instrument identity/management only where a concrete ownership, management, export, or import requirement earns that scope. The broader rewards/benefits/program domain remains later work.
+
+Phase 1B evidence/provenance contracts remain frozen dependencies and may be consumed by later domains without being opportunistically redesigned.
 
 ---
 
