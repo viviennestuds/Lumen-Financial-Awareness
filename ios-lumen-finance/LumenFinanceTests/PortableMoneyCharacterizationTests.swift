@@ -31,8 +31,8 @@ final class PortableMoneyCharacterizationTests: XCTestCase {
         let probe: Probe
         let lexicalValid: Bool
         let expected: Decimal?
-        let parsedDouble: Double?
-        let currentCreateValid: Bool
+        var parsedDouble: Double?
+        var currentCreateValid: Bool
         var reopenedDouble: Double?
         var insertedBitPattern: UInt64?
         var reopenedBitPattern: UInt64?
