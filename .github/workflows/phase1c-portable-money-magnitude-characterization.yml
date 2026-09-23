@@ -1,0 +1,160 @@
+name: Phase 1C Portable Money Magnitude Characterization
+
+on:
+  push:
+    branches:
+      - research/phase1c-portable-money-magnitude-characterization
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  characterize-portable-money-magnitude:
+    name: Characterize decimal exponent and magnitude envelope
+    runs-on: macos-26
+    timeout-minutes: 45
+
+    env:
+      OUTPUT_DIR: ${{ github.workspace }}/artifacts
+      PROJECT: ${{ github.workspace }}/ios-lumen-finance/LumenFinance.xcodeproj
+      SCHEME: LumenFinance
+      TEST_SELECTOR: LumenFinanceTests/PortableMoneyMagnitudeCharacterizationTests/testCurrentPortableMoneyDecimalExponentMagnitudeEnvelope
+
+    steps:
+      - name: Check out magnitude characterization revision
+        uses: actions/checkout@v7
+
+      - name: Prepare evidence directory
+        run: mkdir -p "$OUTPUT_DIR"
+
+      - name: Record toolchain and revision
+        run: |
+          set -euo pipefail
+          {
+            echo "repository=$GITHUB_REPOSITORY"
+            echo "github_sha=$GITHUB_SHA"
+            echo "github_ref=$GITHUB_REF"
+            echo "workflow_run_id=$GITHUB_RUN_ID"
+            echo "runner_os=$RUNNER_OS"
+            echo "runner_arch=$RUNNER_ARCH"
+            echo "runner_image_os=${ImageOS:-unknown}"
+            echo "runner_image_version=${ImageVersion:-unknown}"
+            echo "macos_version=$(sw_vers -productVersion)"
+            echo "xcode_path=$(xcode-select -p)"
+            echo "xcode=$(xcodebuild -version | tr '\n' ' ')"
+            echo "iphonesimulator_sdk=$(xcrun --sdk iphonesimulator --show-sdk-version)"
+            echo "recorded_at_utc=$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+          } | tee "$OUTPUT_DIR/toolchain.txt"
+
+      - name: Create characterization simulator
+        id: simulator
+        run: |
+          set -euo pipefail
+
+          RUNTIME_ID=$(xcrun simctl list runtimes -j | python3 -c '
+          import json, sys
+          items = [r for r in json.load(sys.stdin)["runtimes"] if r.get("isAvailable") and "iOS" in r.get("name", "")]
+          if not items:
+              raise SystemExit("No available iOS simulator runtime")
+          def version(r):
+              return tuple(int(p) if p.isdigit() else 0 for p in r.get("version", "0").split("."))
+          print(max(items, key=version)["identifier"])
+          ')
+
+          DEVICE_TYPE_ID=$(xcrun simctl list devicetypes -j | python3 -c '
+          import json, sys
+          items = [d for d in json.load(sys.stdin)["devicetypes"] if d.get("name", "").startswith("iPhone")]
+          if not items:
+              raise SystemExit("No iPhone simulator device type")
+          preferred = ["iPhone 16 Pro", "iPhone 16", "iPhone 15 Pro", "iPhone 15"]
+          for name in preferred:
+              match = next((d for d in items if d.get("name") == name), None)
+              if match:
+                  print(match["identifier"])
+                  break
+          else:
+              print(items[-1]["identifier"])
+          ')
+
+          UDID=$(xcrun simctl create "Lumen-PortableMoneyMagnitude-$GITHUB_RUN_ID" "$DEVICE_TYPE_ID" "$RUNTIME_ID")
+          echo "udid=$UDID" >> "$GITHUB_OUTPUT"
+          printf 'runtime_id=%s\ndevice_type_id=%s\nudid=%s\n' "$RUNTIME_ID" "$DEVICE_TYPE_ID" "$UDID"             > "$OUTPUT_DIR/simulator-environment.txt"
+
+          xcrun simctl boot "$UDID" >/dev/null 2>&1 || true
+          xcrun simctl bootstatus "$UDID" -b
+
+      - name: Run bounded exponent and magnitude characterization
+        run: |
+          set -o pipefail
+          UDID="${{ steps.simulator.outputs.udid }}"
+
+          set +e
+          xcodebuild test             -project "$PROJECT"             -scheme "$SCHEME"             -configuration Debug             -destination "platform=iOS Simulator,id=$UDID"             -only-testing:"$TEST_SELECTOR"             -resultBundlePath "$OUTPUT_DIR/portable-money-magnitude-characterization.xcresult"             2>&1 | tee "$OUTPUT_DIR/xcodebuild.log"
+          TEST_STATUS=${PIPESTATUS[0]}
+          set -e
+
+          python3 - "$OUTPUT_DIR/xcodebuild.log" "$OUTPUT_DIR/portable-money-magnitude-characterization.jsonl" <<'PY'
+          import pathlib, sys
+          source = pathlib.Path(sys.argv[1]).read_text(errors="replace").splitlines()
+          output = pathlib.Path(sys.argv[2])
+          rows = []
+          for line in source:
+              marker = "PMMAG|"
+              if marker in line:
+                  rows.append(line.split(marker, 1)[1].strip())
+          output.write_text("\n".join(rows) + ("\n" if rows else ""))
+          print(f"characterization_marker_count={len(rows)}")
+          PY
+
+          python3 - "$OUTPUT_DIR/portable-money-magnitude-characterization.jsonl" "$OUTPUT_DIR/characterization-summary.txt" <<'PY'
+          import json, pathlib, sys
+          source = pathlib.Path(sys.argv[1])
+          out = pathlib.Path(sys.argv[2])
+          rows = []
+          if source.exists():
+              for raw in source.read_text().splitlines():
+                  if raw.strip():
+                      rows.append(json.loads(raw))
+
+          summary = next((r for r in rows if r.get("record_type") == "summary"), {})
+          exponent_rows = [r for r in rows if r.get("record_type") == "adjusted_exponent_summary"]
+          lines = [
+              f"marker_records={len(rows)}",
+              f"adjusted_exponent_summary_records={len(exponent_rows)}",
+              f"total_probe_count={summary.get('total_probe_count')}",
+              "classifications=" + json.dumps(summary.get("classifications", {}), sort_keys=True),
+          ]
+          out.write_text("\n".join(lines) + "\n")
+          print(out.read_text(), end="")
+          PY
+
+          if [ "$TEST_STATUS" -ne 0 ]; then
+            echo "xcodebuild_status=$TEST_STATUS" >> "$OUTPUT_DIR/characterization-summary.txt"
+            exit "$TEST_STATUS"
+          fi
+
+          if [ ! -s "$OUTPUT_DIR/portable-money-magnitude-characterization.jsonl" ]; then
+            echo "Magnitude characterization completed without PMMAG evidence markers" >&2
+            exit 1
+          fi
+
+      - name: Upload characterization evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: Lumen-Phase1C-PortableMoney-Magnitude-${{ github.run_number }}
+          path: artifacts/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Cleanup simulator
+        if: always()
+        run: |
+          set +e
+          UDID="${{ steps.simulator.outputs.udid }}"
+          if [ -n "$UDID" ]; then
+            xcrun simctl shutdown "$UDID" >/dev/null 2>&1 || true
+            xcrun simctl delete "$UDID" >/dev/null 2>&1 || true
+          fi
+          exit 0
