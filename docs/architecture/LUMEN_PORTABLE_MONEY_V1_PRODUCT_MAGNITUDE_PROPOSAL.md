@@ -348,7 +348,7 @@ Reason:
 
 It is plausible for ordinary consumer finance but creates unnecessary exclusions for atypical high-value or high-denomination records without a demonstrated interoperability benefit.
 
-## Alternative D — upper bound below 10^15
+## Alternative D — admit values below 10^15
 
 Disposition:
 
