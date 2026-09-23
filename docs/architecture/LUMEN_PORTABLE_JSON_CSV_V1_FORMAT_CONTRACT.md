@@ -628,13 +628,77 @@ Therefore those spellings must not be treated as three distinct portable financi
 
 The exact canonical decimal spelling remains governed by Section 14.8, but the portable semantic is monetary value rather than source trailing-zero preservation.
 
-## 14.5 Maximum magnitude — EVIDENCE GATED
+## 14.5 Decimal-exponent / maximum-magnitude envelope — RESEARCH / ADMISSION REQUIRED
 
-Portable v1 has not yet frozen its maximum admitted magnitude.
+Portable v1 has not yet frozen its **product** decimal-exponent / maximum-magnitude envelope.
 
-The completed characterization found that magnitude alone is not the storage-safety boundary: some large values preserve their decimal monetary meaning while nearby values at the same general magnitude do not.
+A dedicated magnitude characterization has now separated raw binary64 capability from the current Lumen create path.
 
-The final magnitude rule must therefore be justified independently from significant-decimal-precision and currency-scale rules. It must not be inferred merely from the largest individual passing probe.
+Sanitized evidence is recorded in:
+
+`docs/knowledge/investigations/phase1c-portable-money-magnitude-characterization.md`
+
+### Characterized current create-path envelope
+
+For the tested values with no more than 15 normalized significant decimal digits, the current `TransactionDraft → Review/Confirm → SwiftData save/reopen` path passed across these precision-dependent adjusted-exponent ranges:
+
+| Normalized precision `p` | Adjusted exponent `A` all-pass range | Equivalent normalized exponent `E` |
+| ---: | ---: | ---: |
+| 1 | -128 ... 127 | -128 ... 127 |
+| 2 | -127 ... 128 | -128 ... 127 |
+| 5 | -124 ... 131 | -128 ... 127 |
+| 10 | -119 ... 136 | -128 ... 127 |
+| 15 | -114 ... 141 | -128 ... 127 |
+
+Those ranges collapse to one current implementation rule:
+
+> **Within the characterized coefficient/precision set, the current Lumen create/save/reopen path passed when normalized decimal exponent `E` was within `-128...127`.**
+
+Immediately outside those per-precision boundaries, sampled values were rejected by the current `Money.magnitude` validation dependency even though many remained finite and monetarily equivalent as raw `Double` values.
+
+Current validation includes:
+
+```swift
+Money.magnitude(amount) != nil
+```
+
+and `Money.magnitude` currently converts `String(Double)` through Foundation `Decimal`.
+
+Apple documents `NSDecimalNumber`, which bridges with Swift `Decimal`, as supporting a decimal integer mantissa up to 38 digits and exponent from -128 through 127:
+
+https://developer.apple.com/documentation/foundation/nsdecimalnumber
+
+The characterization therefore treats `E = -128...127` as a **current implementation compatibility envelope**, not as the public PortableMoneyV1 product promise.
+
+### Raw binary64 is materially wider
+
+The same diagnostic observed that raw `Double` parsing/representation remains viable far outside the current create-path envelope, while the expected underflow/overflow failures appear only near binary64's much wider technical extremes.
+
+Reference points:
+
+- https://developer.apple.com/documentation/swift/double
+- https://en.cppreference.com/w/c/types/limits
+
+Portable v1 must not equate `Double.greatestFiniteMagnitude`, Foundation Decimal's current exponent range, or any other implementation maximum with a useful financial product limit.
+
+### Product portable envelope remains open
+
+The final public envelope may be substantially narrower than `E = -128...127`.
+
+It should be chosen for:
+
+- useful personal-finance values;
+- predictable validation;
+- manageable plain-decimal representations;
+- cross-language interoperability;
+- future implementation portability;
+- truthful round-trip behavior.
+
+> **Technical capability is a ceiling, not the product promise.**
+
+The final product exponent / maximum-magnitude rule therefore remains a policy/admission decision.
+
+It must also preserve the existing guardrail for current or historical canonical amounts outside the final PortableMoneyV1 admitted domain: export must not silently round, coerce, substitute, or omit those values.
 
 ## 14.6 Maximum scale — EVIDENCE GATED
 
@@ -1705,7 +1769,7 @@ The first proposal intentionally leaves these questions open.
 - canonical leading-zero input rule — RESEARCH / ADMISSION REQUIRED;
 - normalized significant decimal precision definition — PROPOSED;
 - <=15 normalized significant decimal digits as the conservative PortableMoneyV1 precision limit — PROPOSED;
-- admitted decimal-exponent / maximum-magnitude envelope — EVIDENCE GATED;
+- final product decimal-exponent / maximum-magnitude envelope, constrained by the characterized current-create compatibility boundary but not automatically equal to it — RESEARCH / ADMISSION REQUIRED;
 - maximum admitted scale — EVIDENCE GATED;
 - currency-specific scale semantics — EVIDENCE GATED;
 - round-trip/export disposition for current or historical canonical Transaction amounts outside the final PortableMoneyV1 admitted domain — RESEARCH / ADMISSION REQUIRED;
@@ -1761,29 +1825,32 @@ These gates must be closed before this document moves from proposed to accepted/
 
 # 33. Next Evidence Step
 
-The bounded `Double` characterization and the standards-backed precision reconciliation are complete at the **PROPOSED-contract** level.
+The following PortableMoney work is complete at the **PROPOSED-contract / characterization** level:
 
-Current PortableMoney precision status:
+- bounded `Double` precision characterization;
+- standards-backed normalized precision reconciliation;
+- normalized significant decimal precision definition;
+- at most 15 normalized significant decimal digits as the PROPOSED conservative precision limit;
+- decimal-exponent / magnitude **technical characterization**.
 
-- normalized significant decimal precision is defined by the normalized `C × 10^E` form;
-- at most **15 normalized significant decimal digits** is the PROPOSED conservative PortableMoneyV1 precision limit;
-- source trailing-zero scale is not portable transaction meaning;
-- direct `String(Double)` is rejected as the public serializer;
-- the precision question is closed unless contrary evidence appears.
-
-The next distinct money gate is:
-
-> **admitted decimal-exponent / maximum-magnitude envelope**
-
-That investigation must distinguish:
+The magnitude characterization found a clean current-create compatibility pattern:
 
 ```text
-TECHNICAL SAFE ENVELOPE
-What bounded decimal-exponent / magnitude range can the current representation preserve?
-
-PRODUCT PORTABLE ENVELOPE
-What conservative subset does Lumen actually want to promise publicly?
+normalized precision <= 15
+AND
+normalized exponent E within -128...127
+→ characterized current create/save/reopen capability
 ```
+
+That is an implementation compatibility envelope, not yet the PortableMoneyV1 public product envelope.
+
+The next distinct money decision is therefore:
+
+> **admit the PRODUCT PortableMoneyV1 decimal-exponent / maximum-magnitude envelope**
+
+The product envelope may be much narrower than the characterized current-create capability.
+
+Do not choose the full technical range merely because the current implementation can validate it.
 
 Still separate/open:
 
@@ -1793,7 +1860,7 @@ Still separate/open:
 - admitted currency universe;
 - round-trip/export disposition for historical/current canonical amounts outside the final PortableMoneyV1 admitted domain.
 
-No production importer, migration, schema change, serializer implementation, or money-storage redesign is authorized by this transition.
+No production importer, migration, schema change, serializer implementation, validation redesign, or money-storage redesign is authorized by this transition.
 
 ---
 
@@ -1804,11 +1871,13 @@ The current progression is now:
 ```text
 PROPOSED Portable JSON / CSV v1 contract
         ↓
-bounded Double characterization
+bounded Double precision characterization
         ↓ complete
 standards-backed precision reconciliation
         ↓ complete at PROPOSED-contract level
-decimal-exponent / maximum-magnitude gate
+decimal-exponent / magnitude technical characterization
+        ↓ complete
+PRODUCT PortableMoney exponent / maximum-magnitude admission
         ↓
 remaining money + non-money format gates
         ↓
@@ -1821,4 +1890,4 @@ only then implementation
 
 This document remains **PROPOSED FOR REVIEW**.
 
-The completed precision work does not accept the full format contract and does not authorize importer implementation, workspace persistence, promotion-control persistence, schema changes, serializer implementation, or implementation-pass decomposition.
+The completed technical money characterizations do not accept the full format contract and do not authorize importer implementation, workspace persistence, promotion-control persistence, schema changes, serializer implementation, production validation changes, or implementation-pass decomposition.
