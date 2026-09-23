@@ -171,6 +171,27 @@ Therefore PortableMoneyV1 v1 should **not** use cash-specific digits or rounding
 
 A future explicitly cash-aware capability may admit cash-specific semantics separately.
 
+## 3.4 General non-cash rounding increment is separate from O(c)
+
+CLDR also defines general `rounding` separately from `digits`.
+
+The proposed Lumen value:
+
+    O(c)
+
+models **ordinary fractional scale only**.
+
+It does not by itself admit or enforce a general non-cash rounding increment.
+
+If the stable registry metadata selected for an admitted currency contains a nonzero general rounding rule, that increment requires an explicit Lumen disposition before it can affect PortableMoneyV1 readiness, canonical confirmation, display authority, or normalization.
+
+This scale proposal must therefore neither:
+
+- silently enforce a nonzero general rounding increment merely because the standards source publishes one; nor
+- silently treat that increment as irrelevant and claim all currency minor-unit semantics are complete.
+
+Until that separate disposition is admitted, `O(c)` answers only the ordinary fractional-scale question.
+
 ---
 
 # 4. Proposed Currency-Scale Classification
@@ -319,9 +340,46 @@ while remaining atypical relative to ordinary KWD scale.
 
 ---
 
-# 8. Current / Historical Canonical Export
+# 8. Existing Canonical State: Edit and Export
 
 Existing canonical state has already crossed Lumen's canonical authority boundary.
+
+## 8.1 Existing-canonical edit semantics
+
+An unrelated edit must not convert an already-canonical atypical monetary value back into an unresolved proposal solely because its scale exceeds the current ordinary scale.
+
+If an edit leaves the canonical pair unchanged:
+
+    (amount, currency) before edit
+    ==
+    (amount, currency) after edit
+
+then an existing over-ordinary-scale amount:
+
+    O(c) < S <= 9
+
+must preserve its exact value and must **not** require renewed currency-scale resolution merely because another field changed.
+
+This rule is value-and-currency based, not text-field based. Nonsemantic re-rendering of the same exact monetary value does not create a new scale decision.
+
+If either the amount or currency changes, Lumen must evaluate the resulting pair under the current admitted currency-scale semantics.
+
+For the resulting pair:
+
+    S <= O(c)
+    → READY on the currency-scale axis
+
+    O(c) < S <= 9
+    → NEEDS RESOLUTION
+    → deliberately edit the amount or explicitly keep the exact atypical amount
+
+Changing only the currency therefore cannot bypass scale review.
+
+If the resulting currency does not yet have admitted ordinary-scale metadata, readiness remains unresolved under the currency-definition contract; Lumen must not invent `O(c) = 2`.
+
+No new persisted scale-override or acknowledgment field is authorized by this rule.
+
+## 8.2 Current / historical canonical export
 
 For a canonical amount satisfying the final global PortableMoneyV1 structural domain:
 
@@ -646,6 +704,8 @@ A lower-level currency-scale observation must not conceal a higher-level structu
 | --- | --- | --- |
 | New manual entry | READY on scale axis | NEEDS RESOLUTION; edit or explicit keep-exact |
 | Generic structured import | READY on scale axis | NEEDS RESOLUTION; preserve exact proposal; edit or explicit keep-exact |
+| Existing canonical edit with unchanged `(amount, currency)` | preserve exact canonical pair; no renewed scale decision | preserve exact canonical pair; no renewed scale resolution solely for unrelated edit |
+| Existing canonical edit with changed amount or currency | evaluate resulting pair; READY if ordinary-scale | NEEDS RESOLUTION for resulting pair; edit or explicit keep-exact |
 | Existing canonical export | export exact value | export exact value; no scale rounding |
 | Supported Lumen portable round-trip restoration | READY on scale axis | READY on scale axis for exact restoration; advisory allowed |
 | Review / transaction detail display | conventional exact/ordinary display | exact atypical fractional value must be inspectable |
@@ -669,7 +729,15 @@ It should state:
 
 It should state:
 
+> **For an edit of an existing canonical Transaction, an unchanged exact (amount, currency) pair does not require renewed currency-scale resolution solely because another field changes. If amount or currency changes, the resulting pair is evaluated again; an over-ordinary-scale result requires explicit resolution.**
+
+It should state:
+
 > **Currency-scale resolution must never silently round, truncate, clamp, coerce, substitute, or omit the exact amount.**
+
+It should state:
+
+> **O(c) models ordinary fractional scale only. It does not itself admit or enforce CLDR's general non-cash rounding increment. Any nonzero general rounding rule in the selected stable registry metadata requires a separate explicit Lumen disposition.**
 
 It should state:
 
@@ -687,6 +755,7 @@ This proposal does not resolve:
 - precious-metal, fund, unit-of-account, testing, or "no currency" membership;
 - exact treatment of a currency whose standards metadata changes between registry versions;
 - exact UI copy or controls for atypical-scale resolution;
+- general non-cash rounding-increment semantics for any registry entry whose stable metadata publishes a nonzero rounding increment;
 - whether any particular foreign provider receives specialized mapping behavior;
 - exact language-independent canonical decimal serialization;
 - leading-zero lexical policy;
@@ -702,12 +771,14 @@ This proposal does not resolve:
 Independent review should answer:
 
 1. Is CLDR general `digits` metadata an appropriate primary basis for Lumen's versioned **ordinary scale**, while retaining ISO 4217 Maintenance Agency data as authoritative code/minor-unit evidence?
-2. Is it correct to keep `cashDigits` / `cashRounding` outside general Transaction readiness?
-3. Should `S <= O(c)` be READY on the currency-scale axis?
-4. Should `O(c) < S <= 9` be NEEDS RESOLUTION for new/manual and generic structured imports rather than INVALID?
-5. Should explicit keep-exact confirmation be an admitted resolution path for structurally valid atypical amounts?
-6. Should already-canonical Lumen values and supported Lumen portable round trips preserve exact over-ordinary-scale amounts without re-resolution solely because of scale?
-7. Is the display rule strong enough to prevent conventional formatting from concealing exact atypical values?
-8. Is it sufficiently clear that complete currency-registry membership remains a separate gate?
+2. Is it correct that `O(c)` models ordinary fractional scale only, while any nonzero CLDR general `rounding` increment requires a separate explicit Lumen disposition?
+3. Is it correct to keep `cashDigits` / `cashRounding` outside general Transaction readiness?
+4. Should `S <= O(c)` be READY on the currency-scale axis?
+5. Should `O(c) < S <= 9` be NEEDS RESOLUTION for new/manual and generic structured imports rather than INVALID?
+6. Should explicit keep-exact confirmation be an admitted resolution path for structurally valid atypical amounts?
+7. Should an unchanged exact canonical `(amount, currency)` pair avoid renewed scale resolution during an unrelated edit, while a changed amount or currency causes the resulting pair to be evaluated again?
+8. Should already-canonical Lumen values and supported Lumen portable round trips preserve exact over-ordinary-scale amounts without re-resolution solely because of scale?
+9. Is the display rule strong enough to prevent conventional formatting from concealing exact atypical values?
+10. Is it sufficiently clear that complete currency-registry membership and general rounding-increment disposition remain separate gates?
 
 Until independent review is complete, these currency-specific readiness semantics remain **PROPOSED**, not accepted.

@@ -865,15 +865,19 @@ The proposed workflow rule is:
 
 - new manual confirmation: over-ordinary-scale is **NEEDS RESOLUTION**;
 - generic structured import: over-ordinary-scale is **NEEDS RESOLUTION**;
+- existing canonical edit with unchanged exact `(amount, currency)`: preserve the exact pair without renewed scale resolution solely because another field changed;
+- existing canonical edit with changed amount or currency: evaluate the resulting pair; an over-ordinary-scale result is **NEEDS RESOLUTION**;
 - existing canonical export: preserve and export the exact structurally admitted value without scale rounding;
 - supported Lumen portable round-trip restoration: preserve the exact canonical value and treat scale as READY for restoration, with an advisory indication where useful;
 - display/review surfaces must not conceal an exact atypical value behind only a rounded conventional rendering.
 
-Resolution for new/manual or generic structured import may deliberately edit the amount or explicitly keep the exact atypical value.
+Resolution for new/manual, changed canonical monetary pairs, or generic structured import may deliberately edit the amount or explicitly keep the exact atypical value.
 
 No automatic rounding, truncation, clamping, coercion, substitution, or omission is admitted.
 
 The ordinary-scale proposal uses stable CLDR general currency `digits` semantics as its primary standards basis, with ISO 4217 Maintenance Agency data retained as authoritative currency-code/minor-unit evidence.
+
+`O(c)` models ordinary fractional scale only. CLDR's separate general `rounding` increment is not silently enforced or discarded by this rule; any nonzero general rounding increment in the selected registry metadata requires a separate explicit Lumen disposition.
 
 Cash-specific `cashDigits` / `cashRounding` do not become general Transaction readiness rules.
 
@@ -1078,7 +1082,11 @@ NEEDS RESOLUTION
 
 The exact amount must remain intact. Resolution may deliberately edit the amount or explicitly keep the exact atypical amount.
 
+For an **existing canonical edit**, an unchanged exact `(amount, currency)` pair does not require renewed scale resolution solely because another field changed. If amount or currency changes, the resulting pair is evaluated again; an over-ordinary-scale result requires explicit resolution.
+
 For **existing canonical export** and **supported Lumen portable round-trip restoration**, an over-ordinary-scale value inside the global structural domain must remain exact; ordinary currency scale is not a rounding instruction.
+
+`O(c)` models ordinary fractional scale only. CLDR general `rounding` is a separate increment axis. If the selected stable registry metadata contains a nonzero general rounding rule, that rule requires a separate explicit Lumen disposition and is neither silently enforced nor silently declared irrelevant by this scale contract.
 
 Cash-specific CLDR `cashDigits` and `cashRounding` are not the default readiness rules for a general Lumen Transaction.
 
@@ -1996,7 +2004,8 @@ The first proposal intentionally leaves these questions open.
 
 - complete admitted-currency membership — RESEARCH / ADMISSION REQUIRED;
 - treatment of historical/special ISO codes — RESEARCH / ADMISSION REQUIRED;
-- registry/version evolution mechanism — RESEARCH / ADMISSION REQUIRED.
+- registry/version evolution mechanism — RESEARCH / ADMISSION REQUIRED;
+- general non-cash rounding-increment disposition for any admitted registry entry with a nonzero standards-backed rounding rule — RESEARCH / ADMISSION REQUIRED.
 
 ## Dates
 
@@ -2107,7 +2116,7 @@ O(c) < S <= 9
 → exact preservation / READY on scale axis for supported Lumen round-trip restoration
 ```
 
-Independent review should evaluate the standards basis, the explicit keep-exact resolution path, the new/import-versus-restoration distinction, and the separation of general currency scale from cash-specific rounding.
+Independent review should evaluate the standards basis, the explicit keep-exact resolution path, unchanged-versus-changed existing-canonical edit semantics, the new/import-versus-restoration distinction, the separation of ordinary scale from CLDR general rounding increments, and the separation of general currency scale from cash-specific rounding.
 
 Do not infer complete currency membership from these semantics.
 
