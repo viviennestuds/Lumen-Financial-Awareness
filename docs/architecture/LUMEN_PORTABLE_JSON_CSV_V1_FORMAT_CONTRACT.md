@@ -628,7 +628,7 @@ Therefore those spellings must not be treated as three distinct portable financi
 
 The exact canonical decimal spelling remains governed by Section 14.8, but the portable semantic is monetary value rather than source trailing-zero preservation.
 
-## 14.5 Decimal-exponent / maximum-magnitude envelope — RESEARCH / ADMISSION REQUIRED
+## 14.5 Product upper magnitude — PROPOSED / lower exponent remains open
 
 Portable v1 has not yet frozen its **product** decimal-exponent / maximum-magnitude envelope.
 
@@ -689,24 +689,74 @@ Reference points:
 
 Portable v1 must not equate `Double.greatestFiniteMagnitude`, Foundation Decimal's current exponent range, or any other implementation maximum with a useful financial product limit.
 
-### Product portable envelope remains open
+### Product upper magnitude — PROPOSED
 
-The final public envelope may be substantially narrower than `E = -128...127`.
+The technical characterization is intentionally much wider than the product contract should promise.
 
-It should be chosen for:
+A separate product-domain proposal is recorded in:
 
-- useful personal-finance values;
-- predictable validation;
-- manageable plain-decimal representations;
-- cross-language interoperability;
-- future implementation portability;
-- truthful round-trip behavior.
+`docs/architecture/LUMEN_PORTABLE_MONEY_V1_PRODUCT_MAGNITUDE_PROPOSAL.md`
+
+PortableMoneyV1 proposes the following public **upper** magnitude ceiling:
+
+```text
+x < 10^15
+```
+
+Equivalently, using adjusted decimal exponent `A = E + p - 1`:
+
+```text
+A <= 14
+```
+
+This applies independently from the already-proposed precision rule:
+
+```text
+p <= 15 normalized significant decimal digits
+```
+
+Therefore the current candidate upper money domain is:
+
+```text
+0 < x < 10^15
+AND
+p <= 15
+```
+
+subject independently to scale, currency, serializer, and ordinary Transaction-domain requirements.
+
+The `10^15` ceiling is proposed because it:
+
+- aligns naturally with the 15-digit precision contract;
+- allows up to 15 whole-number decimal positions before the decimal point;
+- leaves enormous headroom for ordinary, high-value, and high-denomination personal-finance records;
+- keeps exponent-free JSON/CSV amounts manageable to inspect;
+- remains radically below the current technical ceiling.
+
+Values at or above `10^15` are not claimed to be technically unrepresentable. They are simply outside the proposed PortableMoneyV1 public product ceiling.
 
 > **Technical capability is a ceiling, not the product promise.**
 
-The final product exponent / maximum-magnitude rule therefore remains a policy/admission decision.
+### Lower/minimum magnitude remains open
 
-It must also preserve the existing guardrail for current or historical canonical amounts outside the final PortableMoneyV1 admitted domain: export must not silently round, coerce, substitute, or omit those values.
+This proposal does **not** set a minimum positive PortableMoneyV1 magnitude.
+
+For normalized value:
+
+```text
+x = C × 10^E
+```
+
+a lower bound on normalized exponent `E` directly constrains fractional decimal scale.
+
+That overlaps the still-open:
+
+- maximum-scale contract;
+- currency-specific scale contract.
+
+The lower/tiny-value side of the monetary domain must therefore be admitted together with, or consistently derived from, those scale semantics rather than being guessed here.
+
+The existing guardrail for current or historical canonical amounts outside the final PortableMoneyV1 admitted domain remains unchanged: export must not silently round, coerce, substitute, or omit those values.
 
 ## 14.6 Maximum scale — EVIDENCE GATED
 
@@ -1777,7 +1827,8 @@ The first proposal intentionally leaves these questions open.
 - canonical leading-zero input rule — RESEARCH / ADMISSION REQUIRED;
 - normalized significant decimal precision definition — PROPOSED;
 - <=15 normalized significant decimal digits as the conservative PortableMoneyV1 precision limit — PROPOSED;
-- final product decimal-exponent / maximum-magnitude envelope, constrained by the characterized current-create compatibility boundary but not automatically equal to it — RESEARCH / ADMISSION REQUIRED;
+- product upper magnitude ceiling `x < 10^15` / adjusted exponent `A <= 14` — PROPOSED;
+- lower normalized-exponent / minimum-positive-magnitude rule, to be admitted consistently with maximum-scale and currency-specific-scale semantics — RESEARCH / ADMISSION REQUIRED;
 - maximum admitted scale — EVIDENCE GATED;
 - currency-specific scale semantics — EVIDENCE GATED;
 - round-trip/export disposition for current or historical canonical Transaction amounts outside the final PortableMoneyV1 admitted domain — RESEARCH / ADMISSION REQUIRED;
@@ -1852,16 +1903,24 @@ normalized exponent E within -128...127
 
 That is an implementation compatibility envelope, not yet the PortableMoneyV1 public product envelope.
 
-The next distinct money decision is therefore:
+The next product-domain proposal is now:
 
-> **admit the PRODUCT PortableMoneyV1 decimal-exponent / maximum-magnitude envelope**
+> **PortableMoneyV1 upper magnitude: `x < 10^15`, equivalently `A <= 14` — PROPOSED FOR REVIEW**
 
-The product envelope may be much narrower than the characterized current-create capability.
+This is intentionally much narrower than the characterized current-create capability.
+
+Independent review should evaluate whether:
+
+- the upper ceiling is sufficiently generous for native-currency personal finance;
+- alignment with the 15-digit precision limit is a sound v1 simplification;
+- the normative contract should state both `x < 10^15` and `A <= 14`;
+- the lower/minimum positive magnitude should remain deferred until scale semantics are admitted.
 
 Do not choose the full technical range merely because the current implementation can validate it.
 
 Still separate/open:
 
+- lower normalized exponent / minimum positive magnitude;
 - maximum scale;
 - currency-specific scale semantics;
 - exact language-independent plain-decimal canonical serializer;
@@ -1885,7 +1944,9 @@ standards-backed precision reconciliation
         ↓ complete at PROPOSED-contract level
 decimal-exponent / magnitude technical characterization
         ↓ complete
-PRODUCT PortableMoney exponent / maximum-magnitude admission
+PRODUCT upper magnitude proposal: x < 10^15 / A <= 14
+        ↓ review
+maximum scale + lower/tiny-value money semantics
         ↓
 remaining money + non-money format gates
         ↓
