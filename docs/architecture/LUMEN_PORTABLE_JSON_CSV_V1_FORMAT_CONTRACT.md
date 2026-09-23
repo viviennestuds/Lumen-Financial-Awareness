@@ -1761,19 +1761,39 @@ These gates must be closed before this document moves from proposed to accepted/
 
 # 33. Next Evidence Step
 
-The bounded `Double` characterization is complete.
+The bounded `Double` characterization and the standards-backed precision reconciliation are complete at the **PROPOSED-contract** level.
 
-The next money-specific step is independent review of the evidence-backed candidate rules:
+Current PortableMoney precision status:
 
+- normalized significant decimal precision is defined by the normalized `C × 10^E` form;
+- at most **15 normalized significant decimal digits** is the PROPOSED conservative PortableMoneyV1 precision limit;
 - source trailing-zero scale is not portable transaction meaning;
 - direct `String(Double)` is rejected as the public serializer;
-- <=15 significant decimal digits is the current candidate precision bound;
-- magnitude and scale remain separate unresolved contract axes;
-- a language-independent plain-decimal canonical serializer still requires exact admission.
+- the precision question is closed unless contrary evidence appears.
 
-No production importer, migration, schema change, or money-storage redesign is authorized by this transition.
+The next distinct money gate is:
 
-If independent review rejects the candidate precision/serialization interpretation, revise the format contract or gather narrower evidence before implementation.
+> **admitted decimal-exponent / maximum-magnitude envelope**
+
+That investigation must distinguish:
+
+```text
+TECHNICAL SAFE ENVELOPE
+What bounded decimal-exponent / magnitude range can the current representation preserve?
+
+PRODUCT PORTABLE ENVELOPE
+What conservative subset does Lumen actually want to promise publicly?
+```
+
+Still separate/open:
+
+- maximum scale;
+- currency-specific scale semantics;
+- exact language-independent plain-decimal canonical serializer;
+- admitted currency universe;
+- round-trip/export disposition for historical/current canonical amounts outside the final PortableMoneyV1 admitted domain.
+
+No production importer, migration, schema change, serializer implementation, or money-storage redesign is authorized by this transition.
 
 ---
 
@@ -1784,11 +1804,13 @@ The current progression is now:
 ```text
 PROPOSED Portable JSON / CSV v1 contract
         ↓
-bounded money characterization
+bounded Double characterization
         ↓ complete
-review evidence-backed money refinements
+standards-backed precision reconciliation
+        ↓ complete at PROPOSED-contract level
+decimal-exponent / maximum-magnitude gate
         ↓
-resolve remaining money + non-money format gates
+remaining money + non-money format gates
         ↓
 accept/canonicalize Portable JSON / CSV v1 contract
         ↓
@@ -1799,4 +1821,4 @@ only then implementation
 
 This document remains **PROPOSED FOR REVIEW**.
 
-The characterization did not accept the format contract and did not authorize importer implementation, workspace persistence, promotion-control persistence, schema changes, or implementation-pass decomposition.
+The completed precision work does not accept the full format contract and does not authorize importer implementation, workspace persistence, promotion-control persistence, schema changes, serializer implementation, or implementation-pass decomposition.
