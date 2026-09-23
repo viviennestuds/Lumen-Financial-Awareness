@@ -13,7 +13,7 @@ import SwiftData
 final class PortableMoneyMagnitudeCharacterizationTests: XCTestCase {
     private let lexicalPattern = #"^[0-9]+(?:\.[0-9]+)?$"#
 
-    private struct NormalizedDecimal: Equatable {
+    private struct NormalizedDecimal: Equatable, Hashable {
         let coefficient: String
         let exponent: Int
 
