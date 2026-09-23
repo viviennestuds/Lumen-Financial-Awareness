@@ -758,20 +758,99 @@ The lower/tiny-value side of the monetary domain must therefore be admitted toge
 
 The existing guardrail for current or historical canonical amounts outside the final PortableMoneyV1 admitted domain remains unchanged: export must not silently round, coerce, substitute, or omit those values.
 
-## 14.6 Maximum scale — EVIDENCE GATED
+## 14.6 Global normalized scale and lower structural magnitude — PROPOSED
+
+PortableMoneyV1 defines **normalized scale** from the already-defined normalized decimal form:
+
+```text
+x = C × 10^E
+```
+
+as:
+
+```text
+S = max(0, -E)
+```
+
+Normalized scale is a property of the exact mathematical decimal value after nonsemantic trailing zeros are removed.
+
+It is not the number of fractional characters originally supplied.
+
+A separate product-domain proposal is recorded in:
+
+`docs/architecture/LUMEN_PORTABLE_MONEY_V1_SCALE_LOWER_MAGNITUDE_PROPOSAL.md`
+
+### Proposed global structural rule
+
+PortableMoneyV1 proposes:
+
+```text
+S <= 9
+```
+
+equivalently:
+
+```text
+E >= -9
+```
+
+This yields a minimum **structurally** admitted positive magnitude of:
+
+```text
+10^-9
+```
+
+Combined with the already-proposed upper magnitude and precision rules, the global structural money domain becomes:
+
+```text
+10^-9 <= x < 10^15
+p <= 15 normalized significant decimal digits
+S <= 9
+```
+
+subject independently to currency-specific scale semantics, admitted currency membership, canonical serialization, Transaction-domain requirements, and historical/out-of-domain disposition.
+
+### Why nine is structural rather than currency-specific
+
+The repository already protects a legacy canonical `KWD` amount with nine fractional digits from being rewritten by an unrelated edit.
+
+A global structural ceiling below nine would immediately classify that known compatibility class outside the portable structural domain.
+
+That fact does **not** make nine fractional digits ordinary KWD semantics.
+
+Unicode CLDR currency metadata illustrates why the responsibilities must stay separate: conventional currency fraction digits vary by currency, including JPY at 0, USD at 2, KWD at 3, and UYW at 4, with a default of 2 when no override is present.
+
+Reference points:
+
+- https://www.unicode.org/reports/tr35/tr35-numbers.html
+- https://unicode.org/cldr/charts/latest/supplemental/detailed_territory_currency_information.html
+
+Therefore:
+
+```text
+GLOBAL STRUCTURAL SCALE
+S <= 9
+        ↓
+CURRENCY-SPECIFIC SCALE / MINOR-UNIT SEMANTICS
+still RESEARCH / ADMISSION REQUIRED
+```
+
+A structurally valid value is not automatically semantically ordinary or READY for every currency.
+
+### Currency-specific policy remains open
 
 Portable v1 has not yet frozen:
 
-- global maximum decimal scale;
-- currency-specific accepted scale;
-- whether scale beyond a currency's ordinary minor unit is rejected or resolved;
-- how historical/current Lumen values outside a candidate scale rule are exported.
+- each admitted currency's ordinary fraction-digit semantics;
+- whether an amount exceeding the currency-specific ordinary scale is INVALID, NEEDS RESOLUTION, historical-only, or otherwise admitted;
+- treatment of historical/special/fund/unit currency codes;
+- how existing canonical values beyond a future currency-specific rule round-trip.
 
-The completed characterization demonstrated create/save/reopen monetary equivalence for explicit tiny-value probes through scale 18 when significant decimal precision remained low.
+Current manual entry and Foundation display formatting are implementation behavior, not portable authority.
 
-Within the characterized envelope, scale alone was not a predictor of monetary-value loss.
+The completed technical characterization demonstrated that much smaller values are representable by the current numeric path; the `S <= 9` rule is therefore a product-domain boundary rather than a storage limitation.
 
-Currency-specific scale semantics remain a separate standards/product admission question.
+The existing out-of-domain guardrail remains unchanged: export must not silently round, truncate, coerce, substitute, or omit a canonical amount merely to satisfy this scale ceiling.
 
 ## 14.7 Precision, scale, value, and spelling are distinct
 
@@ -1827,10 +1906,10 @@ The first proposal intentionally leaves these questions open.
 - canonical leading-zero input rule — RESEARCH / ADMISSION REQUIRED;
 - normalized significant decimal precision definition — PROPOSED;
 - <=15 normalized significant decimal digits as the conservative PortableMoneyV1 precision limit — PROPOSED;
-- product upper magnitude ceiling `x < 10^15` / adjusted exponent `A <= 14` — PROPOSED;
-- lower normalized-exponent / minimum-positive-magnitude rule, to be admitted consistently with maximum-scale and currency-specific-scale semantics — RESEARCH / ADMISSION REQUIRED;
-- maximum admitted scale — EVIDENCE GATED;
-- currency-specific scale semantics — EVIDENCE GATED;
+- product upper magnitude ceiling `x < 10^15` / adjusted exponent `A <= 14` — PROPOSED / independently reviewed;
+- normalized scale definition `S = max(0, -E)` — PROPOSED;
+- global structural scale ceiling `S <= 9` / `E >= -9`, implying minimum structural magnitude `10^-9` — PROPOSED;
+- currency-specific scale/minor-unit semantics and readiness behavior — RESEARCH / ADMISSION REQUIRED;
 - round-trip/export disposition for current or historical canonical Transaction amounts outside the final PortableMoneyV1 admitted domain — RESEARCH / ADMISSION REQUIRED;
 - exact language-independent plain-decimal canonical serializer — RESEARCH / ADMISSION REQUIRED.
 
@@ -1903,28 +1982,34 @@ normalized exponent E within -128...127
 
 That is an implementation compatibility envelope, not yet the PortableMoneyV1 public product envelope.
 
+The product upper magnitude proposal has now been independently reviewed and accepted at the **PROPOSED-contract** level:
+
+```text
+x < 10^15
+A <= 14
+```
+
+That upper-bound question should remain closed unless contrary evidence appears.
+
 The next product-domain proposal is now:
 
-> **PortableMoneyV1 upper magnitude: `x < 10^15`, equivalently `A <= 14` — PROPOSED FOR REVIEW**
-
-This is intentionally much narrower than the characterized current-create capability.
+> **PortableMoneyV1 global normalized structural scale: `S <= 9`, equivalently `E >= -9`, implying minimum structural magnitude `10^-9` — PROPOSED FOR REVIEW**
 
 Independent review should evaluate whether:
 
-- the upper ceiling is sufficiently generous for native-currency personal finance;
-- alignment with the 15-digit precision limit is a sound v1 simplification;
-- the normative contract should state both `x < 10^15` and `A <= 14`;
-- the lower/minimum positive magnitude should remain deferred until scale semantics are admitted.
+- normalized scale `S = max(0, -E)` is the correct implementation-independent definition;
+- nine fractional positions are an appropriate global structural ceiling;
+- preserving the repository's known nine-place legacy compatibility class is a sound reason not to choose a smaller global ceiling;
+- the resulting `10^-9` lower structural magnitude is appropriate;
+- it remains sufficiently explicit that currency-specific scale/minor-unit semantics may be stricter.
 
-Do not choose the full technical range merely because the current implementation can validate it.
+Do not infer currency-specific readiness merely from global structural validity.
 
 Still separate/open:
 
-- lower normalized exponent / minimum positive magnitude;
-- maximum scale;
-- currency-specific scale semantics;
+- currency-specific scale/minor-unit semantics and readiness behavior;
 - exact language-independent plain-decimal canonical serializer;
-- admitted currency universe;
+- admitted currency universe and treatment of historical/special codes;
 - round-trip/export disposition for historical/current canonical amounts outside the final PortableMoneyV1 admitted domain.
 
 No production importer, migration, schema change, serializer implementation, validation redesign, or money-storage redesign is authorized by this transition.
@@ -1945,8 +2030,10 @@ standards-backed precision reconciliation
 decimal-exponent / magnitude technical characterization
         ↓ complete
 PRODUCT upper magnitude proposal: x < 10^15 / A <= 14
+        ↓ independently reviewed at PROPOSED-contract level
+global normalized scale proposal: S <= 9 / E >= -9 / minimum 10^-9
         ↓ review
-maximum scale + lower/tiny-value money semantics
+currency-specific scale + currency-registry semantics
         ↓
 remaining money + non-money format gates
         ↓
