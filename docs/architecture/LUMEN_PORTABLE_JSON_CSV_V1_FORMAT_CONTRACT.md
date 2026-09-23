@@ -654,6 +654,14 @@ Those ranges collapse to one current implementation rule:
 
 > **Within the characterized coefficient/precision set, the current Lumen create/save/reopen path passed when normalized decimal exponent `E` was within `-128...127`.**
 
+For a later rule that requires one precision-independent adjusted-exponent interval across the entire proposed `p <= 15` precision class, the intersection of the tested all-pass ranges is:
+
+```text
+-114 <= A <= 127
+```
+
+That intersection is conservative and intentionally excludes some values that the current create path can handle at particular precisions. The normalized `E` rule remains the cleaner description of current implementation compatibility.
+
 Immediately outside those per-precision boundaries, sampled values were rejected by the current `Money.magnitude` validation dependency even though many remained finite and monetarily equivalent as raw `Double` values.
 
 Current validation includes:
