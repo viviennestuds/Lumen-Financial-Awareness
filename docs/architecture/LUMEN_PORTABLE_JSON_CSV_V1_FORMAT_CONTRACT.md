@@ -832,25 +832,58 @@ GLOBAL STRUCTURAL SCALE
 S <= 9
         ↓
 CURRENCY-SPECIFIC SCALE / MINOR-UNIT SEMANTICS
-still RESEARCH / ADMISSION REQUIRED
+PROPOSED / independent review required
 ```
 
 A structurally valid value is not automatically semantically ordinary or READY for every currency.
 
-### Currency-specific policy remains open
+### Currency-specific readiness semantics — PROPOSED
 
-Portable v1 has not yet frozen:
+A separate proposal is recorded in:
 
-- each admitted currency's ordinary fraction-digit semantics;
-- whether an amount exceeding the currency-specific ordinary scale is INVALID, NEEDS RESOLUTION, historical-only, or otherwise admitted;
-- treatment of historical/special/fund/unit currency codes;
-- how existing canonical values beyond a future currency-specific rule round-trip.
+`docs/architecture/LUMEN_PORTABLE_MONEY_V1_CURRENCY_SCALE_SEMANTICS_PROPOSAL.md`
 
-Current manual entry and Foundation display formatting are implementation behavior, not portable authority.
+For an admitted currency `c`, that proposal defines:
 
-The completed technical characterization demonstrated that much smaller values are representable by the current numeric path; the `S <= 9` rule is therefore a product-domain boundary rather than a storage limitation.
+```text
+O(c) = Lumen-owned, versioned ordinary currency scale
+```
 
-The existing out-of-domain guardrail remains unchanged: export must not silently round, truncate, coerce, substitute, or omit a canonical amount merely to satisfy this scale ceiling.
+and classifies a structurally valid exact amount as:
+
+```text
+S <= O(c)
+→ ordinary-scale
+→ READY on the currency-scale axis
+
+O(c) < S <= 9
+→ over-ordinary-scale
+→ workflow-specific readiness
+```
+
+The proposed workflow rule is:
+
+- new manual confirmation: over-ordinary-scale is **NEEDS RESOLUTION**;
+- generic structured import: over-ordinary-scale is **NEEDS RESOLUTION**;
+- existing canonical export: preserve and export the exact structurally admitted value without scale rounding;
+- supported Lumen portable round-trip restoration: preserve the exact canonical value and treat scale as READY for restoration, with an advisory indication where useful;
+- display/review surfaces must not conceal an exact atypical value behind only a rounded conventional rendering.
+
+Resolution for new/manual or generic structured import may deliberately edit the amount or explicitly keep the exact atypical value.
+
+No automatic rounding, truncation, clamping, coercion, substitution, or omission is admitted.
+
+The ordinary-scale proposal uses stable CLDR general currency `digits` semantics as its primary standards basis, with ISO 4217 Maintenance Agency data retained as authoritative currency-code/minor-unit evidence.
+
+Cash-specific `cashDigits` / `cashRounding` do not become general Transaction readiness rules.
+
+Complete registry membership, special/historical code policy, and registry/version evolution remain separate gates.
+
+Current manual entry and Foundation display formatting remain implementation behavior, not portable authority.
+
+The completed technical characterization demonstrated that much smaller values are representable by the current numeric path; the `S <= 9` rule remains a product-domain boundary rather than a storage limitation.
+
+The existing structural out-of-domain guardrail remains unchanged: export must not silently round, truncate, coerce, substitute, or omit a canonical amount merely to satisfy a PortableMoneyV1 boundary.
 
 ## 14.7 Precision, scale, value, and spelling are distinct
 
@@ -1011,7 +1044,51 @@ The candidate governing rule is:
 
 That definition may be derived from ISO 4217 semantics, but Lumen must deliberately decide what is valid as a denomination for canonical Transactions.
 
-## 15.3 Complete registry membership — RESEARCH / ADMISSION REQUIRED
+## 15.3 Ordinary currency scale and readiness — PROPOSED
+
+For each admitted currency to which ordinary fractional-scale semantics apply, Portable v1 proposes a Lumen-owned, versioned value:
+
+```text
+O(c) = ordinary currency scale
+```
+
+This value must not be fetched implicitly from the runtime OS.
+
+The proposed primary standards basis is stable Unicode CLDR general currency `digits` metadata.
+
+CLDR defines `digits` as the normal decimal digits for currency formatting, uses a default of 2 when no currency-specific override exists, and bases the value on ISO 4217 minor-unit information while permitting documented customary differences.
+
+ISO 4217 Maintenance Agency data remains authoritative evidence for currency-code and minor-unit facts.
+
+The proposed readiness rule for a structurally admitted amount is:
+
+```text
+S <= O(c)
+→ READY on currency-scale axis
+
+O(c) < S <= 9
+→ over-ordinary-scale
+```
+
+For **new manual confirmation** and **generic structured import**, over-ordinary-scale means:
+
+```text
+NEEDS RESOLUTION
+```
+
+The exact amount must remain intact. Resolution may deliberately edit the amount or explicitly keep the exact atypical amount.
+
+For **existing canonical export** and **supported Lumen portable round-trip restoration**, an over-ordinary-scale value inside the global structural domain must remain exact; ordinary currency scale is not a rounding instruction.
+
+Cash-specific CLDR `cashDigits` and `cashRounding` are not the default readiness rules for a general Lumen Transaction.
+
+The complete decision record is:
+
+`docs/architecture/LUMEN_PORTABLE_MONEY_V1_CURRENCY_SCALE_SEMANTICS_PROPOSAL.md`
+
+These semantics remain **PROPOSED FOR REVIEW**.
+
+## 15.4 Complete registry membership — RESEARCH / ADMISSION REQUIRED
 
 The final registry must classify rather than blindly copy every code available from a standards/platform list.
 
@@ -1024,11 +1101,13 @@ Research must consider at least:
 - testing codes;
 - "no currency" or similar special codes.
 
+A lexically valid token or runtime-recognized code must not silently receive canonical readiness merely by falling through to a default scale.
+
 USD, EUR, JPY, and KWD are representation probes.
 
 They are **not** a four-currency whitelist.
 
-## 15.4 Registry identifier in each document — RESEARCH / ADMISSION REQUIRED
+## 15.5 Registry identifier in each document — RESEARCH / ADMISSION REQUIRED
 
 The responsibility for stable currency semantics is established.
 
@@ -1909,7 +1988,7 @@ The first proposal intentionally leaves these questions open.
 - product upper magnitude ceiling `x < 10^15` / adjusted exponent `A <= 14` — PROPOSED / independently reviewed;
 - normalized scale definition `S = max(0, -E)` — PROPOSED / independently reviewed;
 - global structural scale ceiling `S <= 9` / `E >= -9`, implying minimum structural magnitude `10^-9` — PROPOSED / independently reviewed;
-- currency-specific scale/minor-unit semantics and readiness behavior — RESEARCH / ADMISSION REQUIRED;
+- currency-specific ordinary-scale definition and workflow readiness semantics — PROPOSED;
 - round-trip/export disposition for current or historical canonical Transaction amounts outside the final PortableMoneyV1 admitted domain — RESEARCH / ADMISSION REQUIRED;
 - exact language-independent plain-decimal canonical serializer — RESEARCH / ADMISSION REQUIRED.
 
@@ -2010,18 +2089,34 @@ S <= 9
 
 That structural-scale question should remain closed unless contrary repository evidence appears.
 
-The next product-domain gate is:
+The next product-domain proposal is now:
 
-> **currency-specific scale / minor-unit semantics and readiness behavior — separate proposal required**
+> **currency-specific ordinary scale / minor-unit readiness semantics — PROPOSED FOR REVIEW**
 
-Do not infer currency-specific readiness merely from global structural validity.
+The proposal defines:
+
+```text
+O(c) = Lumen-owned, versioned ordinary currency scale
+
+S <= O(c)
+→ READY on currency-scale axis
+
+O(c) < S <= 9
+→ NEEDS RESOLUTION for new/manual and generic structured import
+→ exact preservation for existing canonical export
+→ exact preservation / READY on scale axis for supported Lumen round-trip restoration
+```
+
+Independent review should evaluate the standards basis, the explicit keep-exact resolution path, the new/import-versus-restoration distinction, and the separation of general currency scale from cash-specific rounding.
+
+Do not infer complete currency membership from these semantics.
 
 Still separate/open:
 
-- currency-specific scale/minor-unit semantics and readiness behavior;
+- complete admitted currency universe and treatment of historical/special/fund/metal/unit codes;
+- currency-registry representation and version-evolution mechanism;
 - exact language-independent plain-decimal canonical serializer;
-- admitted currency universe and treatment of historical/special codes;
-- round-trip/export disposition for historical/current canonical amounts outside the final PortableMoneyV1 admitted domain.
+- round-trip/export disposition for historical/current canonical amounts outside the **global structural** PortableMoneyV1 domain.
 
 No production importer, migration, schema change, serializer implementation, validation redesign, or money-storage redesign is authorized by this transition.
 
@@ -2046,7 +2141,7 @@ global normalized scale proposal: S <= 9 / E >= -9 / minimum 10^-9
         ↓ independently reviewed at PROPOSED-contract level
 currency-specific scale / minor-unit semantics proposal
         ↓ review
-currency-registry semantics
+currency-registry membership + version semantics
         ↓
 remaining money + non-money format gates
         ↓
