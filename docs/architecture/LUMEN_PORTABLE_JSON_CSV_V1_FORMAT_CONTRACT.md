@@ -758,7 +758,7 @@ The lower/tiny-value side of the monetary domain must therefore be admitted toge
 
 The existing guardrail for current or historical canonical amounts outside the final PortableMoneyV1 admitted domain remains unchanged: export must not silently round, coerce, substitute, or omit those values.
 
-## 14.6 Global normalized scale and lower structural magnitude — PROPOSED
+## 14.6 Global normalized scale and lower structural magnitude — PROPOSED / independently reviewed
 
 PortableMoneyV1 defines **normalized scale** from the already-defined normalized decimal form:
 
@@ -1907,8 +1907,8 @@ The first proposal intentionally leaves these questions open.
 - normalized significant decimal precision definition — PROPOSED;
 - <=15 normalized significant decimal digits as the conservative PortableMoneyV1 precision limit — PROPOSED;
 - product upper magnitude ceiling `x < 10^15` / adjusted exponent `A <= 14` — PROPOSED / independently reviewed;
-- normalized scale definition `S = max(0, -E)` — PROPOSED;
-- global structural scale ceiling `S <= 9` / `E >= -9`, implying minimum structural magnitude `10^-9` — PROPOSED;
+- normalized scale definition `S = max(0, -E)` — PROPOSED / independently reviewed;
+- global structural scale ceiling `S <= 9` / `E >= -9`, implying minimum structural magnitude `10^-9` — PROPOSED / independently reviewed;
 - currency-specific scale/minor-unit semantics and readiness behavior — RESEARCH / ADMISSION REQUIRED;
 - round-trip/export disposition for current or historical canonical Transaction amounts outside the final PortableMoneyV1 admitted domain — RESEARCH / ADMISSION REQUIRED;
 - exact language-independent plain-decimal canonical serializer — RESEARCH / ADMISSION REQUIRED.
@@ -1991,17 +1991,28 @@ A <= 14
 
 That upper-bound question should remain closed unless contrary evidence appears.
 
-The next product-domain proposal is now:
+The global normalized structural scale proposal has now been independently reviewed and accepted at the **PROPOSED-contract** level:
 
-> **PortableMoneyV1 global normalized structural scale: `S <= 9`, equivalently `E >= -9`, implying minimum structural magnitude `10^-9` — PROPOSED FOR REVIEW**
+```text
+S = max(0, -E)
+S <= 9
+E >= -9
+minimum structural positive magnitude = 10^-9
+```
 
-Independent review should evaluate whether:
+Together with the already-proposed precision and upper-magnitude rules, the proposed global structural money envelope is:
 
-- normalized scale `S = max(0, -E)` is the correct implementation-independent definition;
-- nine fractional positions are an appropriate global structural ceiling;
-- preserving the repository's known nine-place legacy compatibility class is a sound reason not to choose a smaller global ceiling;
-- the resulting `10^-9` lower structural magnitude is appropriate;
-- it remains sufficiently explicit that currency-specific scale/minor-unit semantics may be stricter.
+```text
+10^-9 <= x < 10^15
+p <= 15
+S <= 9
+```
+
+That structural-scale question should remain closed unless contrary repository evidence appears.
+
+The next product-domain gate is:
+
+> **currency-specific scale / minor-unit semantics and readiness behavior — separate proposal required**
 
 Do not infer currency-specific readiness merely from global structural validity.
 
@@ -2032,8 +2043,10 @@ decimal-exponent / magnitude technical characterization
 PRODUCT upper magnitude proposal: x < 10^15 / A <= 14
         ↓ independently reviewed at PROPOSED-contract level
 global normalized scale proposal: S <= 9 / E >= -9 / minimum 10^-9
+        ↓ independently reviewed at PROPOSED-contract level
+currency-specific scale / minor-unit semantics proposal
         ↓ review
-currency-specific scale + currency-registry semantics
+currency-registry semantics
         ↓
 remaining money + non-money format gates
         ↓

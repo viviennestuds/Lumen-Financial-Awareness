@@ -2,7 +2,7 @@
 
 ## Status
 
-**PROPOSED FOR REVIEW — Phase 1C money-domain admission proposal.**
+**PROPOSED / INDEPENDENTLY REVIEWED — accepted at the proposed-contract level; full Portable JSON / CSV v1 format acceptance remains open.**
 
 This document does not change production validation, persistence, SwiftData schema, amount-entry behavior, currency formatting, importer behavior, serializer behavior, or the canonical ledger.
 
@@ -375,7 +375,7 @@ This better spans current CLDR currency-fraction examples such as UYW and CLF-st
 
 ## Alternative C — global maximum scale 9
 
-Disposition: **PROPOSED.**
+Disposition: **PROPOSED / independently reviewed.**
 
 This preserves the known repository nine-place compatibility class structurally, remains bounded and human-manageable, leaves substantial room above conventional currency fraction digits, and does not pre-decide the currency-specific scale contract.
 
@@ -419,15 +419,44 @@ This proposal does not resolve:
 
 ---
 
-# 15. Review Questions
+# 15. Independent Review Disposition
 
-Independent review should answer:
+Independent review accepts the following at the **PROPOSED-contract** level:
 
-1. Is normalized scale `S = max(0, -E)` the correct implementation-independent scale definition?
-2. Is a global structural ceiling of `S <= 9` appropriately conservative while preserving known canonical compatibility?
-3. Is deriving a structural minimum positive magnitude of `10^-9` correct?
-4. Is it sufficiently explicit that nine digits are **not** a per-currency minor-unit promise?
-5. Should the known nine-place legacy compatibility case influence the global structural ceiling, or should it instead be handled only through the historical out-of-domain policy?
-6. Should the next distinct gate be the currency-specific scale/minor-unit registry policy rather than more numeric characterization?
+    normalized scale S = max(0, -E)
+    global structural ceiling S <= 9
+    equivalently E >= -9
+    minimum structurally admitted positive magnitude = 10^-9
 
-Until independent review is complete, `S <= 9` / `E >= -9` remains **PROPOSED**, not accepted.
+These rules compose with the already-proposed:
+
+    normalized significant decimal precision p <= 15
+    product upper magnitude x < 10^15 / A <= 14
+
+The resulting proposed global structural money envelope is:
+
+    10^-9 <= x < 10^15
+    p <= 15
+    S <= 9
+
+This acceptance closes the global structural scale / lower-magnitude question at the proposed-contract level unless contrary repository evidence appears.
+
+It does **not**:
+
+- accept the full Portable JSON / CSV v1 format;
+- admit per-currency scale or minor-unit semantics;
+- decide whether a structurally valid amount is READY for a specific currency;
+- admit a currency registry;
+- define the exact canonical serializer;
+- resolve historical/current out-of-domain export disposition;
+- authorize production validation, importer/exporter behavior, migrations, schema changes, or money-storage changes.
+
+The preserved architectural boundary is:
+
+    GLOBAL STRUCTURAL SCALE
+    S <= 9
+            ↓
+    CURRENCY-SPECIFIC SCALE / MINOR-UNIT SEMANTICS
+    still open
+
+The next distinct money-domain gate is a separate currency-specific scale/minor-unit semantics proposal.
