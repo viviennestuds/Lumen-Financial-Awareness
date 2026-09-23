@@ -259,7 +259,13 @@ The precision-dependent adjusted ranges collapse exactly to one normalized-expon
 
 > Within the characterized coefficient/precision set, the current Lumen create/save/reopen path passed when normalized decimal exponent E was within -128...127.
 
-Immediately outside those boundaries, sampled values were rejected by the current Money.magnitude validation dependency even though many remained finite and monetarily equivalent as raw Double values.
+If a later product rule wants one precision-independent adjusted-exponent ceiling across the entire proposed p <= 15 precision class, the intersection of the tested all-pass adjusted ranges is:
+
+    -114 <= A <= 127
+
+That adjusted-exponent intersection is conservative: it intentionally excludes some values that the current create path can handle at particular precisions. The normalized E rule remains the cleaner description of current implementation compatibility.
+
+Immediately outside the per-precision boundaries, sampled values were rejected by the current Money.magnitude validation dependency even though many remained finite and monetarily equivalent as raw Double values.
 
 This strongly indicates that the current create-path magnitude envelope is constrained by Foundation decimal conversion rather than raw binary64 range.
 
