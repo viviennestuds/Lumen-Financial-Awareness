@@ -640,7 +640,7 @@ Sanitized evidence is recorded in:
 
 ### Characterized current create-path envelope
 
-For the tested values with no more than 15 normalized significant decimal digits, the current `TransactionDraft → Review/Confirm → SwiftData save/reopen` path passed across these precision-dependent adjusted-exponent ranges:
+For the tested values with no more than 15 normalized significant decimal digits, the current `TransactionDraft → makeTransaction → LedgerWrite / SwiftData save/reopen` path passed across these precision-dependent adjusted-exponent ranges:
 
 | Normalized precision `p` | Adjusted exponent `A` all-pass range | Equivalent normalized exponent `E` |
 | ---: | ---: | ---: |
