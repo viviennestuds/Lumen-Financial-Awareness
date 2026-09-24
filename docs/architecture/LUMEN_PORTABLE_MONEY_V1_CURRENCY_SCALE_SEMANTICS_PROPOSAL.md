@@ -2,7 +2,7 @@
 
 ## Status
 
-**PROPOSED FOR REVIEW — Phase 1C money-domain admission proposal.**
+**PROPOSED / INDEPENDENTLY REVIEWED — accepted at the proposed-contract level; full Portable JSON / CSV v1 format acceptance remains open.**
 
 This document does not change production validation, persistence, SwiftData schema, amount-entry behavior, currency formatting, importer/exporter behavior, serializer behavior, or the canonical ledger.
 
@@ -766,19 +766,65 @@ This proposal does not resolve:
 
 ---
 
-# 21. Review Questions
+# 21. Independent Review Disposition
 
-Independent review should answer:
+Independent review accepts the PortableMoneyV1 currency ordinary-scale/readiness semantics at the **PROPOSED-contract** level.
 
-1. Is CLDR general `digits` metadata an appropriate primary basis for Lumen's versioned **ordinary scale**, while retaining ISO 4217 Maintenance Agency data as authoritative code/minor-unit evidence?
-2. Is it correct that `O(c)` models ordinary fractional scale only, while any nonzero CLDR general `rounding` increment requires a separate explicit Lumen disposition?
-3. Is it correct to keep `cashDigits` / `cashRounding` outside general Transaction readiness?
-4. Should `S <= O(c)` be READY on the currency-scale axis?
-5. Should `O(c) < S <= 9` be NEEDS RESOLUTION for new/manual and generic structured imports rather than INVALID?
-6. Should explicit keep-exact confirmation be an admitted resolution path for structurally valid atypical amounts?
-7. Should an unchanged exact canonical `(amount, currency)` pair avoid renewed scale resolution during an unrelated edit, while a changed amount or currency causes the resulting pair to be evaluated again?
-8. Should already-canonical Lumen values and supported Lumen portable round trips preserve exact over-ordinary-scale amounts without re-resolution solely because of scale?
-9. Is the display rule strong enough to prevent conventional formatting from concealing exact atypical values?
-10. Is it sufficiently clear that complete currency-registry membership and general rounding-increment disposition remain separate gates?
+The accepted proposed semantics are:
 
-Until independent review is complete, these currency-specific readiness semantics remain **PROPOSED**, not accepted.
+    O(c) = Lumen-owned, stable/versioned ordinary currency scale
+
+    S <= O(c)
+    → READY on the currency-scale axis
+
+    O(c) < S <= 9
+    → NEEDS RESOLUTION for new/manual and generic structured-import monetary proposals
+    → deliberate edit or explicit keep-exact may resolve the scale issue
+
+    unchanged canonical (amount, currency)
+    → preserve exact value without renewed scale resolution for unrelated edits
+
+    changed amount or currency
+    → evaluate the resulting pair again
+    → over-ordinary-scale result requires explicit resolution
+
+    existing canonical export
+    → preserve exact structurally admitted value
+
+    supported Lumen portable round-trip restoration
+    → preserve exact value
+    → READY on the currency-scale axis for restoration
+
+This acceptance closes the **ordinary fractional scale / currency-scale readiness** question at the proposed-contract level unless contrary repository evidence appears.
+
+It does **not**:
+
+- accept the full Portable JSON / CSV v1 format;
+- admit the complete currency registry;
+- define registry representation or version evolution;
+- admit CLDR general non-cash rounding increments;
+- admit cash-specific rounding semantics;
+- resolve historical/current canonical amounts outside the global PortableMoneyV1 structural domain;
+- define the exact canonical decimal serializer;
+- authorize production validation, importer/exporter behavior, persistence/schema changes, migrations, or serializer implementation.
+
+The accepted boundary remains:
+
+    GLOBAL STRUCTURAL ADMISSION
+    10^-9 <= x < 10^15
+    p <= 15
+    S <= 9
+            ↓
+    ADMITTED CURRENCY + LUMEN-OWNED O(c)
+            ↓
+    currency-scale readiness
+            ↓
+    workflow-specific authority
+
+The next distinct currency gate is the coupled question of:
+
+    complete admitted currency membership
+    +
+    immutable/versioned registry semantics sufficient to determine O(c)
+
+General non-cash rounding-increment disposition remains a separate explicit gate and is not silently absorbed into that registry-scale decision.
