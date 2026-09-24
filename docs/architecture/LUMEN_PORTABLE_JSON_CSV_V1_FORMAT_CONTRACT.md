@@ -195,6 +195,7 @@ The candidate top-level document shape is:
 {
   "format": "lumen-portable",
   "version": 1,
+  "currency_registry": "lumen-currency-v1",
   "exported_at": "2026-09-22T16:00:00Z",
   "categories": [],
   "payment_methods": [],
@@ -216,6 +217,7 @@ It is not a serialization of `ModelContext`, SwiftData metadata, application pre
 | --- | --- | --- | --- |
 | `format` | string | PROPOSED | Must equal `"lumen-portable"` for this format family |
 | `version` | integer | PROPOSED | Must equal `1` for v1 |
+| `currency_registry` | string | PROPOSED | Required immutable Lumen currency-registry identifier; initially `"lumen-currency-v1"` |
 | `exported_at` | timestamp string | PROPOSED | Export-generation instant; not a financial transaction date |
 | `categories` | array | PROPOSED | Supported Category portable records |
 | `payment_methods` | array | PROPOSED | Supported PaymentMethod portable records |
@@ -881,7 +883,7 @@ The ordinary-scale proposal uses stable CLDR general currency `digits` semantics
 
 Cash-specific `cashDigits` / `cashRounding` do not become general Transaction readiness rules.
 
-Complete registry membership, special/historical code policy, and registry/version evolution remain separate gates.
+Complete registry membership and registry/version semantics remain a separate gate from ordinary-scale readiness and are now proposed in `docs/architecture/LUMEN_PORTABLE_MONEY_V1_CURRENCY_REGISTRY_PROPOSAL.md`. Historical/current canonical compatibility remains separately open.
 
 Current manual entry and Foundation display formatting remain implementation behavior, not portable authority.
 
@@ -1094,38 +1096,101 @@ The complete decision record is:
 
 `docs/architecture/LUMEN_PORTABLE_MONEY_V1_CURRENCY_SCALE_SEMANTICS_PROPOSAL.md`
 
-These semantics remain **PROPOSED FOR REVIEW**.
+These ordinary-scale/readiness semantics are **PROPOSED / independently reviewed**.
 
-## 15.4 Complete registry membership — RESEARCH / ADMISSION REQUIRED
+## 15.4 Currency registry membership — PROPOSED
 
-The final registry must classify rather than blindly copy every code available from a standards/platform list.
+A separate registry proposal is recorded in:
 
-Research must consider at least:
+`docs/architecture/LUMEN_PORTABLE_MONEY_V1_CURRENCY_REGISTRY_PROPOSAL.md`
 
-- ordinary currently circulating currencies;
-- historical/withdrawn codes;
-- precious-metal codes;
-- fund/unit-of-account codes;
-- testing codes;
-- "no currency" or similar special codes.
+The first proposed immutable registry identifier is:
 
-A lexically valid token or runtime-recognized code must not silently receive canonical readiness merely by falling through to a default scale.
-
-USD, EUR, JPY, and KWD are representation probes.
-
-They are **not** a four-currency whitelist.
-
-## 15.5 Registry identifier in each document — RESEARCH / ADMISSION REQUIRED
-
-The responsibility for stable currency semantics is established.
-
-This proposal does not yet require a field such as:
-
-```json
-"currency_registry": "lumen-iso4217-v1"
+```text
+lumen-currency-v1
 ```
 
-Whether a registry identifier must travel in every document depends on the final version-evolution design.
+Its pinned source evidence is:
+
+- SIX ISO 4217 List One XML published `2026-09-17`;
+- Unicode CLDR 48.2, pinned to the `release-48-2` source snapshot.
+
+A code enters `lumen-currency-v1` only when the pinned SIX List One entry has:
+
+```text
+Ccy matching [A-Z]{3}
+CcyNm IsFund != true
+numeric CcyMnrUnts
+```
+
+Duplicate territory rows collapse to one code and must agree on the relevant code metadata.
+
+That construction yields exactly:
+
+```text
+155 admitted codes
+```
+
+The proposal explicitly excludes from the first registry:
+
+- current List One entries marked `IsFund="true"`;
+- precious-metal and other special codes with N.A. minor units;
+- SDR;
+- bond-market units;
+- testing;
+- the no-currency code;
+- historical/withdrawn List Three codes.
+
+Those exclusions are Portable v1 registry-membership decisions.
+
+They do not authorize mutation or omission of existing canonical state; historical/current compatibility remains a separate gate.
+
+For each admitted code, the immutable `O(c)` value is taken from pinned CLDR 48.2 general `digits`, using its pinned `DEFAULT digits = 2` when no currency-specific override exists.
+
+The complete 155-code membership and `O(c)` grouping are normative in the registry proposal.
+
+These registry semantics remain **PROPOSED FOR REVIEW**.
+
+## 15.5 Registry identity and evolution — PROPOSED
+
+Portable currency semantics must carry an explicit immutable registry identifier.
+
+For the initial candidate contract:
+
+```text
+lumen-currency-v1
+```
+
+is the only supported value.
+
+The identifier is Lumen-owned rather than named after ISO alone because its semantics combine pinned ISO 4217 / SIX membership evidence with pinned CLDR ordinary-scale evidence.
+
+Once accepted, a registry identifier is immutable.
+
+Its:
+
+- admitted member set;
+- `O(c)` mapping;
+- pinned source-snapshot identity
+
+must not change in place.
+
+A changed membership or changed `O(c)` mapping requires a different registry identifier.
+
+Portable JSON v1 carries the registry identifier once in the top-level `currency_registry` field.
+
+Lumen CSV v1 carries it in the required `currency_registry` column, whose value must be identical across all data rows.
+
+A receiving implementation must not substitute:
+
+- its current OS currency list;
+- its current CLDR version;
+- the latest known Lumen registry;
+- an inferred registry based on export date.
+
+An unknown registry identifier is a well-formed but unsupported portable semantic.
+
+Registry evolution is independently versioned from the public schema. A later registry identifier may be supported with Portable format version 1 only through an explicit later admission; this proposal does not pre-admit any future registry.
 
 ---
 
@@ -1628,7 +1693,7 @@ It is a transaction-oriented interchange projection, not an encoding of the enti
 The candidate v1 header order is:
 
 ```text
-transaction_date,posted_date,amount,currency,type,status,merchant_name,category_name,category_group,payment_method_name,notes
+currency_registry,transaction_date,posted_date,amount,currency,type,status,merchant_name,category_name,category_group,payment_method_name,notes
 ```
 
 The blank downloadable template must eventually derive from this exact admitted header definition.
@@ -1637,6 +1702,7 @@ The blank downloadable template must eventually derive from this exact admitted 
 
 | Column | Required text? | Semantic |
 | --- | --- | --- |
+| `currency_registry` | yes | immutable Lumen currency-registry identifier; all rows in one file must match |
 | `transaction_date` | yes | financial calendar date |
 | `posted_date` | no | optional financial posted date |
 | `amount` | yes | PortableMoneyV1 magnitude |
@@ -1719,7 +1785,7 @@ into CSV absence unless a later field-specific rule explicitly defines another r
 
 CSV v1 does **not** promise JSON's null-versus-empty-string fidelity. If a future field requires an intentional empty string to remain semantically distinct from absence, that field needs an explicit CSV encoding rule or must remain JSON-only.
 
-An empty cell is **not** valid for a required portable semantic such as amount/currency/type/merchant/date.
+An empty cell is **not** valid for a required portable semantic such as currency_registry/amount/currency/type/merchant/date.
 
 Category fields are the deliberate compatibility exception described above: an exported current record may lack Category, but that row is not READY for new canonical confirmation until Category is resolved.
 
@@ -1766,8 +1832,8 @@ For example:
 and the corresponding fields in a complete Lumen CSV v1 row:
 
 ```text
-transaction_date,posted_date,amount,currency,type,status,merchant_name,category_name,category_group,payment_method_name,notes
-2026-01-04,,52.30,USD,expense,posted,Example Market,Example Category,custom,,
+currency_registry,transaction_date,posted_date,amount,currency,type,status,merchant_name,category_name,category_group,payment_method_name,notes
+lumen-currency-v1,2026-01-04,,52.30,USD,expense,posted,Example Market,Example Category,custom,,
 ```
 
 represent the same candidate PortableMoneyV1 + type meaning for the shared fields.
@@ -1890,7 +1956,7 @@ A document with a different version must not be parsed as v1 by guesswork.
 The exact ordered header defined in Section 24.1 is the recognition signature for Lumen CSV v1:
 
 ```text
-transaction_date,posted_date,amount,currency,type,status,merchant_name,category_name,category_group,payment_method_name,notes
+currency_registry,transaction_date,posted_date,amount,currency,type,status,merchant_name,category_name,category_group,payment_method_name,notes
 ```
 
 A CSV with a different header or different column order must not be silently interpreted as another Lumen CSV version.
@@ -1909,9 +1975,27 @@ A future Lumen version may:
 
 It must not silently reinterpret incompatible future semantics through v1 rules.
 
-## 29.4 Currency-definition evolution — RESEARCH / ADMISSION REQUIRED
+## 29.4 Currency-registry identity and evolution — PROPOSED
 
-The final contract must decide how currency-registry evolution relates to the top-level format version and whether any registry identifier travels with the document.
+Portable v1 carries currency-registry identity explicitly rather than inferring it only from the top-level format version.
+
+For Portable JSON v1:
+
+```text
+currency_registry == "lumen-currency-v1"
+```
+
+is the initially supported registry semantic.
+
+For Lumen CSV v1, every data row carries the same value in the required `currency_registry` column.
+
+The registry identifier is immutable semantic version state.
+
+A future registry requires a different identifier and explicit admission.
+
+An implementation encountering an unknown registry identifier must report an unsupported registry semantic rather than applying its own current currency metadata.
+
+The registry version may evolve independently from the Portable schema version, but no future registry/format combination is accepted implicitly.
 
 ---
 
@@ -1932,7 +2016,8 @@ Examples:
 
 Examples:
 
-- lexically well-formed currency token not admitted by the Portable v1 currency definition;
+- lexically well-formed currency token not admitted by the selected Portable currency registry;
+- unknown or unsupported `currency_registry` identifier;
 - amount outside the finally admitted safe domain;
 - unsupported future format version.
 
@@ -2002,9 +2087,11 @@ The first proposal intentionally leaves these questions open.
 
 ## Currency
 
-- complete admitted-currency membership — RESEARCH / ADMISSION REQUIRED;
-- treatment of historical/special ISO codes — RESEARCH / ADMISSION REQUIRED;
-- registry/version evolution mechanism — RESEARCH / ADMISSION REQUIRED;
+- exact `lumen-currency-v1` admitted membership — PROPOSED;
+- pinned `lumen-currency-v1` ordinary-scale mapping — PROPOSED;
+- registry identifier transport in Portable JSON / CSV — PROPOSED;
+- immutable registry/version-evolution semantics — PROPOSED;
+- historical/withdrawn and special/fund/metal/unit codes excluded from `lumen-currency-v1`; existing canonical compatibility for such values remains RESEARCH / ADMISSION REQUIRED;
 - general non-cash rounding-increment disposition for any admitted registry entry with a nonzero standards-backed rounding rule — RESEARCH / ADMISSION REQUIRED.
 
 ## Dates
@@ -2118,15 +2205,39 @@ O(c) < S <= 9
 
 That ordinary-scale/readiness question should remain closed unless contrary repository evidence appears.
 
-The next product-domain gate is now the coupled question:
+The next product-domain proposal is now:
 
-> **PortableMoneyV1 admitted currency registry membership + immutable/versioned registry semantics sufficient to determine O(c) — separate proposal required**
+> **PortableMoneyV1 currency registry membership + immutable/versioned registry semantics — PROPOSED FOR REVIEW**
 
-Do not infer general non-cash rounding-increment semantics from O(c) or from registry membership.
+The proposed first registry is:
+
+```text
+lumen-currency-v1
+155 admitted codes
+pinned SIX List One: 2026-09-17
+pinned CLDR: 48.2 / release-48-2
+explicit O(c) mapping
+```
+
+The registry identifier travels with Portable data:
+
+```text
+Portable JSON v1
+→ required top-level currency_registry
+
+Lumen CSV v1
+→ required repeated currency_registry column
+→ one consistent registry ID per file
+```
+
+Independent review should evaluate the exact membership filter and list, the pinned CLDR `O(c)` derivation, the explicit exclusion of fund/special/historical codes from registry v1, and whether registry identity should evolve independently from the Portable schema version.
+
+Do not infer general non-cash rounding-increment semantics from `O(c)` or from registry membership.
 
 Still separate/open:
 
-- general non-cash rounding-increment disposition for any admitted registry entry with a nonzero standards-backed rounding rule;
+- historical/current canonical compatibility for currencies outside the admitted registry;
+- general non-cash rounding-increment disposition;
 - cash-specific rounding semantics;
 - exact language-independent plain-decimal canonical serializer;
 - round-trip/export disposition for historical/current canonical amounts outside the **global structural** PortableMoneyV1 domain.
@@ -2155,7 +2266,7 @@ global normalized scale proposal: S <= 9 / E >= -9 / minimum 10^-9
 currency-specific scale / minor-unit semantics proposal
         ↓ independently reviewed at PROPOSED-contract level
 currency-registry membership + version semantics
-        ↓
+        ↓ review
 remaining money + non-money format gates
         ↓
 accept/canonicalize Portable JSON / CSV v1 contract
