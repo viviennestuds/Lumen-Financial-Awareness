@@ -282,7 +282,43 @@ The proposed contract consequence is:
 
 This is a contract requirement, not authorization to bypass Review/Confirm.
 
-It does not make the three compatibility statuses selectable for ordinary new/manual Transaction creation.
+The compatibility-restoration context must itself carry distinct semantic authority: it is restoration of previously canonical state from a supported Lumen round-trip representation, not ordinary creation with a hidden exception to `TransactionDraft.canConfirm`.
+
+The governing invariant is:
+
+```text
+restoration authority != creation authority
+
+ordinary creation semantics
+!=
+supported Lumen round-trip restoration semantics
+```
+
+Conceptually:
+
+```text
+ordinary creation
+pending / posted
+        ↓
+Review / explicit confirmation
+        ↓
+canonical Transaction
+
+supported Lumen compatibility restoration
+ignored / duplicate / review_needed
+        ↓
+recognized as restoration of previously canonical Lumen state
+        ↓
+Review / explicit confirmation
+        ↓
+exact canonical compatibility status
+```
+
+Admission of that restoration authority must not make `ignored`, `duplicate`, or `review_needed` valid choices for ordinary new/manual creation, foreign-source mapping, generic structured import, OCR/extraction proposals, or any other non-restoration ingestion path.
+
+Review/Confirm must remain meaningful user authority. A restoration context may authorize preservation of an otherwise non-creatable canonical status, but it must not become a generic bypass around confirmation.
+
+This proposal does not design UI, add a persisted restoration flag, specify importer mechanics, or modify `TransactionDraft`. A future implementation must merely be able to establish that compatibility-status admission is occurring under an authorized supported-Lumen restoration context rather than silently widening ordinary creation.
 
 # 8. Meaning of Equivalent Supported Canonical State
 
@@ -388,7 +424,7 @@ For import/restoration:
 
 > **For status round-trip equivalence under v1, restoration must reproduce the same admitted status token and its admitted observable semantics unless a future separately accepted migration contract defines another lossless semantic mapping.**
 
-> **Fresh-store import of `ignored`, `duplicate`, or `review_needed` is recognized but NOT READY for canonical promotion through the current ordinary confirmation path. Supported round-trip requires a specifically admitted compatibility-restoration path within explicit Review/Confirm authority; no importer may bypass confirmation or coerce the status merely to become confirmable.**
+> **Fresh-store import of `ignored`, `duplicate`, or `review_needed` is recognized but NOT READY for canonical promotion through the current ordinary confirmation path. Supported round-trip requires a specifically admitted compatibility-restoration path within explicit Review/Confirm authority. That authority is restoration-specific: it must be identifiable as restoration of previously canonical state from a supported Lumen round-trip representation, must not silently widen ordinary creation or non-restoration ingestion, and must not bypass meaningful user confirmation or coerce status merely to become confirmable.**
 
 > **Status compatibility admission does not redesign `TransactionStatus`, migrate existing stores, alter analytics policy, or resolve categoryless state, type/direction, identity, serializer, or ingestion-workspace design.**
 
@@ -434,8 +470,9 @@ Independent review should decide whether:
 3. their presence should remain compatible with a complete ownership export;
 4. exact token preservation is required for v1 status round-trip equivalence;
 5. a dedicated compatibility-restoration path within Review/Confirm is the right contract requirement;
-6. such records should remain NOT READY for promotion until that path exists;
-7. CSV admission should remain separate;
-8. this preserves the Architecture Contract's financial-vs-ingestion distinction without rewriting existing canonical truth.
+6. restoration authority is explicitly distinct from ordinary creation/non-restoration ingestion authority;
+7. such records should remain NOT READY for promotion until that path exists;
+8. CSV admission should remain separate;
+9. this preserves the Architecture Contract's financial-vs-ingestion distinction without rewriting existing canonical truth.
 
 Until independent review passes, these status semantics remain **PROPOSED FOR REVIEW**.
