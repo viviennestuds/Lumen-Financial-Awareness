@@ -84,17 +84,35 @@ A changed membership or changed `O(c)` mapping requires a different registry ide
 
 SIX Financial Information is the official ISO 4217 Maintenance Agency.
 
-The registry proposal uses the current List One XML snapshot whose root declares:
+The registry proposal was constructed from a retrieval of the SIX List One XML whose root declared:
 
     Pblshd="2026-09-17"
 
-Source:
+Source location used during research:
 
 https://www.six-group.com/dam/download/financial-information/data-center/iso-currrency/lists/list-one.xml
 
-This is source evidence used to construct the proposed immutable Lumen registry.
+That SIX location is mutable.
 
-It is **not** a runtime dependency.
+The exact XML bytes retrieved during the original registry-construction pass were **not** retained in the repository and were **not** fingerprinted at retrieval time.
+
+Therefore this proposal must not claim a SHA-256 or other byte fingerprint for that historical retrieval.
+
+A later retrieval from the same mutable URL — even if it still reports the same `Pblshd` value — cannot retroactively prove byte identity with the bytes used in the original construction pass.
+
+For `lumen-currency-v1`, the normative immutable artifact is therefore the registry definition recorded by this contract itself:
+
+- the exact 155-code membership enumerated below;
+- the exact `O(c)` grouping/mapping enumerated below;
+- the stated construction rule;
+- the recorded SIX publication-date evidence;
+- the pinned CLDR 48.2 source identity.
+
+The SIX publication date and mutable source location remain **construction provenance**, not a sufficient byte-level snapshot identifier.
+
+Before any future registry version is admitted, its source-evidence workflow should retain or otherwise immutably fingerprint the exact external source bytes used to construct it.
+
+This source is **not** a runtime dependency.
 
 ## 3.2 CLDR snapshot
 
@@ -560,7 +578,7 @@ PortableMoneyV1 should state:
 
 It should state:
 
-> **`lumen-currency-v1` admits the 155 codes enumerated by this contract. Its membership and `O(c)` mapping are immutable and are derived from the pinned SIX ISO 4217 List One snapshot published 2026-09-17 plus pinned CLDR 48.2 general currency `digits` data. Neither source is consulted dynamically at runtime.**
+> **`lumen-currency-v1` admits the 155 codes enumerated by this contract. Its enumerated membership and `O(c)` mapping are the normative immutable registry definition. Construction used SIX ISO 4217 List One data reporting publication date 2026-09-17 plus pinned CLDR 48.2 general currency `digits` data. The original SIX retrieval bytes were not retained or fingerprinted, so the publication date and mutable SIX source location are construction provenance rather than a claimed immutable byte snapshot. Neither external source is consulted dynamically at runtime.**
 
 It should state:
 
@@ -579,7 +597,7 @@ Independent review should answer:
 1. Is the pinned SIX List One membership filter an appropriate v1 boundary for ordinary currencies?
 2. Should entries explicitly marked `IsFund="true"` remain outside the first registry?
 3. Should coded entries with N.A. minor units, including metals, SDR, testing, no-currency, and special units, remain outside the first registry?
-4. Is the exact 155-code membership list correctly derived from the pinned 2026-09-17 SIX snapshot?
+4. Is the exact 155-code membership list appropriately normative given the recorded 2026-09-17 SIX construction evidence and the explicit limitation that the original SIX XML bytes were not retained/fingerprinted?
 5. Is pinned CLDR 48.2 general `digits`, including its DEFAULT=2 rule, the correct source for immutable `O(c)` values?
 6. Is the explicit 16-code ISO-minor-unit / CLDR-ordinary-scale divergence documented clearly enough?
 7. Should `lumen-currency-v1` be immutable, requiring a new registry ID for later membership or `O(c)` changes?

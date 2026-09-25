@@ -1940,16 +1940,36 @@ Those are explicit contract gates, not implementation surprises.
 
 # 29. Version Handling
 
-## 29.1 Portable JSON v1 recognition — PROPOSED
+## 29.1 Portable JSON v1 recognition and semantic validity — PROPOSED
 
-A Lumen Portable JSON v1 document requires:
+Portable JSON v1 **recognition** is established by:
 
 ```text
 format == "lumen-portable"
 version == 1
 ```
 
-A document with a different version must not be parsed as v1 by guesswork.
+Those two fields identify the document as belonging to the Lumen Portable JSON v1 format family.
+
+Recognition is distinct from full semantic validity.
+
+A recognized Portable JSON v1 document is semantically valid only if all required v1 fields are present and valid, including a nonempty:
+
+```text
+currency_registry
+```
+
+For the initially supported registry semantic:
+
+```text
+currency_registry == "lumen-currency-v1"
+```
+
+A recognized Portable JSON v1 document with an unknown nonempty `currency_registry` remains recognizable as Portable JSON v1, but contains an **unsupported registry semantic**.
+
+It must not be reinterpreted using the receiver's current platform metadata, current Lumen registry, or a guessed registry.
+
+A document with a different `format` or `version` must not be parsed as v1 by guesswork.
 
 ## 29.2 Lumen CSV v1 recognition — PROPOSED
 
@@ -1979,13 +1999,17 @@ It must not silently reinterpret incompatible future semantics through v1 rules.
 
 Portable v1 carries currency-registry identity explicitly rather than inferring it only from the top-level format version.
 
-For Portable JSON v1:
+For Portable JSON v1, `format == "lumen-portable"` plus `version == 1` performs format recognition as defined in Section 29.1.
+
+Semantic validity additionally requires a nonempty `currency_registry`.
+
+For the initially supported registry semantic:
 
 ```text
 currency_registry == "lumen-currency-v1"
 ```
 
-is the initially supported registry semantic.
+An unknown nonempty registry identifier does not erase format recognition; it produces a recognized Portable JSON v1 document with an unsupported registry semantic.
 
 For Lumen CSV v1, every data row carries the same value in the required `currency_registry` column.
 
