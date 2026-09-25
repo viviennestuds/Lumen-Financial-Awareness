@@ -2,7 +2,7 @@
 
 ## Status
 
-**PROPOSED FOR REVIEW — Phase 1C compatibility/disposition contract.**
+**PROPOSED / INDEPENDENTLY REVIEWED — accepted at the proposed-contract level; full Portable JSON / CSV v1 format acceptance remains open.**
 
 This proposal starts from accepted checkpoint `b41fb9a6c45909318f4806e9645338a1d79caa9c`.
 
@@ -107,6 +107,16 @@ incompatibility
 **Full supported-state round trip** means admitted state can be exported, imported through the required workflow, and restored with the promised semantics.
 
 A partial artifact may be valid while not being a complete ownership export.
+
+## 6.1 JSON ownership completeness vs CSV narrowness
+
+The complete ownership-export guarantee decided by this proposal belongs to **Portable JSON v1**, the normative highest-fidelity portable representation.
+
+Lumen CSV v1 remains deliberately narrower. Acceptance of this compatibility disposition does **not** promote CSV v1 into a complete ownership-export representation and does not imply that CSV must carry every JSON-only portable semantic.
+
+That narrower scope is not permission to corrupt shared monetary meaning. Under whatever CSV export semantics are ultimately admitted, monetary/currency incompatibility must not authorize rounding, truncation, clamping, coercion, currency substitution, registry fallback, or silent omission merely because the requested representation is CSV.
+
+Whether a future CSV operation is atomic, explicitly partial, or subject to another truthful completeness claim remains a separate CSV export-semantics question unless and until explicitly admitted.
 
 # 7. Export Preflight
 
@@ -232,4 +242,4 @@ Independent review should evaluate:
 6. separation of successful serialization, complete ownership export, and full supported-state round trip;
 7. preservation of accepted PortableMoneyV1 and `lumen-currency-v1` boundaries.
 
-Until independent review is complete, these compatibility/disposition semantics remain **PROPOSED**, not accepted.
+Independent review has accepted these compatibility/disposition semantics at the **PROPOSED-contract level**. Full Portable JSON / CSV v1 format acceptance remains open, and no production implementation is authorized by that review.
