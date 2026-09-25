@@ -510,9 +510,23 @@ ignored / duplicate / review_needed
 
 For v1 status round-trip equivalence, the proposal requires restoration of the same admitted status token and its admitted observable semantics unless a future separately accepted migration contract defines another lossless mapping.
 
-Supported fresh-store round trip for the three compatibility statuses therefore requires a specifically admitted compatibility-restoration path **inside explicit Review/Confirm authority**. It must not bypass confirmation, silently coerce the status, or make the compatibility statuses ordinary new/manual creation choices.
+Supported fresh-store round trip for the three compatibility statuses therefore requires a specifically admitted compatibility-restoration path **inside explicit Review/Confirm authority**.
 
-The exact implementation of that restoration capability is not decided here.
+Normatively:
+
+```text
+restoration authority != creation authority
+
+ordinary creation semantics
+!=
+supported Lumen round-trip restoration semantics
+```
+
+The compatibility-restoration path must be identifiable as restoration of previously canonical state from a supported Lumen round-trip representation. It must not make the compatibility statuses valid choices for ordinary new/manual creation, foreign-source mapping, generic structured import, OCR/extraction proposals, or other non-restoration ingestion.
+
+Review/Confirm must remain meaningful user authority. Restoration may preserve an otherwise non-creatable canonical status, but it must not become a generic confirmation bypass, silently coerce status, or operate as a hidden widening of ordinary `TransactionDraft.canConfirm`.
+
+The exact UI, persisted context representation, importer mechanics, and implementation of that restoration capability are not decided here.
 
 ## 12.4 CSV remains separately scoped
 
