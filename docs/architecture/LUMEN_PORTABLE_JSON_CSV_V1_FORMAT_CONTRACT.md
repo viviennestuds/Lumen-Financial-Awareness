@@ -453,7 +453,7 @@ This gate does not itself authorize an additional direction field or a change to
 
 # 12. Transaction Status
 
-## 12.1 Persisted domain — PROPOSED FOR REVIEW
+## 12.1 Persisted domain — ACCEPTED AT PROPOSED-CONTRACT LEVEL
 
 Current persisted `TransactionStatus` values are:
 
@@ -480,7 +480,7 @@ review_needed
 
 The compatibility label preserves existing canonical truth without declaring the mixed persisted status model to be the preferred long-term architecture.
 
-## 12.2 Representability and complete ownership export — PROPOSED FOR REVIEW
+## 12.2 Representability and complete ownership export — ACCEPTED AT PROPOSED-CONTRACT LEVEL
 
 All five exact tokens are lexically representable.
 
@@ -490,7 +490,7 @@ For a complete Portable JSON v1 ownership export, the proposed rule is:
 
 This is deliberately different from an out-of-domain PortableMoneyV1 value: the status value can be represented exactly, while restoration capability is the narrower open concern.
 
-## 12.3 Restoration readiness — PROPOSED FOR REVIEW
+## 12.3 Restoration readiness — ACCEPTED AT PROPOSED-CONTRACT LEVEL
 
 Current new-Transaction confirmation permits only:
 
@@ -532,7 +532,9 @@ The exact UI, persisted context representation, importer mechanics, and implemen
 
 Lumen CSV v1 also carries `status` and must not silently normalize shared status meaning. Whether all five compatibility statuses are admitted to CSV's deliberately narrower round-trip/export claim remains separately gated.
 
-These status semantics remain **PROPOSED FOR REVIEW**.
+These Portable JSON status semantics are **ACCEPTED AT PROPOSED-CONTRACT LEVEL**.
+
+Acceptance includes the invariant that restoration authority is distinct from ordinary creation/non-restoration ingestion authority. The three compatibility statuses remain NOT READY for canonical promotion until an admitted restoration capability exists and is validated.
 
 ---
 
@@ -2200,7 +2202,7 @@ The first proposal intentionally leaves these questions open.
 
 ## Transaction compatibility
 
-- portability/restoration of `ignored`, `duplicate`, and `review_needed` persisted statuses — PROPOSED FOR REVIEW;
+- portability/restoration of `ignored`, `duplicate`, and `review_needed` persisted statuses — ACCEPTED AT PROPOSED-CONTRACT LEVEL;
 - round-trip disposition for categoryless current/historical canonical Transactions — EVIDENCE GATED;
 - directional/flow sufficiency of each unsigned-amount `type` token, especially `transfer` — RESEARCH / ADMISSION REQUIRED.
 
