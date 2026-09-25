@@ -2182,117 +2182,84 @@ These gates must be closed before this document moves from proposed to accepted/
 
 ---
 
-# 33. Next Evidence Step
+# 33. Status-Consistency Audit and Updated Dependency Inventory
 
-The following PortableMoney work is complete at the **PROPOSED-contract / characterization** level:
-
-- bounded `Double` precision characterization;
-- standards-backed normalized precision reconciliation;
-- normalized significant decimal precision definition;
-- at most 15 normalized significant decimal digits as the PROPOSED conservative precision limit;
-- decimal-exponent / magnitude **technical characterization**.
-
-The magnitude characterization found a clean current-create compatibility pattern:
+The independently reviewed proposed-contract checkpoints are now:
 
 ```text
-normalized precision <= 15
-AND
-normalized exponent E within -128...127
-→ characterized current create/save/reopen capability
+PortableMoneyV1 normalized precision <= 15
+        ↓
+product upper magnitude x < 10^15 / A <= 14
+        ↓
+global normalized scale S <= 9 / E >= -9 / minimum 10^-9
+        ↓
+currency ordinary-scale/readiness semantics
+        ↓
+lumen-currency-v1 membership + immutable/versioned semantics
+        ↓
+canonical monetary compatibility/export disposition
 ```
 
-That is an implementation compatibility envelope, not yet the PortableMoneyV1 public product envelope.
-
-The product upper magnitude proposal has now been independently reviewed and accepted at the **PROPOSED-contract** level:
+The last checkpoint establishes the following only for the monetary/currency compatibility gate:
 
 ```text
-x < 10^15
-A <= 14
+representability
+        ↓
+complete Portable JSON v1 ownership-export claim
+        ↓
+restoration / supported-state round-trip claim
 ```
 
-That upper-bound question should remain closed unless contrary evidence appears.
+It must not be generalized mechanically to other Transaction fields.
 
-The global normalized structural scale proposal has now been independently reviewed and accepted at the **PROPOSED-contract** level:
+## 33.1 Status consistency
 
-```text
-S = max(0, -E)
-S <= 9
-E >= -9
-minimum structural positive magnitude = 10^-9
-```
+The earlier transition narrative that called the currency registry the "next product-domain proposal" is stale and is superseded by this inventory.
 
-Together with the already-proposed precision and upper-magnitude rules, the proposed global structural money envelope is:
+The registry proposal and canonical monetary compatibility/disposition proposal have both passed independent review at the **PROPOSED-contract** level.
 
-```text
-10^-9 <= x < 10^15
-p <= 15
-S <= 9
-```
+No production implementation is authorized.
 
-That structural-scale question should remain closed unless contrary repository evidence appears.
+## 33.2 Remaining Transaction-compatibility cluster
 
-The currency-specific ordinary-scale / readiness proposal has now been independently reviewed and accepted at the **PROPOSED-contract** level.
+Three nearby gates remain materially distinct:
 
-The accepted proposed semantics are:
+### Persisted status compatibility
 
-```text
-O(c) = Lumen-owned, stable/versioned ordinary currency scale
+Current canonical `TransactionStatus` includes `pending`, `posted`, `ignored`, `duplicate`, and `review_needed`, while current `TransactionDraft.canConfirm` admits only `pending` and `posted`.
 
-S <= O(c)
-→ READY on currency-scale axis
+The next status question therefore spans both portable representability and restoration readiness: the format can spell a status token, but current canonical confirmation cannot necessarily recreate every persisted status with the same meaning.
 
-O(c) < S <= 9
-→ NEEDS RESOLUTION for new/manual and generic structured import
-→ exact preservation for unchanged canonical monetary pairs
-→ reevaluation when amount or currency changes
-→ exact preservation for existing canonical export
-→ exact preservation / READY on scale axis for supported Lumen round-trip restoration
-```
+### Categoryless canonical Transactions
 
-That ordinary-scale/readiness question should remain closed unless contrary repository evidence appears.
+`Transaction.category` is nullable in current canonical persistence, while current draft confirmation requires a Category.
 
-The next product-domain proposal is now:
+The candidate JSON representation already allows `category_ref: null`. Therefore the principal open question is not necessarily JSON representability; it is whether/how an existing categoryless canonical Transaction participates in the supported round-trip when restoration currently requires Category resolution.
 
-> **PortableMoneyV1 currency registry membership + immutable/versioned registry semantics — PROPOSED / independently reviewed**
+This is structurally different from an amount that PortableMoneyV1 cannot represent.
 
-The proposed first registry is:
+### Unsigned type/direction sufficiency
 
-```text
-lumen-currency-v1
-155 admitted codes
-pinned SIX List One: 2026-09-17
-pinned CLDR: 48.2 / release-48-2
-explicit O(c) mapping
-```
+PortableMoneyV1 amount remains unsigned. Current `TransactionType` includes `expense`, `income`, `transfer`, and `refund`, while current implementation's `isOutflow` predicate treats only `expense` as outflow.
 
-The registry identifier travels with Portable data:
+Before type tokens can be accepted as portable flow semantics, the contract must determine whether each token—especially `transfer`—carries sufficient direction/flow meaning without inventing an implementation-driven interpretation.
 
-```text
-Portable JSON v1
-→ required top-level currency_registry
+This is primarily a representational semantic question before it is a restoration-readiness question.
 
-Lumen CSV v1
-→ required repeated currency_registry column
-→ one consistent registry ID per file
-```
+## 33.3 Recommended next single gate
 
-Independent review accepts the exact 155-code membership, pinned CLDR `O(c)` derivation, explicit fund/special/historical exclusions from registry v1, explicit JSON/CSV registry transport, and immutable registry-version model at the **PROPOSED-contract** level.
+The recommended next gate is **persisted Transaction status compatibility**.
 
-The accepted provenance model treats the frozen 155-code membership and exact `O(c)` mapping as the normative immutable `lumen-currency-v1` definition. The recorded SIX publication date/mutable source location are construction provenance rather than claimed byte-level identity for the original retrieval; pinned CLDR 48.2 remains identified construction evidence.
+Reason:
 
-Portable JSON recognition is separately established by `format == "lumen-portable"` plus `version == 1`; semantic validity additionally requires a nonempty `currency_registry`. An unknown nonempty registry remains recognized Portable JSON v1 with an unsupported registry semantic.
+1. the candidate format already proposes a required `status` token;
+2. the repository demonstrably contains canonical/test Transactions using statuses that current confirmation cannot create;
+3. it cleanly exercises the newly clarified distinction between **representability** and **restoration readiness** without assuming monetary incompatibility's atomic complete-export disposition;
+4. categoryless restoration can then be evaluated against a clearer status/restoration model;
+5. unsigned type/direction remains an independent representational-semantics gate and should not be bundled merely because it is adjacent.
 
-Do not infer general non-cash rounding-increment semantics from `O(c)` or from registry membership.
+This is an inventory/recommendation only. It does **not** authorize opening the status proposal.
 
-Still separate/open:
-
-- historical/current canonical compatibility for currencies outside the admitted registry — PROPOSED / independently reviewed as part of the canonical monetary compatibility/disposition gate;
-- general non-cash rounding-increment disposition;
-- cash-specific rounding semantics;
-- exact language-independent plain-decimal canonical serializer;
-- round-trip/export disposition for historical/current canonical amounts outside the **global structural** PortableMoneyV1 domain — PROPOSED / independently reviewed as part of the same compatibility/disposition gate.
-
-No production importer, migration, schema change, serializer implementation, validation redesign, or money-storage redesign is authorized by this transition.
 
 ---
 
