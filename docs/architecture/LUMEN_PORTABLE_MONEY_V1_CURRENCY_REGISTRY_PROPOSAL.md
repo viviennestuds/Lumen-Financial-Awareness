@@ -2,7 +2,7 @@
 
 ## Status
 
-**PROPOSED FOR REVIEW — Phase 1C currency-domain admission proposal.**
+**PROPOSED / INDEPENDENTLY REVIEWED — accepted at the proposed-contract level; full Portable JSON / CSV v1 format acceptance remains open.**
 
 This document does not change production validation, persistence, SwiftData schema, amount-entry behavior, importer/exporter implementation, serializer implementation, migrations, or canonical ledger state.
 
@@ -424,7 +424,7 @@ must never change its:
 
 - admitted code set;
 - `O(c)` values;
-- source-snapshot identity.
+- recorded source-evidence identity / provenance.
 
 Corrections or standards evolution require a new registry ID.
 
@@ -590,7 +590,51 @@ It should state:
 
 ---
 
-# 20. Review Questions
+# 20. Independent Review Disposition
+
+Independent review accepts the PortableMoneyV1 currency-registry membership + immutable/versioned registry semantics at the **PROPOSED-contract** level.
+
+The accepted proposed semantics freeze:
+
+    lumen-currency-v1
+    → immutable 155-code membership
+    → immutable O(c) mapping
+    → explicit registry identity carried by Portable JSON / CSV
+    → unknown registry = unsupported semantic, never fallback interpretation
+
+The frozen Lumen registry definition is normative.
+
+The recorded SIX publication date and mutable source location are construction provenance; they are not claimed as byte-level proof of the original retrieval. Pinned CLDR 48.2 remains identified construction evidence. Future registry construction should retain or immutably fingerprint the exact external source evidence used before admission.
+
+Portable JSON v1 recognition remains distinct from registry support:
+
+    format == "lumen-portable"
+    version == 1
+            ↓
+    Portable JSON v1 recognized
+            ↓
+    required semantic fields validated
+    including nonempty currency_registry
+            ↓
+    known registry?
+    ├─ yes → continue semantic validation
+    └─ no  → recognized v1 + unsupported registry semantic
+
+This acceptance closes the **currency-registry membership + immutable/versioned registry-semantics** gate at the proposed-contract level unless contrary repository evidence appears.
+
+It does **not**:
+
+- accept the full Portable JSON / CSV v1 contract;
+- authorize production validation or registry implementation;
+- authorize importer/exporter behavior, persistence/schema changes, migrations, or serializer code;
+- resolve historical/current canonical state outside the admitted registry or global PortableMoneyV1 structural domain;
+- admit cash-specific semantics;
+- change the separately tracked general non-cash rounding-increment gate;
+- freeze the exact canonical decimal serializer or other remaining lexical/format gates.
+
+---
+
+# 21. Review Questions
 
 Independent review should answer:
 
@@ -605,4 +649,4 @@ Independent review should answer:
 9. Is a repeated required `currency_registry` CSV column the correct file-level compromise for a flat format?
 10. Is it sufficiently clear that historical/current canonical compatibility and general rounding increments remain separate gates?
 
-Until independent review is complete, `lumen-currency-v1` membership and registry-version semantics remain **PROPOSED**, not accepted.
+`lumen-currency-v1` membership and registry-version semantics are **PROPOSED / independently reviewed** at the proposed-contract level. Full Portable JSON / CSV v1 format acceptance remains open.

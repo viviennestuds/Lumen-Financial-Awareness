@@ -1149,7 +1149,7 @@ For each admitted code, the immutable `O(c)` value is taken from pinned CLDR 48.
 
 The complete 155-code membership and `O(c)` grouping are normative in the registry proposal.
 
-These registry semantics remain **PROPOSED FOR REVIEW**.
+These registry semantics are **PROPOSED / independently reviewed**.
 
 ## 15.5 Registry identity and evolution — PROPOSED
 
@@ -2231,7 +2231,7 @@ That ordinary-scale/readiness question should remain closed unless contrary repo
 
 The next product-domain proposal is now:
 
-> **PortableMoneyV1 currency registry membership + immutable/versioned registry semantics — PROPOSED FOR REVIEW**
+> **PortableMoneyV1 currency registry membership + immutable/versioned registry semantics — PROPOSED / independently reviewed**
 
 The proposed first registry is:
 
@@ -2254,7 +2254,11 @@ Lumen CSV v1
 → one consistent registry ID per file
 ```
 
-Independent review should evaluate the exact membership filter and list, the pinned CLDR `O(c)` derivation, the explicit exclusion of fund/special/historical codes from registry v1, and whether registry identity should evolve independently from the Portable schema version.
+Independent review accepts the exact 155-code membership, pinned CLDR `O(c)` derivation, explicit fund/special/historical exclusions from registry v1, explicit JSON/CSV registry transport, and immutable registry-version model at the **PROPOSED-contract** level.
+
+The accepted provenance model treats the frozen 155-code membership and exact `O(c)` mapping as the normative immutable `lumen-currency-v1` definition. The recorded SIX publication date/mutable source location are construction provenance rather than claimed byte-level identity for the original retrieval; pinned CLDR 48.2 remains identified construction evidence.
+
+Portable JSON recognition is separately established by `format == "lumen-portable"` plus `version == 1`; semantic validity additionally requires a nonempty `currency_registry`. An unknown nonempty registry remains recognized Portable JSON v1 with an unsupported registry semantic.
 
 Do not infer general non-cash rounding-increment semantics from `O(c)` or from registry membership.
 
@@ -2290,8 +2294,10 @@ global normalized scale proposal: S <= 9 / E >= -9 / minimum 10^-9
 currency-specific scale / minor-unit semantics proposal
         ↓ independently reviewed at PROPOSED-contract level
 currency-registry membership + version semantics
-        ↓ review
-remaining money + non-money format gates
+        ↓ independently reviewed at PROPOSED-contract level
+read-only remaining-gate inventory
+        ↓
+next distinct contract proposal selected by dependency
         ↓
 accept/canonicalize Portable JSON / CSV v1 contract
         ↓
