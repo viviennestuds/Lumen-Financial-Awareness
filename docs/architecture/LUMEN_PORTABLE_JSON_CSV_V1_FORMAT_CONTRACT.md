@@ -453,6 +453,8 @@ This gate does not itself authorize an additional direction field or a change to
 
 # 12. Transaction Status
 
+## 12.1 Persisted domain — PROPOSED FOR REVIEW
+
 Current persisted `TransactionStatus` values are:
 
 - `pending`;
@@ -461,31 +463,62 @@ Current persisted `TransactionStatus` values are:
 - `duplicate`;
 - `review_needed`.
 
+The status-compatibility proposal in `LUMEN_PORTABLE_V1_TRANSACTION_STATUS_COMPATIBILITY_PROPOSAL.md` proposes that Portable JSON v1 admit all five exact tokens for truthful preservation of current canonical Transaction state.
+
+They are not assigned the same workflow role:
+
+```text
+ordinary financial-lifecycle statuses:
+pending
+posted
+
+canonical compatibility statuses:
+ignored
+duplicate
+review_needed
+```
+
+The compatibility label preserves existing canonical truth without declaring the mixed persisted status model to be the preferred long-term architecture.
+
+## 12.2 Representability and complete ownership export — PROPOSED FOR REVIEW
+
+All five exact tokens are lexically representable.
+
+For a complete Portable JSON v1 ownership export, the proposed rule is:
+
+> **Preserve the exact admitted canonical status token. Do not omit the Transaction, drop its status, or normalize `ignored`, `duplicate`, or `review_needed` to `pending`/`posted`. An admitted compatibility status does not by itself make the export incomplete.**
+
+This is deliberately different from an out-of-domain PortableMoneyV1 value: the status value can be represented exactly, while restoration capability is the narrower open concern.
+
+## 12.3 Restoration readiness — PROPOSED FOR REVIEW
+
 Current new-Transaction confirmation permits only:
 
 - `pending`;
 - `posted`.
 
-Therefore the exact Portable v1 status domain is **RESEARCH / ADMISSION REQUIRED** before final acceptance.
+Therefore:
 
-The contract must not silently:
+```text
+pending / posted
+→ READY on status-restoration axis through ordinary confirmation
 
-- drop existing compatibility-bearing status values;
-- coerce them to `posted`;
-- claim round-trip equivalence that the current confirmation path cannot reproduce.
+ignored / duplicate / review_needed
+→ recognized exact compatibility state
+→ NOT READY for canonical promotion through current ordinary confirmation
+```
 
-The minimum established rule is:
+For v1 status round-trip equivalence, the proposal requires restoration of the same admitted status token and its admitted observable semantics unless a future separately accepted migration contract defines another lossless mapping.
 
-> **Portable import must never convert a status with no admitted canonical mapping into another canonical status merely to make the row confirmable.**
+Supported fresh-store round trip for the three compatibility statuses therefore requires a specifically admitted compatibility-restoration path **inside explicit Review/Confirm authority**. It must not bypass confirmation, silently coerce the status, or make the compatibility statuses ordinary new/manual creation choices.
 
-The final format review must decide whether non-creatable persisted statuses are:
+The exact implementation of that restoration capability is not decided here.
 
-- part of Portable JSON v1 with a separately admitted restoration path;
-- excluded with an explicit non-round-trip guarantee;
-- reclassified outside portable Transaction status;
-- or otherwise handled without bypassing Review/Confirm.
+## 12.4 CSV remains separately scoped
 
-This is a real format gate.
+Lumen CSV v1 also carries `status` and must not silently normalize shared status meaning. Whether all five compatibility statuses are admitted to CSV's deliberately narrower round-trip/export claim remains separately gated.
+
+These status semantics remain **PROPOSED FOR REVIEW**.
 
 ---
 
@@ -2153,7 +2186,7 @@ The first proposal intentionally leaves these questions open.
 
 ## Transaction compatibility
 
-- portability/restoration of `ignored`, `duplicate`, and `review_needed` persisted statuses — RESEARCH / ADMISSION REQUIRED;
+- portability/restoration of `ignored`, `duplicate`, and `review_needed` persisted statuses — PROPOSED FOR REVIEW;
 - round-trip disposition for categoryless current/historical canonical Transactions — EVIDENCE GATED;
 - directional/flow sufficiency of each unsigned-amount `type` token, especially `transfer` — RESEARCH / ADMISSION REQUIRED.
 
@@ -2248,17 +2281,13 @@ This is primarily a representational semantic question before it is a restoratio
 
 ## 33.3 Recommended next single gate
 
-The recommended next gate is **persisted Transaction status compatibility**.
+The authorized next gate is **persisted Transaction status compatibility**.
 
-Reason:
+The separate proposal now evaluates all five persisted tokens across representability, complete-export truthfulness, and restoration readiness.
 
-1. the candidate format already proposes a required `status` token;
-2. the repository demonstrably contains canonical/test Transactions using statuses that current confirmation cannot create;
-3. it cleanly exercises the newly clarified distinction between **representability** and **restoration readiness** without assuming monetary incompatibility's atomic complete-export disposition;
-4. categoryless restoration can then be evaluated against a clearer status/restoration model;
-5. unsigned type/direction remains an independent representational-semantics gate and should not be bundled merely because it is adjacent.
+Its proposed disposition admits exact Portable JSON representation for all five statuses, distinguishes `pending`/`posted` from the three canonical compatibility statuses, and requires an explicit Review/Confirm compatibility-restoration path before the latter are READY for canonical promotion.
 
-This is an inventory/recommendation only. It does **not** authorize opening the status proposal.
+Categoryless restoration and unsigned type/direction remain separate and are not solved by this proposal.
 
 
 ---
