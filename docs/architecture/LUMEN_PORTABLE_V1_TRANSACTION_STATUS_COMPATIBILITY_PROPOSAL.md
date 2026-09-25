@@ -2,7 +2,7 @@
 
 ## Status
 
-**PROPOSED FOR REVIEW — Phase 1C Transaction-status compatibility gate.**
+**ACCEPTED AT PROPOSED-CONTRACT LEVEL — Phase 1C Transaction-status compatibility gate.**
 
 Starts exactly from accepted checkpoint `7231cf364a7c95f7b9ce077cf7ea6437c22fded6`.
 
@@ -475,4 +475,21 @@ Independent review should decide whether:
 8. CSV admission should remain separate;
 9. this preserves the Architecture Contract's financial-vs-ingestion distinction without rewriting existing canonical truth.
 
-Until independent review passes, these status semantics remain **PROPOSED FOR REVIEW**.
+## Independent-review acceptance
+
+Independent review accepted the five-status disposition after the restoration-authority hardening.
+
+Accepted at the proposed-contract level:
+
+- all five exact persisted status tokens are admitted to Portable JSON v1;
+- `pending` and `posted` are ordinary financial-lifecycle statuses and READY on the status-restoration axis through ordinary confirmation;
+- `ignored`, `duplicate`, and `review_needed` are canonical compatibility statuses;
+- those compatibility statuses remain compatible with a truthful complete ownership export;
+- exact token plus admitted observable semantics defines v1 status round-trip equivalence absent a separately accepted lossless migration;
+- compatibility-status restoration requires distinct supported-Lumen restoration authority inside meaningful Review/Confirm;
+- restoration authority does not imply creation authority;
+- compatibility restoration must not widen ordinary new/manual creation or non-restoration ingestion;
+- the three compatibility statuses remain NOT READY for promotion until that restoration capability exists and is validated;
+- CSV admission remains separate.
+
+No implementation, schema migration, status redesign, or categoryless-state decision is authorized by this acceptance.
