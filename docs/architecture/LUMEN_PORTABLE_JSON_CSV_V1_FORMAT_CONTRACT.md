@@ -1935,9 +1935,11 @@ successful Portable v1 serialization
 != full supported-state round trip
 ```
 
-For a **complete Portable JSON v1 ownership export**, the proposed rule is:
+For a **complete Portable JSON v1 ownership export**, the independently reviewed proposed-contract rule is:
 
 > **Preflight the coherent in-scope canonical snapshot. If any in-scope canonical Transaction cannot be represented exactly under PortableMoneyV1 + the selected admitted currency registry, the operation must not claim successful completion as a complete Portable v1 ownership export.**
+
+This complete ownership-export guarantee belongs to **Portable JSON v1**, the normative highest-fidelity representation. Lumen CSV v1 remains deliberately narrower and is not thereby defined as a complete ownership export. Its narrower scope does not authorize monetary/currency rounding, truncation, clamping, coercion, substitution, registry fallback, or silent omission merely because the requested representation is CSV. The exact completeness/partial-export semantics of a future CSV export operation remain separately gated.
 
 Preflight must be able to associate each incompatible Transaction with deterministic reason semantics covering all materially applicable monetary/currency incompatibility axes.
 
@@ -1954,7 +1956,7 @@ An explicitly partial Portable v1 export remains conceptually distinct from a co
 
 A separately identified compatibility representation may also be considered later, but it must not silently broaden PortableMoneyV1 or `lumen-currency-v1`.
 
-These compatibility/disposition semantics remain **PROPOSED FOR REVIEW**.
+These compatibility/disposition semantics are **PROPOSED / independently reviewed — accepted at the proposed-contract level**. Full Portable JSON / CSV v1 format acceptance remains open.
 
 ---
 
@@ -2126,7 +2128,7 @@ The first proposal intentionally leaves these questions open.
 - normalized scale definition `S = max(0, -E)` — PROPOSED / independently reviewed;
 - global structural scale ceiling `S <= 9` / `E >= -9`, implying minimum structural magnitude `10^-9` — PROPOSED / independently reviewed;
 - currency-specific ordinary-scale definition and workflow readiness semantics — PROPOSED / independently reviewed;
-- round-trip/export disposition for current or historical canonical Transaction monetary state outside PortableMoneyV1 or the selected admitted currency registry — PROPOSED FOR REVIEW;
+- round-trip/export disposition for current or historical canonical Transaction monetary state outside PortableMoneyV1 or the selected admitted currency registry — PROPOSED / independently reviewed;
 - exact language-independent plain-decimal canonical serializer — RESEARCH / ADMISSION REQUIRED.
 
 ## Currency
@@ -2135,7 +2137,7 @@ The first proposal intentionally leaves these questions open.
 - pinned `lumen-currency-v1` ordinary-scale mapping — PROPOSED;
 - registry identifier transport in Portable JSON / CSV — PROPOSED;
 - immutable registry/version-evolution semantics — PROPOSED;
-- historical/withdrawn and special/fund/metal/unit codes excluded from `lumen-currency-v1`; existing canonical compatibility for such values is covered by the canonical monetary compatibility/disposition proposal — PROPOSED FOR REVIEW;
+- historical/withdrawn and special/fund/metal/unit codes excluded from `lumen-currency-v1`; existing canonical compatibility for such values is covered by the canonical monetary compatibility/disposition proposal — PROPOSED / independently reviewed;
 - general non-cash rounding-increment disposition for any admitted registry entry with a nonzero standards-backed rounding rule — RESEARCH / ADMISSION REQUIRED.
 
 ## Dates
@@ -2284,11 +2286,11 @@ Do not infer general non-cash rounding-increment semantics from `O(c)` or from r
 
 Still separate/open:
 
-- historical/current canonical compatibility for currencies outside the admitted registry — PROPOSED FOR REVIEW as part of the canonical monetary compatibility/disposition gate;
+- historical/current canonical compatibility for currencies outside the admitted registry — PROPOSED / independently reviewed as part of the canonical monetary compatibility/disposition gate;
 - general non-cash rounding-increment disposition;
 - cash-specific rounding semantics;
 - exact language-independent plain-decimal canonical serializer;
-- round-trip/export disposition for historical/current canonical amounts outside the **global structural** PortableMoneyV1 domain — PROPOSED FOR REVIEW as part of the same compatibility/disposition gate.
+- round-trip/export disposition for historical/current canonical amounts outside the **global structural** PortableMoneyV1 domain — PROPOSED / independently reviewed as part of the same compatibility/disposition gate.
 
 No production importer, migration, schema change, serializer implementation, validation redesign, or money-storage redesign is authorized by this transition.
 
@@ -2300,7 +2302,7 @@ The current progression is now:
 
 The next distinct compatibility/disposition proposal is:
 
-> **Existing canonical monetary state outside PortableMoneyV1 + lumen-currency-v1 — PROPOSED FOR REVIEW**
+> **Existing canonical monetary state outside PortableMoneyV1 + lumen-currency-v1 — PROPOSED / independently reviewed**
 
 This proposal does not widen either accepted domain. It distinguishes complete ownership export from valid partial serialization and proposes deterministic preflight plus refusal to claim complete-export success when any in-scope canonical Transaction is monetarily/currency incompatible.
 
