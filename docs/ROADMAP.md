@@ -12,7 +12,7 @@ It is subordinate to:
 
 If this roadmap conflicts with the Architecture Contract, the Architecture Contract wins.
 
-Material architectural or product-semantic work should use `docs/architecture/LUMEN_ENGINEERING_REASONING_FRAMEWORK.md` to expose applicable prerequisites, evidence, minimum sufficient contracts, authority changes, assembly debt, counterexamples, and irreversible commitments. The Framework governs reasoning methodology; it does not override this Roadmap or independently authorize implementation.
+**Proposed governance addition:** once independently accepted, material architectural or product-semantic work should use `docs/architecture/LUMEN_ENGINEERING_REASONING_FRAMEWORK.md` to expose applicable prerequisites, evidence, minimum sufficient contracts, authority changes, assembly debt, counterexamples, and irreversible commitments. The Framework would govern reasoning methodology; it would not override this Roadmap or independently authorize implementation.
 
 Older planning notes, prompts, conversational summaries, phase labels, and implementation proposals are non-authoritative when they conflict with the checked-in Contract or this roadmap.
 
