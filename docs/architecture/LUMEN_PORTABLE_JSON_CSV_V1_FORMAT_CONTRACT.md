@@ -540,31 +540,83 @@ Acceptance includes the invariant that restoration authority is distinct from or
 
 # 13. Category Requirement and Historical Nullability
 
+## 13.1 Canonical absence vs reference failure — PROPOSED FOR REVIEW
+
 Current `Transaction.category` remains nullable at the persistence-model level.
 
-Current `TransactionDraft → Review → Confirm` requires a resolved Category.
+Current `TransactionDraft → Review → Confirm` requires a resolved Category for ordinary creation.
 
-Therefore the candidate representation keeps `category_ref` nullable so it can truthfully describe current durable state without inventing a Category.
-
-On import:
+The categoryless-compatibility proposal in `LUMEN_PORTABLE_V1_CATEGORYLESS_TRANSACTION_COMPATIBILITY_PROPOSAL.md` proposes that Portable JSON v1 define:
 
 ```text
-category_ref present and resolvable
-→ Category meaning may be resolved
-
 category_ref == null
-→ structurally valid portable record
-→ not READY under current confirmation contract
-→ Category must be resolved before confirmation
+→ exact canonical absence of Category association
+
+category_ref non-null + resolvable
+→ reconstruct the referenced Category association
+
+category_ref non-null + unresolved
+→ reference/dataset incompatibility or unresolved relationship
+→ must not silently degrade to null
 ```
 
-The exact round-trip guarantee for any existing categoryless canonical Transaction is **EVIDENCE GATED**.
+`null` therefore does not mean unknown ID, missing referenced Category record, parser failure, or request to choose a Category.
 
-The format must not:
+## 13.2 Representability and complete ownership export — PROPOSED FOR REVIEW
 
-- fabricate a Category during export;
-- silently assign a default Category during import;
-- make Category optional in canonical creation as a side effect of portability.
+A canonical Transaction with `category == nil` is exactly representable as:
+
+```json
+"category_ref": null
+```
+
+The proposed rule is:
+
+> **Exact canonical Category absence is compatible with a complete Portable JSON v1 ownership export. The exporter must preserve `null` and must not omit the Transaction, fabricate a Category, select a default Category, create a synthetic `Uncategorized` entity, or convert an unresolved non-null reference into `null`.**
+
+Derived analytics/presentation behavior such as the display label `Uncategorized` does not itself establish a canonical Category entity.
+
+## 13.3 Restoration readiness — PROPOSED FOR REVIEW
+
+Current ordinary confirmation still requires a Category.
+
+Therefore ordinary creation semantics remain:
+
+```text
+category == nil
+→ not READY for ordinary new/manual confirmation
+```
+
+For supported Lumen round-trip restoration, the proposal independently applies the already accepted authority distinction:
+
+```text
+restoration authority != creation authority
+```
+
+The proposed exact category-axis equivalence rule is:
+
+```text
+original canonical category == nil
+→ restored canonical category == nil
+```
+
+Supported restoration of a previously canonical categoryless Transaction may therefore use specifically admitted restoration authority inside meaningful Review/Confirm.
+
+That authority must be identifiable as restoration from a supported Lumen round-trip representation and must not make Category optional for manual creation, foreign-source mapping, generic structured import, OCR/extraction proposals, ordinary new Lumen Transactions, or other non-restoration ingestion.
+
+The exact UI, restoration-context representation, importer mechanics, and general Category-reference reconstruction mechanism are not decided here.
+
+## 13.4 Existing repository evidence
+
+Same-schema URL-backed persistence tests currently persist and reopen Transactions whose Category is omitted from the initializer and therefore `nil`. This proves current-schema durability, not authentic historical prevalence.
+
+No current production path was found that creates a new categoryless Transaction through ordinary confirmation, clears an existing Category, or deletes a Category and demonstrates a resulting null relationship. Category-deletion-induced nullability is therefore not claimed as repository-proven behavior.
+
+## 13.5 CSV remains separately scoped
+
+Lumen CSV v1 is narrower. Blank Category compatibility cells already exist in the candidate shape, but exact CSV categoryless round-trip semantics remain separately gated.
+
+These categoryless Portable JSON semantics remain **PROPOSED FOR REVIEW**.
 
 ---
 
@@ -2203,7 +2255,7 @@ The first proposal intentionally leaves these questions open.
 ## Transaction compatibility
 
 - portability/restoration of `ignored`, `duplicate`, and `review_needed` persisted statuses — ACCEPTED AT PROPOSED-CONTRACT LEVEL;
-- round-trip disposition for categoryless current/historical canonical Transactions — EVIDENCE GATED;
+- round-trip disposition for categoryless current/historical canonical Transactions — PROPOSED FOR REVIEW;
 - directional/flow sufficiency of each unsigned-amount `type` token, especially `transfer` — RESEARCH / ADMISSION REQUIRED.
 
 ## Lifecycle timestamps
@@ -2273,19 +2325,15 @@ No production implementation is authorized.
 
 Three nearby gates remain materially distinct:
 
-### Persisted status compatibility
+### Persisted status compatibility — accepted at proposed-contract level
 
-Current canonical `TransactionStatus` includes `pending`, `posted`, `ignored`, `duplicate`, and `review_needed`, while current `TransactionDraft.canConfirm` admits only `pending` and `posted`.
+Portable JSON v1 now admits all five exact current canonical status tokens. `pending`/`posted` are ordinary financial-lifecycle statuses; `ignored`/`duplicate`/`review_needed` are canonical compatibility statuses. Restoration authority remains distinct from ordinary creation authority.
 
-The next status question therefore spans both portable representability and restoration readiness: the format can spell a status token, but current canonical confirmation cannot necessarily recreate every persisted status with the same meaning.
+### Categoryless canonical Transactions — current proposal
 
-### Categoryless canonical Transactions
+`Transaction.category` is nullable in current canonical persistence, and same-schema persistence tests demonstrate durable categoryless records. Current ordinary confirmation still requires a Category.
 
-`Transaction.category` is nullable in current canonical persistence, while current draft confirmation requires a Category.
-
-The candidate JSON representation already allows `category_ref: null`. Therefore the principal open question is not necessarily JSON representability; it is whether/how an existing categoryless canonical Transaction participates in the supported round-trip when restoration currently requires Category resolution.
-
-This is structurally different from an amount that PortableMoneyV1 cannot represent.
+The active proposal distinguishes exact canonical `category_ref: null` from a non-null unresolved reference, treats canonical null as representable and complete-export compatible, and proposes exact `nil → nil` supported-Lumen restoration under restoration-specific Review/Confirm authority.
 
 ### Unsigned type/direction sufficiency
 
@@ -2297,13 +2345,11 @@ This is primarily a representational semantic question before it is a restoratio
 
 ## 33.3 Recommended next single gate
 
-The authorized next gate is **persisted Transaction status compatibility**.
+Persisted Transaction status compatibility is **accepted at the proposed-contract level**.
 
-The separate proposal now evaluates all five persisted tokens across representability, complete-export truthfulness, and restoration readiness.
+The authorized current gate is **categoryless canonical Transaction compatibility**. The separate proposal evaluates canonical Category absence across representability, complete-export truthfulness, and restoration readiness while keeping non-null unresolved references distinct.
 
-Its proposed disposition admits exact Portable JSON representation for all five statuses, distinguishes `pending`/`posted` from the three canonical compatibility statuses, and requires an explicit Review/Confirm compatibility-restoration path before the latter are READY for canonical promotion.
-
-Categoryless restoration and unsigned type/direction remain separate and are not solved by this proposal.
+Unsigned type/direction remains separate and is not solved by this proposal.
 
 
 ---
@@ -2336,8 +2382,12 @@ currency-specific scale / minor-unit semantics proposal
 currency-registry membership + version semantics
         ↓ independently reviewed at PROPOSED-contract level
 read-only remaining-gate inventory
-        ↓
-next distinct contract proposal selected by dependency
+        ↓ complete
+persisted Transaction status compatibility
+        ↓ accepted at PROPOSED-contract level
+categoryless canonical Transaction compatibility
+        ↓ PROPOSED FOR REVIEW
+independent review
         ↓
 accept/canonicalize Portable JSON / CSV v1 contract
         ↓
