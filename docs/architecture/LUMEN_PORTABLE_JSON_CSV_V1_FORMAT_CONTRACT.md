@@ -430,29 +430,26 @@ Rules:
 
 The prefix identifies the Portable-ID grammar generation, not entity type.
 
-## 9.7 Deterministic allocation vs durable identity — PROPOSED FOR REVIEW
+## 9.7 Assignment vs deterministic serialization — PROPOSED FOR REVIEW
 
-The exporter may assign document-local handles deterministically for the selected coherent snapshot:
+The exporter owns document-local handle assignment.
 
-```text
-coherent snapshot
-→ exporter-private deterministic allocation sequence
-→ global ordinal
-→ p1-<12 digits>
-→ same-document relationship map
-```
+This identity gate requires grammar validity, one-document global uniqueness, and unambiguous relationship resolution. It does **not** yet require or freeze:
 
-The ordinal is not a durable identity promise.
+- an exact deterministic handle-allocation algorithm;
+- exporter-private sort keys;
+- ordinal-assignment order;
+- final emitted JSON array ordering.
 
-Changes to the store, deletion/recreation, or fresh-store restoration may change later Portable IDs.
+A later deterministic-serialization/order gate may define reproducible handle allocation for a selected snapshot.
 
-This gate does not freeze final emitted JSON array ordering. Identity allocation sequence and emitted array order remain separable concerns.
+If separate documents happen to reuse the same `portable_id` spellings—whether by coincidence or because of a later deterministic algorithm—that lexical recurrence has no cross-document identity meaning or authority.
 
 The later ordering gate must not infer:
 
 ```text
-deterministic ordering
-→ globally permanent portable_id
+deterministic lexical recurrence
+→ durable cross-document identity
 ```
 
 No new persisted identifier field is authorized by this proposal.
@@ -2510,7 +2507,8 @@ The first proposal intentionally leaves these questions open.
 
 - document-local Portable identity meaning/lifetime — PROPOSED FOR REVIEW;
 - one global per-document Portable ID namespace — PROPOSED FOR REVIEW;
-- `p1-<12 ASCII decimal digits>` grammar and exporter-owned deterministic per-snapshot allocation — PROPOSED FOR REVIEW;
+- `p1-<12 ASCII decimal digits>` grammar and exporter-owned document-local assignment — PROPOSED FOR REVIEW;
+- exact deterministic handle-allocation algorithm — DEFERRED to deterministic serialization/order gate;
 - same-store cross-export stability — intentionally NOT PROMISED by current proposal;
 - fresh-store re-export stability — intentionally NOT PROMISED by current proposal;
 - deterministic emitted array ordering after identity semantics — EVIDENCE GATED.
