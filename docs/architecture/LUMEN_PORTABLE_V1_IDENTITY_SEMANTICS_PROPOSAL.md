@@ -404,15 +404,15 @@ It also avoids requiring seeded/default reference entities in Store B to adopt S
 
 Stable cross-export IDs reveal that two separately shared artifacts contain the same logical record even when mutable fields change.
 
-Document-local IDs deliberately avoid promising that correlation channel.
+Document-local IDs deliberately avoid **defining** a durable correlation channel.
 
-This does not make separate exports unlinkable: financial content itself can be identifying or correlatable.
+This does not make separate exports unlinkable: financial content itself can be identifying or correlatable, and two export operations may coincidentally reuse the same document-local handle spellings.
 
-The narrower claim is:
+The normative claim is narrower:
 
-> **Portable v1 does not add a durable cross-artifact record correlator merely to reconstruct relationships inside one artifact.**
+> **Portable v1 defines no cross-document identity or correlation semantics for `portable_id`. Equal `portable_id` spelling across separate documents does not establish object sameness or authority, regardless of whether the spelling recurs by coincidence or by a future deterministic serialization algorithm.**
 
-This is a privacy and authority-minimization property, not an anonymity guarantee.
+This is an identity/authority-minimization property, not an anonymity or unlinkability guarantee.
 
 ---
 
@@ -670,37 +670,41 @@ If a document would require more than 999,999,999,999 Portable records, it is ou
 
 ---
 
-# 14. Deterministic Allocation Without Cross-Export Identity Promise
+# 14. Assignment vs Deterministic Serialization
 
-The exporter assigns handles deterministically **within the selected coherent snapshot**.
+The identity contract requires:
 
-The proposed allocation concept is:
+```text
+valid v1 grammar
++
+global uniqueness within one document
++
+unambiguous same-document relationship resolution
+```
+
+The **export operation owns assignment** of document-local handles.
+
+This identity gate does **not** freeze an exact deterministic allocation algorithm, exporter-private sort key, ordinal-assignment sequence, or emitted array order.
+
+A later deterministic-serialization/order gate may choose an algorithm such as:
 
 ```text
 selected coherent snapshot
         ↓
-establish exporter-private deterministic record sequence
+establish deterministic exporter-private record sequence
         ↓
-assign global ordinals 1...N
-        ↓
-encode ordinal as p1-<12 digits>
+assign unique p1-<12-digit> handles
         ↓
 build same-document reference map
 ```
 
-The allocator may use stable local canonical identity inputs to make the sequence reproducible for the same selected store state.
+but that algorithm is not admitted by this identity gate merely because the grammar can support it.
 
-However:
+If a later deterministic algorithm causes two separate exports to reuse some or all handle spellings, that lexical recurrence carries no cross-document identity meaning or authority.
 
-> **The ordinal is not a durable identity promise.**
+Likewise, an exporter is not required by this gate to make the same selected snapshot receive the same handle assignment on repeated exports.
 
-Adding/deleting/recreating records, restoring into another store, or any other change that affects the allocation sequence may change Portable IDs.
-
-This gate deliberately does **not** freeze the final emitted JSON array ordering.
-
-Identity allocation sequence and emitted array order are separable concerns.
-
-The later deterministic-ordering gate may consume the now-defined document-local identity semantics, but it must not reinterpret the ordinal as cross-document identity.
+The later deterministic-ordering/serialization gate may consume the now-defined document-local identity semantics, but it must not reinterpret lexical recurrence as durable cross-document identity.
 
 ---
 
@@ -717,9 +721,9 @@ What identity provides is narrower:
 
 - every record in one document has one globally unique handle;
 - references are unambiguous;
-- an exporter can create a deterministic per-snapshot handle map.
+- the exporter owns assignment under the admitted grammar.
 
-The later ordering gate still must define:
+The later ordering/serialization gate still must decide whether and how handle assignment itself is deterministic, and must define:
 
 - entity-array ordering;
 - Transaction ordering;
@@ -850,7 +854,7 @@ This proposal does not alter locator grammar, evidence identity, commitment mark
 
 > **The v1 lexical grammar is `p1-` followed by exactly twelve ASCII decimal digits. Comparison is exact. Portable IDs contain no mutable business information and do not expose native model-ID spelling.**
 
-> **The exporter owns document-local ID assignment for one coherent snapshot. Native/canonical IDs may be used as exporter-private deterministic allocation inputs, but this does not make them public Portable identities or import mutation authority.**
+> **The exporter owns document-local ID assignment for one coherent snapshot. This identity gate does not require a specific deterministic assignment algorithm. A later serialization/order contract may use native/canonical IDs as exporter-private ordering inputs, but doing so would not make them public Portable identities or import mutation authority.**
 
 > **A Portable reference is valid only when its non-null `portable_id` resolves to exactly one record of the required target entity type in the same document. Null means true absence where the field admits absence. A non-null unresolved reference, duplicate identifier, or wrong-entity-type target is a distinct failure and must not silently degrade to null or semantic-name matching.**
 
@@ -898,7 +902,7 @@ Independent review should decide whether:
 5. exact null / unresolved / duplicate / wrong-type distinctions are sufficient;
 6. exporter-private use of native IDs is acceptably separated from public Portable identity;
 7. the `p1-<12 digits>` grammar is appropriately opaque/versionable;
-8. deterministic per-snapshot allocation can remain separate from the later emitted-array-ordering gate;
+8. exact deterministic handle allocation should remain deferred to the subsequent serialization/order gate rather than becoming an under-specified identity promise;
 9. the explicit non-authority list is complete enough for v1;
 10. Phase 1B TransactionSource identity remains correctly isolated from Portable Source relationship identity.
 
