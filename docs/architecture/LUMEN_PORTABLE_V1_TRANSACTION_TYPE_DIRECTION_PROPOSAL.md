@@ -2,7 +2,7 @@
 
 ## Status
 
-**PROPOSED FOR REVIEW — Phase 1C Portable Transaction type/direction semantic gate.**
+**ACCEPTED AT PROPOSED-CONTRACT LEVEL — Phase 1C Portable Transaction type/direction semantic gate.**
 
 Starts exactly from accepted categoryless checkpoint `aa549af4193fc0445d8b9e9abedd566daa076f10`.
 
@@ -700,4 +700,24 @@ Independent review should decide whether:
 9. no generic `direction` field is earned by current evidence;
 10. foreign source sign remains adapter evidence only.
 
-Until independent review passes, these type/direction semantics remain **PROPOSED FOR REVIEW**.
+## Independent-review acceptance
+
+Independent review accepted the four-token type/direction disposition after the semantic boundary between core type meaning and derived reporting manifestations was tightened.
+
+Accepted at the proposed-contract level:
+
+- Portable Transaction amount remains an unsigned PortableMoneyV1 magnitude;
+- exact type token carries Lumen-owned flow semantics;
+- `expense` means outflow;
+- `income` means inflow;
+- `refund` remains a distinct refund/positive-flow semantic and is not an alias for income;
+- `transfer` is direction-neutral/non-nettable at the current canonical Transaction level and implies no account-side direction that current canonical state does not own;
+- `isOutflow == false` does not imply inflow;
+- no generic direction field, transfer-side account metadata, transfer pairing, or double-entry semantics are earned by current evidence;
+- foreign sign/type conventions remain upstream mapping evidence;
+- type-axis round-trip equivalence preserves the same admitted type token, unsigned amount semantics, and admitted Lumen-owned type meaning;
+- current analytics, filters, labels, grouping, Dashboard copy, and sign presentation are evidence/consequences of those meanings, not independently frozen Portable v1 implementations;
+- future reporting refactors that preserve the admitted type meanings are not automatically Portable semantic changes;
+- future canonical changes such as linked-refund reversal semantics or account-sided transfer meaning require separate portability admission/version review.
+
+No production implementation, analytics redesign, account modeling, refund linkage, transfer pairing, or PortableMoneyV1 change is authorized by this acceptance.
