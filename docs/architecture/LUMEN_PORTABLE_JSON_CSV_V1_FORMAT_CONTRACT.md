@@ -366,7 +366,7 @@ The example is synthetic and demonstrates shape only.
 | `portable_id` | yes | public relationship key | generation semantics RESEARCH / ADMISSION REQUIRED |
 | `amount` | yes | native monetary magnitude | lexical contract PROPOSED; semantic domain EVIDENCE GATED |
 | `currency` | yes | native transaction denomination | token grammar PROPOSED; admitted universe RESEARCH / ADMISSION REQUIRED |
-| `type` | yes | transaction direction/type | token set PROPOSED; directional sufficiency RESEARCH / ADMISSION REQUIRED |
+| `type` | yes | transaction direction/type | exact four-token semantic sufficiency PROPOSED FOR REVIEW |
 | `merchant_name` | yes | merchant/counterparty | PROPOSED |
 | `transaction_date` | yes | financial transaction calendar date | PROPOSED encoding; conversion from current storage EVIDENCE GATED |
 | `posted_date` | nullable | financial posted calendar date | PROPOSED encoding; conversion from current storage EVIDENCE GATED |
@@ -432,22 +432,132 @@ The following is not a valid PortableMoneyV1 direction encoding:
 
 A foreign signed amount may participate in mapping, but normalized Lumen portable semantics separate magnitude from transaction type.
 
-## 11.3 Directional sufficiency — RESEARCH / ADMISSION REQUIRED
+## 11.3 Directional sufficiency — PROPOSED FOR REVIEW
 
-Because PortableMoneyV1 keeps `amount` unsigned, every admitted `type` token must be sufficient to interpret the transaction's financial flow semantics.
+The type/direction proposal in `LUMEN_PORTABLE_V1_TRANSACTION_TYPE_DIRECTION_PROPOSAL.md` asks whether the current Portable Transaction shape preserves the **canonical semantics Lumen actually owns**, not whether it reconstructs richer real-world accounting facts that current `Transaction` never stored.
 
-Current repository behavior establishes only a limited implementation fact: `TransactionType.isOutflow` returns `true` for `expense` and `false` for the other current tokens. That implementation fact does **not** by itself establish that `transfer` has one unambiguous portable direction, nor does it freeze the intended portable flow semantics of every token.
+PortableMoneyV1 keeps `amount` unsigned. The proposed Lumen-owned type meanings are:
 
-Before format acceptance, the contract must define for each admitted type whether its unsigned amount represents an:
+| Type | Portable amount | Canonical Lumen flow meaning | Spending | Incoming | Current net-flow treatment |
+| --- | --- | --- | --- | --- | --- |
+| `expense` | unsigned magnitude | outflow | included | excluded | negative contribution |
+| `income` | unsigned magnitude | inflow | excluded | included | positive contribution |
+| `refund` | unsigned magnitude | distinct refund / positive-flow class | excluded from gross spending | included | positive contribution |
+| `transfer` | unsigned magnitude | direction-neutral/non-nettable movement | excluded | excluded | neutral |
 
-- outflow;
-- inflow;
-- direction-neutral/non-nettable movement;
-- or otherwise explicitly defined flow semantic.
+These meanings are current Lumen canonical/reporting semantics, not universal accounting definitions.
 
-If any admitted token cannot uniquely carry the required flow meaning with an unsigned amount, the portable representation must be refined before acceptance.
+## 11.4 Implementation helpers are not the semantic contract — PROPOSED FOR REVIEW
 
-This gate does not itself authorize an additional direction field or a change to the current `TransactionType` model.
+`TransactionType.isOutflow` returns `true` only for `expense`. `Transaction.signedAmount` therefore numerically projects income, refund, and transfer as positive.
+
+That helper is insufficient semantic authority.
+
+Current repository behavior separately establishes:
+
+```text
+expense
+→ gross-spending outflow
+
+income
+→ incoming inflow
+
+refund
+→ distinct refund token
+→ included in incoming
+→ not included in gross/category spending
+
+transfer
+→ neither spending nor incoming
+→ neutral to net flow
+→ displayed without an incoming/outgoing sign
+→ no account-balance direction inferred
+```
+
+Therefore:
+
+```text
+isOutflow == false
+!=
+inflow
+
+positive numeric projection
+!=
+income semantics
+```
+
+## 11.5 Refund semantics — PROPOSED FOR REVIEW
+
+Portable v1 preserves `refund` as a distinct type.
+
+Under current Lumen behavior:
+
+- refund is excluded from gross-spending/category-spending totals;
+- refund is included in incoming totals;
+- refund contributes positively to net flow;
+- current aggregate treatment does not create an original-expense linkage or reversal identity.
+
+The format must not silently remap `refund` to `income` merely because both currently contribute positively to incoming/net-flow calculations.
+
+## 11.6 Transfer semantics — PROPOSED FOR REVIEW
+
+Portable v1 proposes:
+
+```text
+type = transfer
++ unsigned amount x
+→ transfer/movement classification of magnitude x
+→ direction-neutral/non-nettable at current canonical Transaction level
+→ neither spending nor incoming
+→ neutral to current net-flow reporting
+→ no account-side meaning implied
+```
+
+Current canonical `Transaction` does not own source-account, destination-account, debit-side, credit-side, paired-transfer, or balance-direction state.
+
+The absence of those facts from Portable v1 is therefore not a demonstrated serialization loss.
+
+Portable v1 must not invent them merely because a richer transfer model could exist.
+
+## 11.7 Representational sufficiency — PROPOSED FOR REVIEW
+
+The proposal concludes that all four current tokens are semantically sufficient when paired with an unsigned PortableMoneyV1 magnitude **once these exact Lumen-owned meanings are frozen**.
+
+No generic `direction` field is earned by current evidence.
+
+A future canonical model that owns account-side or paired-transfer semantics would require a separately admitted portable contract/version.
+
+## 11.8 Type-axis round-trip equivalence — PROPOSED FOR REVIEW
+
+Supported-state equivalence on this axis is proposed as:
+
+```text
+same admitted type token
++
+same admitted unsigned amount semantics
++
+same admitted observable flow treatment
+```
+
+Therefore Portable restoration must not silently map:
+
+```text
+refund → income
+transfer → income
+transfer → expense
+```
+
+even where a helper or display path might produce a similar numeric sign.
+
+## 11.9 Foreign-format boundary — PROPOSED FOR REVIEW
+
+Foreign signed amounts and provider-specific type vocabularies are mapping evidence upstream of canonicalization.
+
+They do not redefine Lumen Portable direction semantics.
+
+This gate does not decide provider-specific mapping, generic CSV direction inference, account modeling, transfer pairing, double-entry accounting, or importer implementation.
+
+These type/direction semantics remain **PROPOSED FOR REVIEW**.
 
 ---
 
@@ -2333,25 +2443,28 @@ Portable JSON v1 now admits all five exact current canonical status tokens. `pen
 
 ### Categoryless canonical Transactions — accepted at proposed-contract level
 
-`Transaction.category` is nullable in the current persisted Transaction model, and same-schema persistence tests demonstrate durable current-schema categoryless Transaction state. Those fixtures do not establish authentic historical/user-confirmed canonical provenance. Current ordinary confirmation still requires a Category.
+`Transaction.category` is nullable in the current persisted Transaction model, and same-schema persistence tests demonstrate durable current-schema categoryless Transaction state. Those fixtures do not establish authentic historical/user-confirmed canonical provenance. Exact null semantics, complete-export compatibility, and `nil → nil` restoration under restoration-specific authority are accepted at the proposed-contract level.
 
-The active proposal distinguishes exact canonical `category_ref: null` from a non-null unresolved reference, treats canonical null as representable and complete-export compatible, and proposes exact `nil → nil` supported-Lumen restoration under restoration-specific Review/Confirm authority.
+### Unsigned type/direction sufficiency — current proposal
 
-### Unsigned type/direction sufficiency
+PortableMoneyV1 amount remains unsigned. The active proposal traces each current type independently and proposes that the exact token carries the Lumen-owned flow semantic:
 
-PortableMoneyV1 amount remains unsigned. Current `TransactionType` includes `expense`, `income`, `transfer`, and `refund`, while current implementation's `isOutflow` predicate treats only `expense` as outflow.
+```text
+expense  → outflow / spending / negative net
+income   → inflow / incoming / positive net
+refund   → distinct refund-positive-flow / incoming / positive net
+transfer → direction-neutral movement / neither spending nor incoming / neutral net
+```
 
-Before type tokens can be accepted as portable flow semantics, the contract must determine whether each token—especially `transfer`—carries sufficient direction/flow meaning without inventing an implementation-driven interpretation.
-
-This is primarily a representational semantic question before it is a restoration-readiness question.
+The proposal explicitly rejects using `isOutflow == false` as proof of inflow and does not invent transfer account-side direction that current canonical `Transaction` does not own.
 
 ## 33.3 Recommended next single gate
 
-Persisted Transaction status compatibility is **accepted at the proposed-contract level**.
+Persisted Transaction status compatibility and categoryless canonical Transaction compatibility are **accepted at the proposed-contract level**.
 
-The authorized current gate is **categoryless canonical Transaction compatibility**. The separate proposal evaluates canonical Category absence across representability, complete-export truthfulness, and restoration readiness while keeping non-null unresolved references distinct.
+The authorized current gate is **Portable Transaction type/direction sufficiency**.
 
-Unsigned type/direction remains separate and is not solved by this proposal.
+The separate proposal asks whether unsigned magnitude plus exact type token fully preserves Lumen-owned canonical flow semantics, with particular scrutiny on `refund` and `transfer`. It does not add account-side or double-entry meaning that current canonical state does not possess.
 
 
 ---
@@ -2360,11 +2473,11 @@ Unsigned type/direction remains separate and is not solved by this proposal.
 
 The current progression is now:
 
-The latest accepted compatibility proposal is:
+The active semantic proposal is:
 
-> **Categoryless canonical Transaction compatibility — ACCEPTED AT PROPOSED-CONTRACT LEVEL**
+> **Portable Transaction type/direction sufficiency — PROPOSED FOR REVIEW**
 
-The previously accepted status gate established that restoration authority can differ from ordinary creation authority without widening ordinary ingestion. This categoryless proposal independently tests whether the same distinction is justified for an exact absent Category association, while keeping canonical null separate from unresolved non-null references.
+Status and categoryless compatibility are accepted at the proposed-contract level. This next gate is different: it tests whether the proposed Portable Transaction representation itself carries complete Lumen-owned flow meaning when amount is unsigned.
 
 ```text
 PROPOSED Portable JSON / CSV v1 contract
@@ -2390,6 +2503,10 @@ persisted Transaction status compatibility
 categoryless canonical Transaction compatibility
         ↓ accepted at PROPOSED-contract level
 read-only remaining-gate reassessment
+        ↓ complete
+Portable Transaction type/direction sufficiency
+        ↓ PROPOSED FOR REVIEW
+independent review
         ↓
 accept/canonicalize Portable JSON / CSV v1 contract
         ↓
