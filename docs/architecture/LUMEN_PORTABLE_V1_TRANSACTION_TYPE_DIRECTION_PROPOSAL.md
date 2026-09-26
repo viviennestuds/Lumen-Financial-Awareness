@@ -456,14 +456,32 @@ The format therefore has no demonstrated representational gap on this axis.
 
 # 12. Round-Trip Equivalence on the Type Axis
 
-Proposed supported-state equivalence is:
+Current analytics, filters, Dashboard disclosures, category/group totals, and sign presentation are **evidence and present-day consequences** of the admitted type meanings. They are not themselves an independently frozen Portable v1 UI/API/reporting surface.
+
+The governing boundary is:
+
+```text
+core admitted type meaning
+!=
+specific current reporting implementation
+
+reporting implementation changes
+!=
+necessarily Portable v1 semantic changes
+
+canonical type meaning changes
+=
+Portable contract evolution / separate admission
+```
+
+Proposed supported-state equivalence is therefore:
 
 ```text
 same admitted type token
 +
 same admitted unsigned amount semantics
 +
-same admitted observable flow treatment
+preservation of the same admitted Lumen-owned type meaning
 ```
 
 For example:
@@ -591,7 +609,7 @@ Future product evolution may make that model insufficient for future features wi
 
 > **`TransactionType.isOutflow`, `signedAmount`, or another derived helper does not independently define Portable type semantics. In particular, `isOutflow == false` does not imply inflow.**
 
-> **Supported type-axis round-trip equivalence requires preservation of the same admitted type token, the same admitted unsigned amount semantics, and the same admitted observable flow treatment. Portable restoration must not silently remap `refund` to `income` or `transfer` to `income`/`expense`.**
+> **Supported type-axis round-trip equivalence requires preservation of the same admitted type token, the same admitted unsigned amount semantics, and the same admitted Lumen-owned type meaning. Current analytics, filters, labels, grouping, and sign presentation are evidence/consequences of that meaning rather than independently frozen Portable v1 implementations. Portable restoration must not silently remap `refund` to `income` or `transfer` to `income`/`expense`.**
 
 > **Foreign signed amounts and provider type vocabularies are mapping evidence upstream of canonicalization; they do not redefine Lumen Portable direction semantics.**
 
@@ -665,7 +683,7 @@ This gate does not resolve:
 - CSV-specific format semantics;
 - foreign-source mapping implementation.
 
-General current analytics semantics are evidence used to define the present canonical type contract; this proposal does not modify or redesign those analytics.
+Current analytics, filtering, Dashboard copy, category/group aggregation, and sign presentation are evidence used to infer and document the present type meanings; this proposal does not freeze their specific implementation shape. A future reporting refactor that preserves the admitted type meanings is not automatically a Portable v1 semantic change. A future change that materially changes an admitted type meaning—such as adding canonical refund linkage/reversal semantics or canonical transfer account-side direction—requires separate portability admission/version review.
 
 # 18. Review Questions
 
@@ -678,7 +696,7 @@ Independent review should decide whether:
 5. `transfer` should be frozen as direction-neutral/non-nettable at current canonical Transaction level;
 6. the absence of source/destination/account-side direction for transfer is correctly treated as absent canonical information rather than portable loss;
 7. all four tokens are therefore representationally sufficient once their meanings are normatively frozen;
-8. exact type token + unsigned amount semantics + observable flow treatment is the correct type-axis round-trip equivalence;
+8. exact type token + unsigned amount semantics + preservation of admitted Lumen-owned type meaning is the correct type-axis round-trip equivalence;
 9. no generic `direction` field is earned by current evidence;
 10. foreign source sign remains adapter evidence only.
 
