@@ -296,7 +296,7 @@ It means its portable semantics are not admitted by this contract.
 
 # 9. Portable Identity and References
 
-## 9.1 Identity meaning and lifetime — PROPOSED FOR REVIEW
+## 9.1 Identity meaning and lifetime — ACCEPTED AT PROPOSED-CONTRACT LEVEL
 
 The identity proposal in `LUMEN_PORTABLE_V1_IDENTITY_SEMANTICS_PROPOSAL.md` defines `portable_id` as an **opaque, document-local relationship identifier**.
 
@@ -321,7 +321,7 @@ Portable v1 does not promise:
 
 Supported round-trip equivalence is restoration of admitted canonical semantics and relationships, not preservation of document-local transport handles.
 
-## 9.2 One global document namespace — PROPOSED FOR REVIEW
+## 9.2 One global document namespace — ACCEPTED AT PROPOSED-CONTRACT LEVEL
 
 All Portable records in one JSON document share one global `portable_id` namespace across:
 
@@ -337,7 +337,7 @@ Duplicate ownership is an invalid-document identity conflict, including reuse ac
 
 The identifier itself does not encode entity type. Target type is established by the collection that owns the record and by the typed reference field.
 
-## 9.3 Relationship resolution — PROPOSED FOR REVIEW
+## 9.3 Relationship resolution — ACCEPTED AT PROPOSED-CONTRACT LEVEL
 
 For `category_ref`, `payment_method_ref`, `tag_refs`, and `source_ref`, Portable v1 distinguishes:
 
@@ -368,7 +368,7 @@ category_ref == null
 unresolved non-null Category reference
 ```
 
-## 9.4 Explicit non-authorities — PROPOSED FOR REVIEW
+## 9.4 Explicit non-authorities — ACCEPTED AT PROPOSED-CONTRACT LEVEL
 
 `portable_id` grants same-document relationship-resolution authority only.
 
@@ -386,7 +386,7 @@ portable_id
 
 Importing the same Portable file again does not gain mutation authority from identifier equality.
 
-## 9.5 Generation authority — PROPOSED FOR REVIEW
+## 9.5 Generation authority — ACCEPTED AT PROPOSED-CONTRACT LEVEL
 
 The export operation owns document-local ID assignment for one coherent snapshot.
 
@@ -404,7 +404,7 @@ Mutable business content such as amount, merchant, dates, type, status, or Categ
 
 Phase 1B `TransactionSource` semantic UUID ownership remains a separate retained-evidence identity contract and is not replaced by Portable Source `portable_id`.
 
-## 9.6 Lexical grammar — PROPOSED FOR REVIEW
+## 9.6 Lexical grammar — ACCEPTED AT PROPOSED-CONTRACT LEVEL
 
 Portable JSON v1 proposes:
 
@@ -430,7 +430,7 @@ Rules:
 
 The prefix identifies the Portable-ID grammar generation, not entity type.
 
-## 9.7 Assignment vs deterministic serialization — PROPOSED FOR REVIEW
+## 9.7 Assignment vs deterministic serialization — ACCEPTED AT PROPOSED-CONTRACT LEVEL
 
 The exporter owns document-local handle assignment.
 
@@ -488,7 +488,7 @@ The example is synthetic and demonstrates shape only.
 
 | Portable field | Required? | Candidate source semantic | Status |
 | --- | --- | --- | --- |
-| `portable_id` | yes | document-local public relationship key | identity/lifetime/generation/grammar PROPOSED FOR REVIEW |
+| `portable_id` | yes | document-local public relationship key | identity/lifetime/namespace/grammar ACCEPTED AT PROPOSED-CONTRACT LEVEL; deterministic allocation deferred |
 | `amount` | yes | native monetary magnitude | lexical contract PROPOSED; semantic domain EVIDENCE GATED |
 | `currency` | yes | native transaction denomination | token grammar PROPOSED; admitted universe RESEARCH / ADMISSION REQUIRED |
 | `type` | yes | transaction direction/type | exact four-token semantic sufficiency ACCEPTED AT PROPOSED-CONTRACT LEVEL |
@@ -2505,9 +2505,9 @@ The first proposal intentionally leaves these questions open.
 
 ## Identity / ordering
 
-- document-local Portable identity meaning/lifetime — PROPOSED FOR REVIEW;
-- one global per-document Portable ID namespace — PROPOSED FOR REVIEW;
-- `p1-<12 ASCII decimal digits>` grammar and exporter-owned document-local assignment — PROPOSED FOR REVIEW;
+- document-local Portable identity meaning/lifetime — ACCEPTED AT PROPOSED-CONTRACT LEVEL;
+- one global per-document Portable ID namespace — ACCEPTED AT PROPOSED-CONTRACT LEVEL;
+- `p1-<12 ASCII decimal digits>` grammar and exporter-owned document-local assignment — ACCEPTED AT PROPOSED-CONTRACT LEVEL;
 - exact deterministic handle-allocation algorithm — DEFERRED to deterministic serialization/order gate;
 - same-store cross-export stability — intentionally NOT PROMISED by current proposal;
 - fresh-store re-export stability — intentionally NOT PROMISED by current proposal;
@@ -2607,17 +2607,15 @@ transfer → direction-neutral movement / neither spending nor incoming / neutra
 
 The proposal explicitly rejects using `isOutflow == false` as proof of inflow and does not invent transfer account-side direction that current canonical `Transaction` does not own.
 
-## 33.3 Current single gate
+## 33.3 Latest accepted gate and dependency reassessment
 
-Persisted Transaction status compatibility, categoryless canonical Transaction compatibility, and Portable Transaction type/direction sufficiency are **accepted at the proposed-contract level**.
+Persisted Transaction status compatibility, categoryless canonical Transaction compatibility, Portable Transaction type/direction sufficiency, and Portable identity semantics are **accepted at the proposed-contract level**.
 
-The current single gate is **Portable identity semantics**.
+Portable identity is now frozen as document-local relationship identity with one global per-document namespace and no cross-document sameness or mutation authority.
 
-The identity proposal asks what `portable_id` means, how long that meaning lasts, what namespace and relationship rules apply, how the exporter assigns it, and what authority it explicitly does not carry.
+Exact deterministic handle allocation and emitted array ordering remain unresolved and explicitly downstream.
 
-The proposal currently selects document-local identity and deliberately does not promise same-store cross-export or fresh-store re-export stability.
-
-Deterministic emitted array ordering and non-Transaction schema finalization remain separate downstream gates.
+Before opening the next contract gate, the remaining dependency graph should be reassessed rather than assuming ordering is automatically next.
 
 
 ---
@@ -2630,11 +2628,11 @@ The latest accepted semantic proposal is:
 
 > **Portable Transaction type/direction sufficiency — ACCEPTED AT PROPOSED-CONTRACT LEVEL**
 
-The active gate is:
+The latest accepted structural proposal is:
 
-> **Portable identity semantics — PROPOSED FOR REVIEW**
+> **Portable identity semantics — ACCEPTED AT PROPOSED-CONTRACT LEVEL**
 
-This gate concerns relationship identity scope/lifetime and authority, not another Transaction-value semantic.
+The next contract gate remains intentionally unopened pending a fresh dependency reassessment.
 
 ```text
 PROPOSED Portable JSON / CSV v1 contract
@@ -2666,8 +2664,8 @@ Portable Transaction type/direction sufficiency
 read-only remaining-gate reassessment
         ↓ complete
 Portable identity semantics
-        ↓ PROPOSED FOR REVIEW
-independent review
+        ↓ accepted at PROPOSED-contract level
+read-only remaining-gate reassessment
         ↓
 accept/canonicalize Portable JSON / CSV v1 contract
         ↓
