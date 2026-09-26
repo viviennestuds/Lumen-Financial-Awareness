@@ -608,7 +608,7 @@ The exact UI, restoration-context representation, importer mechanics, and genera
 
 ## 13.4 Existing repository evidence
 
-Same-schema URL-backed persistence tests currently persist and reopen Transactions whose Category is omitted from the initializer and therefore `nil`. This proves current-schema durability, not authentic historical prevalence.
+Same-schema URL-backed persistence tests persist and reopen `Transaction` objects whose Category is omitted from the initializer and therefore `nil`. This proves persisted current-schema durability for `category == nil`. It does **not** prove that those fixture records became canonical through the governing user-authorized Draft → Review → Confirm boundary, and it does not prove authentic historical/user-store prevalence.
 
 No current production path was found that creates a new categoryless Transaction through ordinary confirmation, clears an existing Category, or deletes a Category and demonstrates a resulting null relationship. Category-deletion-induced nullability is therefore not claimed as repository-proven behavior.
 
@@ -2331,7 +2331,7 @@ Portable JSON v1 now admits all five exact current canonical status tokens. `pen
 
 ### Categoryless canonical Transactions — current proposal
 
-`Transaction.category` is nullable in current canonical persistence, and same-schema persistence tests demonstrate durable categoryless records. Current ordinary confirmation still requires a Category.
+`Transaction.category` is nullable in the current persisted Transaction model, and same-schema persistence tests demonstrate durable current-schema categoryless Transaction state. Those fixtures do not establish authentic historical/user-confirmed canonical provenance. Current ordinary confirmation still requires a Category.
 
 The active proposal distinguishes exact canonical `category_ref: null` from a non-null unresolved reference, treats canonical null as representable and complete-export compatible, and proposes exact `nil → nil` supported-Lumen restoration under restoration-specific Review/Confirm authority.
 
