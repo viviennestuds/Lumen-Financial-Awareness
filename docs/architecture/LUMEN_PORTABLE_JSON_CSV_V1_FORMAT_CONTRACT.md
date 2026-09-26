@@ -296,36 +296,164 @@ It means its portable semantics are not admitted by this contract.
 
 # 9. Portable Identity and References
 
-## 9.1 Public identity is not SwiftData identity — PROPOSED
+## 9.1 Identity meaning and lifetime — PROPOSED FOR REVIEW
 
-Portable records use an opaque public relationship key named `portable_id`.
+The identity proposal in `LUMEN_PORTABLE_V1_IDENTITY_SEMANTICS_PROPOSAL.md` defines `portable_id` as an **opaque, document-local relationship identifier**.
 
-A portable ID:
+Its semantic lifetime is one Portable JSON document.
 
-- identifies a record inside the portable representation;
-- supports references between exported portable records;
-- must be unique in the relevant portable entity namespace;
-- must not be interpreted as overwrite authority on import;
-- must not be assumed to equal the corresponding SwiftData model `id`;
-- must not be used as promotion replay authority;
-- must not replace ordinary duplicate-awareness.
+Therefore:
 
-## 9.2 Exact generation and cross-export stability — RESEARCH / ADMISSION REQUIRED
+```text
+portable_id P in document A
+==
+portable_id P in document B
 
-The following remain open:
+does NOT establish
+same canonical object
+```
 
-- exact `portable_id` lexical grammar;
-- deterministic generation;
-- whether the same canonical entity receives the same portable ID across separate exports;
-- whether IDs are document-local or stable across a broader portability lifetime;
-- deterministic ordering implications.
+Portable v1 does not promise:
 
-These decisions must preserve:
+- same-store cross-export ID stability;
+- fresh-store re-export ID stability;
+- durable Portable identity preservation after import.
 
-- relationship resolution;
-- deterministic export behavior;
-- no accidental exposure of local persistence identity as permanent public API;
-- no hidden overwrite/delete authority.
+Supported round-trip equivalence is restoration of admitted canonical semantics and relationships, not preservation of document-local transport handles.
+
+## 9.2 One global document namespace — PROPOSED FOR REVIEW
+
+All Portable records in one JSON document share one global `portable_id` namespace across:
+
+- Transactions;
+- Categories;
+- PaymentMethods;
+- Tags;
+- Sources.
+
+One `portable_id` must identify exactly one record in the document.
+
+Duplicate ownership is an invalid-document identity conflict, including reuse across different entity collections.
+
+The identifier itself does not encode entity type. Target type is established by the collection that owns the record and by the typed reference field.
+
+## 9.3 Relationship resolution — PROPOSED FOR REVIEW
+
+For `category_ref`, `payment_method_ref`, `tag_refs`, and `source_ref`, Portable v1 distinguishes:
+
+```text
+null
+→ true absence, where the field admits absence
+
+non-null + exactly one target of required entity type
+→ resolvable relationship
+
+non-null + no target
+→ unresolved-reference / dataset incompatibility
+
+duplicate portable_id ownership
+→ identity conflict / invalid document
+
+non-null + target exists in wrong entity collection
+→ wrong-target-type failure
+```
+
+A non-null unresolved/wrong-type reference must not silently degrade to null or semantic-name matching.
+
+This preserves the accepted Category rule:
+
+```text
+category_ref == null
+!=
+unresolved non-null Category reference
+```
+
+## 9.4 Explicit non-authorities — PROPOSED FOR REVIEW
+
+`portable_id` grants same-document relationship-resolution authority only.
+
+```text
+portable_id
+!= overwrite authority
+!= update authority
+!= delete authority
+!= automatic deduplication identity
+!= promotion replay identity
+!= synchronization authority
+!= SwiftData persistentModelID
+!= proof of semantic similarity
+```
+
+Importing the same Portable file again does not gain mutation authority from identifier equality.
+
+## 9.5 Generation authority — PROPOSED FOR REVIEW
+
+The export operation owns document-local ID assignment for one coherent snapshot.
+
+Current model IDs may be used as **exporter-private deterministic allocation inputs** because they already participate in local object/reference identity.
+
+That does not expose their spelling or promote them to public Portable authority:
+
+```text
+native/canonical ID used as exporter-private input
+!=
+portable_id is native/canonical ID
+```
+
+Mutable business content such as amount, merchant, dates, type, status, or Category name must not be the semantic basis of Portable identity.
+
+Phase 1B `TransactionSource` semantic UUID ownership remains a separate retained-evidence identity contract and is not replaced by Portable Source `portable_id`.
+
+## 9.6 Lexical grammar — PROPOSED FOR REVIEW
+
+Portable JSON v1 proposes:
+
+```text
+p1-<12 ASCII decimal digits>
+```
+
+Examples:
+
+```text
+p1-000000000001
+p1-000000000002
+```
+
+Rules:
+
+- literal lowercase `p1-` prefix;
+- exactly twelve ASCII decimal digits;
+- exact comparison;
+- no case folding or numeric normalization;
+- no mutable business information;
+- no native model-ID spelling.
+
+The prefix identifies the Portable-ID grammar generation, not entity type.
+
+## 9.7 Deterministic allocation vs durable identity — PROPOSED FOR REVIEW
+
+The exporter may assign document-local handles deterministically for the selected coherent snapshot:
+
+```text
+coherent snapshot
+→ exporter-private deterministic allocation sequence
+→ global ordinal
+→ p1-<12 digits>
+→ same-document relationship map
+```
+
+The ordinal is not a durable identity promise.
+
+Changes to the store, deletion/recreation, or fresh-store restoration may change later Portable IDs.
+
+This gate does not freeze final emitted JSON array ordering. Identity allocation sequence and emitted array order remain separable concerns.
+
+The later ordering gate must not infer:
+
+```text
+deterministic ordering
+→ globally permanent portable_id
+```
 
 No new persisted identifier field is authorized by this proposal.
 
@@ -363,7 +491,7 @@ The example is synthetic and demonstrates shape only.
 
 | Portable field | Required? | Candidate source semantic | Status |
 | --- | --- | --- | --- |
-| `portable_id` | yes | public relationship key | generation semantics RESEARCH / ADMISSION REQUIRED |
+| `portable_id` | yes | document-local public relationship key | identity/lifetime/generation/grammar PROPOSED FOR REVIEW |
 | `amount` | yes | native monetary magnitude | lexical contract PROPOSED; semantic domain EVIDENCE GATED |
 | `currency` | yes | native transaction denomination | token grammar PROPOSED; admitted universe RESEARCH / ADMISSION REQUIRED |
 | `type` | yes | transaction direction/type | exact four-token semantic sufficiency ACCEPTED AT PROPOSED-CONTRACT LEVEL |
@@ -2156,7 +2284,7 @@ The final v1 round-trip statement cannot be accepted until the format resolves a
 - exact Date → financial calendar-date conversion;
 - PortableMoneyV1 safe durable domain;
 - round-trip/export disposition for any current or historical canonical Transaction amount that falls outside the final PortableMoneyV1 admitted domain;
-- portable identity generation/stability sufficient for relationship reconstruction.
+- portable identity semantics sufficient for relationship reconstruction; current proposal uses document-local globally unique handles and does not require cross-export stability.
 
 For an existing canonical Transaction whose exact monetary state is outside PortableMoneyV1 or whose currency is outside the selected admitted registry, export/round-trip behavior must be explicit.
 
@@ -2380,9 +2508,12 @@ The first proposal intentionally leaves these questions open.
 
 ## Identity / ordering
 
-- portable ID grammar/generation — RESEARCH / ADMISSION REQUIRED;
-- cross-export stability — RESEARCH / ADMISSION REQUIRED;
-- deterministic array ordering tied to identity — EVIDENCE GATED.
+- document-local Portable identity meaning/lifetime — PROPOSED FOR REVIEW;
+- one global per-document Portable ID namespace — PROPOSED FOR REVIEW;
+- `p1-<12 ASCII decimal digits>` grammar and exporter-owned deterministic per-snapshot allocation — PROPOSED FOR REVIEW;
+- same-store cross-export stability — intentionally NOT PROMISED by current proposal;
+- fresh-store re-export stability — intentionally NOT PROMISED by current proposal;
+- deterministic emitted array ordering after identity semantics — EVIDENCE GATED.
 
 ## Transaction compatibility
 
@@ -2527,6 +2658,10 @@ read-only remaining-gate reassessment
 Portable Transaction type/direction sufficiency
         ↓ accepted at PROPOSED-contract level
 read-only remaining-gate reassessment
+        ↓ complete
+Portable identity semantics
+        ↓ PROPOSED FOR REVIEW
+independent review
         ↓
 accept/canonicalize Portable JSON / CSV v1 contract
         ↓
