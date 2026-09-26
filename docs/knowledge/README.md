@@ -28,6 +28,7 @@ Knowledge follows Lumen's existing repository governance. It does **not** define
 - `docs/architecture/LUMEN_ARCHITECTURE_CONTRACT_V1.md` defines canonical product and engineering invariants.
 - Accepted ADRs record explicit architectural decisions.
 - `docs/ROADMAP.md`, `docs/NON_GOALS.md`, and applicable phase acceptance criteria govern implementation scope and sequencing.
+- `docs/architecture/LUMEN_ENGINEERING_REASONING_FRAMEWORK.md` is the living canonical methodology for how material decisions should be reasoned about; it is a methodology overlay, not competing substantive authority.
 - Knowledge notes distill understanding that helps apply those governing sources.
 
 If a knowledge note appears to conflict with governing material, flag the conflict and defer to the governing source. Do not silently treat the knowledge note as newer authority.
