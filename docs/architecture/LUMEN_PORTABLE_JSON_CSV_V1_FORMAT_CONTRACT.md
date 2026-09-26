@@ -529,6 +529,24 @@ A future canonical model that owns account-side or paired-transfer semantics wou
 
 ## 11.8 Type-axis round-trip equivalence — PROPOSED FOR REVIEW
 
+Current analytics, filters, Dashboard disclosures, category/group totals, and sign presentation are evidence and current consequences of the admitted type meanings. They are not independently frozen Portable v1 UI/API/reporting implementations.
+
+The governing boundary is:
+
+```text
+core admitted type meaning
+!=
+specific current reporting implementation
+
+reporting implementation changes
+!=
+necessarily Portable v1 semantic changes
+
+canonical type meaning changes
+=
+Portable contract evolution / separate admission
+```
+
 Supported-state equivalence on this axis is proposed as:
 
 ```text
@@ -536,7 +554,7 @@ same admitted type token
 +
 same admitted unsigned amount semantics
 +
-same admitted observable flow treatment
+preservation of the same admitted Lumen-owned type meaning
 ```
 
 Therefore Portable restoration must not silently map:
