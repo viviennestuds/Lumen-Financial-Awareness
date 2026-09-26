@@ -2368,7 +2368,7 @@ The first proposal intentionally leaves these questions open.
 
 - portability/restoration of `ignored`, `duplicate`, and `review_needed` persisted statuses — ACCEPTED AT PROPOSED-CONTRACT LEVEL;
 - round-trip disposition for categoryless current-schema / compatibility-bearing Transactions — ACCEPTED AT PROPOSED-CONTRACT LEVEL; authentic historical prevalence remains unproven;
-- directional/flow sufficiency of each unsigned-amount `type` token, especially `transfer` — RESEARCH / ADMISSION REQUIRED.
+- directional/flow sufficiency of `expense`, `income`, `refund`, and `transfer` with unsigned PortableMoneyV1 amounts — PROPOSED FOR REVIEW.
 
 ## Lifecycle timestamps
 
