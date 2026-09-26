@@ -125,7 +125,7 @@ Therefore this proposal does **not** claim that current app Category deletion is
 
 The relationship is optional, so categoryless state is structurally permitted. But deletion-induced categorylessness remains **not demonstrated by current repository behavior** and is not required to justify this compatibility gate.
 
-# 6. Demonstrated Categoryless State
+# 6. Demonstrated Persisted Current-Schema Categoryless State
 
 A same-schema URL-backed SwiftData persistence test inserts one Transaction for every `TransactionStatus` case using the `Transaction` initializer without supplying a Category.
 
@@ -133,27 +133,27 @@ Because the initializer default is `category: nil`, those persisted Transactions
 
 The test closes and reopens the store and verifies the full Transaction set survives.
 
-This is direct repository evidence that categoryless canonical-style Transactions can be persisted and reopened under the current schema.
+This is direct repository evidence that current-schema `Transaction` objects with `category == nil` can be durably persisted and reopened.
 
 Important evidence qualifier:
 
 > The test itself explicitly says it is a same-schema round-trip and **not** an authentic baseline/historical migration fixture.
 
-So the repository establishes durable capability and compatibility-bearing test state, but not prevalence in real user history.
+So the repository establishes durable current-schema capability and persisted test state. It does **not** establish that these fixture records became canonical through the governing user-authorized Draft → Review → Confirm boundary, nor that authentic historical/user stores contain categoryless canonical Transactions.
 
 Several ordinary unit-test Transactions are also constructed without Categories for analytics/status behavior, but those in-memory fixtures are weaker evidence than the URL-backed persistence test.
 
 # 7. Evidence Classification
 
-## A. Demonstrated canonical/persisted categoryless fixtures
+## A. Demonstrated persisted current-schema categoryless Transaction state
 
 **Yes.**
 
 The URL-backed same-schema persistence test persists and reopens categoryless Transactions because Category is omitted from the initializer.
 
-This proves current schema durability for `category == nil`.
+This proves current-schema durability for `category == nil`.
 
-It does not prove authentic historical user prevalence.
+It does not prove that the fixture records were user-confirmed through the governing canonical-ingestion boundary, and it does not prove authentic historical user prevalence.
 
 ## B. Categoryless state directly producible by current app behavior
 
