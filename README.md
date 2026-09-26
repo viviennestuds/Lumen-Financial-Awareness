@@ -45,7 +45,7 @@ EVIDENCE
 → what the repository currently establishes
 ```
 
-The Engineering Reasoning Framework is canonical methodology. It does not override substantive governance.
+On this proposal branch, the Engineering Reasoning Framework is **proposed** as Lumen's living canonical methodology. It does not override substantive governance, and it should not be treated as adopted until independent review accepts the governance change.
 
 ---
 
