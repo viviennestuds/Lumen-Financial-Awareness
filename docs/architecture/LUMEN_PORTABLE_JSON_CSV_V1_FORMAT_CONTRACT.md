@@ -2358,11 +2358,11 @@ Unsigned type/direction remains separate and is not solved by this proposal.
 
 The current progression is now:
 
-The next distinct compatibility/disposition proposal is:
+The active distinct compatibility proposal is:
 
-> **Existing canonical monetary state outside PortableMoneyV1 + lumen-currency-v1 — PROPOSED / independently reviewed**
+> **Categoryless canonical Transaction compatibility — PROPOSED FOR REVIEW**
 
-This proposal does not widen either accepted domain. It distinguishes complete ownership export from valid partial serialization and proposes deterministic preflight plus refusal to claim complete-export success when any in-scope canonical Transaction is monetarily/currency incompatible.
+The previously accepted status gate established that restoration authority can differ from ordinary creation authority without widening ordinary ingestion. This categoryless proposal independently tests whether the same distinction is justified for an exact absent Category association, while keeping canonical null separate from unresolved non-null references.
 
 ```text
 PROPOSED Portable JSON / CSV v1 contract
