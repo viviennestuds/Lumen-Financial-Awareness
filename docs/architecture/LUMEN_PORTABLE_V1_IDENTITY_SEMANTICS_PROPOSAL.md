@@ -1,6 +1,6 @@
 # Lumen Portable v1 Identity Semantics Proposal
 
-**Status:** PROPOSED FOR REVIEW
+**Status:** ACCEPTED AT PROPOSED-CONTRACT LEVEL
 
 **Gate:** Phase 1C Portable identity semantics
 
@@ -906,4 +906,32 @@ Independent review should decide whether:
 9. the explicit non-authority list is complete enough for v1;
 10. Phase 1B TransactionSource identity remains correctly isolated from Portable Source relationship identity.
 
-Until independent review passes, these identity semantics remain **PROPOSED FOR REVIEW**.
+## Independent-review acceptance
+
+Independent review accepted the Portable identity disposition after one semantic-boundary hardening:
+
+```text
+document-local identity semantics
+!=
+deterministic lexical recurrence across exports
+```
+
+Accepted at the proposed-contract level:
+
+- `portable_id` is an opaque document-local relationship identifier;
+- its semantic lifetime is one Portable JSON document;
+- equal identifier spelling across documents establishes no object sameness or authority;
+- same-store cross-export stability is not promised;
+- fresh-store re-export stability is not promised;
+- one global namespace spans Transactions, Categories, PaymentMethods, Tags, and Sources within one document;
+- null, resolved, unresolved, duplicate-owner, and wrong-target-type reference states remain distinct;
+- the export operation owns document-local assignment;
+- exact deterministic handle-allocation and emitted ordering are deferred to a later serialization/order gate;
+- lexical recurrence across documents, whether coincidental or algorithmic, carries no cross-document identity semantics;
+- mutable business content is not identity;
+- the `p1-<12 ASCII decimal digits>` grammar is admitted;
+- Phase 1B TransactionSource semantic identity remains separate;
+- `portable_id` grants no overwrite, update, delete, deduplication, replay, synchronization, or persistence-identity authority;
+- semantic round-trip equivalence does not require preservation of document-local Portable handles.
+
+No production implementation, model-ID change, persisted Portable-ID field, importer/exporter implementation, deterministic-ordering algorithm, schema migration, or synchronization behavior is authorized by this acceptance.
