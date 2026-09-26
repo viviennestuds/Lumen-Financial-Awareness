@@ -2,7 +2,7 @@
 
 ## Status
 
-**PROPOSED FOR REVIEW — Phase 1C categoryless-canonical-Transaction compatibility gate.**
+**ACCEPTED AT PROPOSED-CONTRACT LEVEL — Phase 1C categoryless-canonical-Transaction compatibility gate.**
 
 Starts exactly from accepted status checkpoint `2173fb6873c7416b51838909e46f5d299c681609`.
 
@@ -546,4 +546,22 @@ Independent review should decide whether:
 8. Category deletion behavior is correctly left unclaimed because current repository evidence does not demonstrate it;
 9. CSV and general reference machinery remain separately gated.
 
-Until independent review passes, these categoryless compatibility semantics remain **PROPOSED FOR REVIEW**.
+## Independent-review acceptance
+
+Independent review accepted the categoryless compatibility disposition after the persistence-evidence wording was tightened.
+
+Accepted at the proposed-contract level:
+
+- `"category_ref": null` means exact canonical absence of a Category association;
+- null does not mean unknown Category, missing/unresolved referenced Category, parser failure, or a request to choose a Category;
+- a non-null unresolved Category reference remains a separate reference-integrity/resolution failure and must never silently degrade to null;
+- exact Category absence is representable and does not by itself make a complete Portable JSON v1 ownership export incomplete;
+- export must not omit the Transaction, invent/default a Category, synthesize an `Uncategorized` Category, or replace absence with another classification;
+- exact Category-axis supported-round-trip equivalence is `nil → nil` absent a future independently accepted lossless migration;
+- supported Lumen restoration may reproduce `category == nil` under restoration-specific authority inside meaningful Review/Confirm;
+- restoration authority remains distinct from ordinary creation/non-restoration ingestion authority;
+- derived `Uncategorized` analytics/presentation does not establish a canonical Category entity;
+- CSV Category semantics, general reference reconstruction, Category identity/schema, and Category deletion behavior remain separately gated;
+- the persistence fixture proves durable current-schema categoryless Transaction state, not authentic historical/user-confirmed canonical provenance.
+
+No production implementation, schema migration, Category redesign, importer change, or type/direction decision is authorized by this acceptance.
