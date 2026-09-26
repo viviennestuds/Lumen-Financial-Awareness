@@ -2519,7 +2519,7 @@ The first proposal intentionally leaves these questions open.
 
 - portability/restoration of `ignored`, `duplicate`, and `review_needed` persisted statuses — ACCEPTED AT PROPOSED-CONTRACT LEVEL;
 - round-trip disposition for categoryless current-schema / compatibility-bearing Transactions — ACCEPTED AT PROPOSED-CONTRACT LEVEL; authentic historical prevalence remains unproven;
-- directional/flow sufficiency of `expense`, `income`, `refund`, and `transfer` with unsigned PortableMoneyV1 amounts — PROPOSED FOR REVIEW.
+- directional/flow sufficiency of `expense`, `income`, `refund`, and `transfer` with unsigned PortableMoneyV1 amounts — ACCEPTED AT PROPOSED-CONTRACT LEVEL.
 
 ## Lifecycle timestamps
 
@@ -2598,7 +2598,7 @@ Portable JSON v1 now admits all five exact current canonical status tokens. `pen
 
 ### Unsigned type/direction sufficiency — accepted at proposed-contract level
 
-PortableMoneyV1 amount remains unsigned. The active proposal traces each current type independently and proposes that the exact token carries the Lumen-owned flow semantic:
+PortableMoneyV1 amount remains unsigned. The accepted type/direction proposal establishes that the exact token carries the Lumen-owned flow semantic:
 
 ```text
 expense  → outflow / spending / negative net
@@ -2609,13 +2609,17 @@ transfer → direction-neutral movement / neither spending nor incoming / neutra
 
 The proposal explicitly rejects using `isOutflow == false` as proof of inflow and does not invent transfer account-side direction that current canonical `Transaction` does not own.
 
-## 33.3 Recommended next single gate
+## 33.3 Current single gate
 
-Persisted Transaction status compatibility and categoryless canonical Transaction compatibility are **accepted at the proposed-contract level**.
+Persisted Transaction status compatibility, categoryless canonical Transaction compatibility, and Portable Transaction type/direction sufficiency are **accepted at the proposed-contract level**.
 
-Portable Transaction type/direction sufficiency is **accepted at the proposed-contract level**.
+The current single gate is **Portable identity semantics**.
 
-The separate proposal asks whether unsigned magnitude plus exact type token fully preserves Lumen-owned canonical flow semantics, with particular scrutiny on `refund` and `transfer`. It does not add account-side or double-entry meaning that current canonical state does not possess.
+The identity proposal asks what `portable_id` means, how long that meaning lasts, what namespace and relationship rules apply, how the exporter assigns it, and what authority it explicitly does not carry.
+
+The proposal currently selects document-local identity and deliberately does not promise same-store cross-export or fresh-store re-export stability.
+
+Deterministic emitted array ordering and non-Transaction schema finalization remain separate downstream gates.
 
 
 ---
@@ -2628,7 +2632,11 @@ The latest accepted semantic proposal is:
 
 > **Portable Transaction type/direction sufficiency — ACCEPTED AT PROPOSED-CONTRACT LEVEL**
 
-Status and categoryless compatibility are accepted at the proposed-contract level. This next gate is different: it tests whether the proposed Portable Transaction representation itself carries complete Lumen-owned flow meaning when amount is unsigned.
+The active gate is:
+
+> **Portable identity semantics — PROPOSED FOR REVIEW**
+
+This gate concerns relationship identity scope/lifetime and authority, not another Transaction-value semantic.
 
 ```text
 PROPOSED Portable JSON / CSV v1 contract
