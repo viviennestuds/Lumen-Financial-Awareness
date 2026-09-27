@@ -137,14 +137,18 @@ Publicly declaring `YYYY-MM-DD` to mean an original financial day would create a
 ## 3.1 Lost information
 
 ```text
-Lumen may once have displayed or accepted a civil-day meaning
+an admitted workflow establishes a civil-day meaning
         ↓
 only a Date instant survives durably
         ↓
 originating calendar/timezone context is absent
 ```
 
-For a user-reviewed `transaction_date`, confirmation may plausibly establish the visible day-level meaning. Current storage still does not retain enough context to prove that same day invariantly after an environment change.
+For a new user-reviewed `transaction_date`, this proposal treats Review/Confirm as the authority event for the visible financial transaction day. For an explicit date-field edit, deliberate selection followed by Save establishes the new visible day.
+
+Current storage still does not retain enough context to prove that same established day invariantly after a later environment change. That is a **lost-information** problem.
+
+For `posted_date`, the selected public meaning is Lumen-effective posting day. An admitted posting workflow can establish that Lumen-owned day, including through system synthesis. Current storage can then lose the calendar/timezone context needed to recover the established Lumen-effective day later.
 
 ## 3.2 Never-owned information
 
@@ -154,11 +158,13 @@ Lumen generates/stores Date T
 no independent event establishes stronger external fact D
 ```
 
-A synthesized `posted_date = .now` proves at least that Lumen saved or transitioned the record as posted around T. It does not by itself prove that an external financial institution posted the transaction on the corresponding calendar day.
+A synthesized `posted_date = .now` does **not** establish that an external financial institution posted, settled, or cleared the transaction on the corresponding day.
+
+Under this proposal, that stronger external fact is outside the meaning of Portable `posted_date`. The workflow may own a Lumen-effective posting day while never owning the institution-posting-day fact.
 
 > **Lost information != never-owned information.**
 
-The exporter must not repair either condition by guessing.
+The exporter must not repair either condition by guessing, and it must not upgrade a Lumen-effective day into external posting evidence.
 
 ---
 
