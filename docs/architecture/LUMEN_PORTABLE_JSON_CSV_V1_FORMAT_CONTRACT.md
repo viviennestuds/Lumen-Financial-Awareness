@@ -1758,9 +1758,22 @@ YYYY-MM-DD
 Candidate field meanings are:
 
 - `transaction_date` — the **user-owned financial transaction civil day**;
-- non-null `posted_date` — the **Lumen-effective posting civil day**, meaning the financial civil day on which the Transaction is considered posted within Lumen under an admitted user or Lumen posting workflow.
+- non-null `posted_date` — an **optional, separately authorized recorded posting civil day**.
 
-Portable `posted_date` is **not** evidence of an externally observed financial-institution posting, settlement, or clearing day.
+`posted_date` is supplementary. A Transaction may truthfully have:
+
+```text
+status == posted
+posted_date == null
+```
+
+without implying missing lifecycle validity.
+
+Portable `posted_date` is not:
+
+- proof of an externally observed institution posting/settlement/clearing day;
+- automatically inferred from `status == posted`;
+- the timestamp or civil-day projection of when Lumen itself changed status.
 
 Device locale, device calendar, formatter defaults, and hidden Foundation `Date` time-of-day do not independently define Portable calendar authority.
 
@@ -1775,10 +1788,22 @@ Candidate authority rules are:
 - a new Review/Confirm establishes the visible `transaction_date` day presented for confirmation;
 - an explicit financial-date-field edit followed by Save establishes a newly authorized date-level meaning for that field;
 - an unrelated edit does **not** reauthorize or reinterpret an unchanged inherited Date;
-- an admitted workflow that synthesizes `posted_date` when a Transaction becomes posted may establish a **system-owned Lumen-effective posting day**, but not a user-confirmed date or external-institution posting fact;
+- `posted` is an ordinary Lumen financial-lifecycle status whose validity does not depend on a separately recorded `posted_date`;
+- an explicit/reviewed/restored `posted_date` requires **separate date-field authority** from the lifecycle status itself;
+- a transition to `status == posted` does **not** authorize synthesizing `posted_date`;
+- a change away from `posted` does **not** authorize erasing an existing recorded `posted_date`;
 - confirmation/Save does not grant Portable authority to hidden time-of-day, timezone, or raw-instant details that were not presented or separately admitted.
 
-The current durable model does not preserve which field-authority path originally produced a nonnil Date.
+Potential posted-date authority sources include:
+
+- explicit manual/date-field entry;
+- reviewed institution/source-proposed date;
+- explicit date-field edit;
+- supported Lumen restoration under separately admitted restoration authority.
+
+The public field does not need to encode which provenance path supplied it.
+
+The current durable model does not preserve whether a nonnil `posted_date` received separate field-level authority or was silently synthesized by current implementation behavior.
 
 ## 18.3 Conversion, compatibility, and restoration from current `Date` storage — PROPOSED FOR REVIEW
 
@@ -1787,6 +1812,18 @@ The current canonical model stores these fields using Foundation `Date`; `posted
 Current Transaction state does **not** durably contain a per-record originating calendar, timezone, confirmed civil-date spelling, or date-provenance class. Therefore:
 
 > **An arbitrary existing nonnil `transaction_date` or `posted_date` is not generally proven EXACTLY WARRANTED from current Transaction state alone.**
+
+For `posted_date`, current persistence has an additional ambiguity:
+
+```text
+separately authorized date
+→ Date?
+
+current automatic .now synthesis
+→ Date?
+```
+
+The persisted value alone does not reveal which path occurred.
 
 The candidate authority classification distinguishes:
 
@@ -1819,17 +1856,23 @@ DatePicker date-only presentation
 deterministic projection
 != truthful recovery
 
+status
+!= authority to infer posted_date
+
+status
+!= authority to erase posted_date
+
+status becoming posted
+!= authority to synthesize posted_date
+
+posted_date presence
+!= proof of current Transaction status
+
 posted_date == nil
-= exact absence
+= exact absence of a separately recorded posting day
 
 posted_date == nil
 != unresolved/not-export-compatible nonnil date
-
-status
-!= authority to infer a missing posted_date
-
-posted_date presence
-!= proof of Transaction status
 ```
 
 A fixed UTC day projection is deterministic but is not recovery of the admitted financial day. A current-device projection is environment-dependent. Neither may silently become Portable truth through formatter convenience.
@@ -1846,6 +1889,8 @@ same admitted financial civil day
 same exact absence state for nullable posted_date
 ```
 
+For `posted_date`, restoration must not infer a date from lifecycle status alone or erase an admitted recorded posting day based on current status.
+
 Raw Foundation `Date` equality is not required merely by this candidate date semantic.
 
 For a claimed complete Portable ownership export, a required `transaction_date` or nonnil `posted_date` that is not export-compatible under the admitted financial-day meaning must not be silently guessed, projected, normalized, or converted to absence. The exact operational failure/recovery/user-resolution mechanism remains separately gated.
@@ -1854,7 +1899,7 @@ JSON and CSV must use the same admitted financial-date meaning for shared fields
 
 The format must not simply call a default Date formatter and assume the result is portable truth.
 
-## 18.3 Lifecycle timestamps — PROPOSED
+## 18.4 Lifecycle timestamps — PROPOSED
 
 Lifecycle fields such as:
 
