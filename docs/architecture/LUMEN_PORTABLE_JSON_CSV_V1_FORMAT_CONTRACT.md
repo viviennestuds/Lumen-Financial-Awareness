@@ -1743,9 +1743,13 @@ Portable v1 must not rewrite the native transaction fact into the user's preferr
 
 # 18. Financial Dates and Timestamps
 
-## 18.1 Financial calendar dates — PROPOSED
+## 18.1 Financial calendar dates — PROPOSED FOR REVIEW
 
-Candidate Portable v1 financial-date fields use ISO calendar-date text:
+The active financial-date gate is documented in:
+
+`docs/architecture/LUMEN_PORTABLE_V1_FINANCIAL_DATE_SEMANTICS_PROPOSAL.md`
+
+Candidate Portable v1 financial-date fields use a single installation-independent **proleptic Gregorian** civil calendar and fixed-width ASCII calendar-date text:
 
 ```text
 YYYY-MM-DD
@@ -1756,18 +1760,64 @@ Candidate fields:
 - `transaction_date`;
 - `posted_date`.
 
-These fields represent financial calendar-date semantics rather than generic instants.
+The candidate meaning is a financial civil day rather than a generic instant. Device locale, device calendar, formatter defaults, and hidden Foundation `Date` time-of-day do not independently define Portable calendar authority.
 
-## 18.2 Conversion from current `Date` storage — EVIDENCE GATED
+This semantic is **not yet accepted**. Current persisted `Date` values do not durably retain per-record originating calendar/timezone or provenance sufficient to prove the original civil day for every historical/current state.
 
-The current canonical model stores these fields using Foundation `Date`.
+## 18.2 Conversion, compatibility, and restoration from current `Date` storage — PROPOSED FOR REVIEW
 
-The final format must define and test:
+The current canonical model stores these fields using Foundation `Date`; `posted_date` may also be `nil`.
 
-- which calendar/timezone context establishes the financial date;
-- how current persisted instants map to a portable calendar date;
-- how re-import reconstructs equivalent canonical meaning;
-- DST/date-boundary behavior.
+The candidate contract preserves these distinctions:
+
+```text
+persisted instant
+!= proven original financial civil day
+
+current device timezone/calendar
+!= original per-record civil-date context
+
+DatePicker date-only presentation
+!= authority for hidden time-of-day
+
+system-synthesized posted Date
+!= proof of an externally observed institution posting day
+
+posted_date == nil
+= exact absence
+
+posted_date == nil
+!= incompatible/unresolved nonnil date
+```
+
+Candidate compatibility states are:
+
+- **EXACTLY WARRANTED** — an admitted durable basis establishes the financial civil day;
+- **CONTEXT / RESOLUTION REQUIRED** — the financial day requires separately admitted context or explicit resolution;
+- **SEMANTICALLY INCOMPATIBLE** — the stronger financial-day meaning cannot truthfully be established from available canonical state;
+- **ABSENT** — only for nullable `posted_date == nil`.
+
+Current storage does not, merely by containing a nonnil `Date`, prove the first state.
+
+A fixed UTC day projection is deterministic but is not automatically equivalent to recovery of the original user-confirmed financial day. A current-device projection is environment-dependent. Neither may silently become Portable truth through formatter convenience.
+
+Restoring `YYYY-MM-DD` into Foundation `Date` necessarily introduces a calendar/timezone/time-of-day representation convention. The resulting anchor instant is not additional Portable financial meaning.
+
+Candidate semantic round-trip equivalence is:
+
+```text
+same admitted Portable calendar
++
+same admitted financial civil day
++
+same exact absence state for nullable posted_date
+```
+
+Raw Foundation `Date` equality is not required merely by this candidate date semantic.
+
+For a claimed complete Portable ownership export, an incompatible required `transaction_date` or incompatible nonnil `posted_date` must not be silently guessed, projected, normalized, or converted to absence. The exact operational failure/resolution mechanism remains separately gated.
+
+JSON and CSV must use the same admitted financial-date meaning for shared fields.
 
 The format must not simply call a default Date formatter and assume the result is portable truth.
 
@@ -2500,7 +2550,7 @@ The first proposal intentionally leaves these questions open.
 
 ## Dates
 
-- current `Date` → financial calendar-date conversion and timezone rule — EVIDENCE GATED;
+- current `Date` → financial calendar-date conversion, compatibility, and restoration semantics — PROPOSED FOR REVIEW;
 - canonical fractional-second timestamp spelling — RESEARCH / ADMISSION REQUIRED.
 
 ## Identity / ordering
