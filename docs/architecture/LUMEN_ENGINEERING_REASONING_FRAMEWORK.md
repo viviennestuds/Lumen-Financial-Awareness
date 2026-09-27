@@ -229,6 +229,31 @@ complete domain semantic contract
 
 When evidence is insufficient, narrow the claim rather than filling the gap with architecture.
 
+Within the evidence layer, distinguish observation from **epistemic warrant**:
+
+```text
+observation / evidence
+        ↓
+proportional interpretation
+        ↓
+epistemic warrant:
+what can responsibly be concluded?
+```
+
+Epistemic warrant must remain proportional to the evidence. Stronger evidence may justify a stronger conclusion, falsify an assumption, or establish that a required precondition exists.
+
+That still does **not** by itself grant normative product authority.
+
+Preserve:
+
+```text
+evidence
+→ establishes / supports / falsifies
+
+governance
+→ authorizes
+```
+
 External research may resolve a specific knowledge gap, but it does not replace Lumen-owned product semantics.
 
 ---
@@ -237,7 +262,19 @@ External research may resolve a specific knowledge gap, but it does not replace 
 
 For every public, persistent, architectural, or product-semantic commitment, ask:
 
-> What is the smallest externally meaningful contract that satisfies the actual admitted requirement without inventing future obligations?
+> What is the smallest externally meaningful contract that satisfies the complete admitted requirement without inventing unnecessary future obligations?
+
+**Minimum sufficient does not mean minimum implementation effort, weakest semantics, or smallest immediate feature.**
+
+A contract is sufficient only when it satisfies the admitted capability together with all applicable requirements for:
+
+- correctness;
+- safety;
+- user ownership;
+- privacy;
+- compatibility;
+- operability;
+- already-established or already-admitted near-term consumers.
 
 Test subtraction explicitly.
 
@@ -259,7 +296,7 @@ This principle protects Lumen from confusing:
 - more reusable with more necessary;
 - more expressive with more truthful.
 
-A stronger future contract may always be admitted later when a real consumer earns it.
+A stronger contract may be considered later when a real requirement earns it, subject to compatibility, migration, privacy, interoperability, and previously accepted public commitments.
 
 ---
 
@@ -318,13 +355,35 @@ Unused complexity is not free merely because it might be useful someday.
 
 Every material proposal should ask:
 
-> What new authority does this component gain, and what evidence or admitted contract earns that authority?
+> What new normative authority does this component gain, and which governing contract, accepted decision, or exact admission grants that authority?
+
+First separate **epistemic warrant** from **normative authority**:
+
+```text
+evidence
+→ establishes facts
+→ supports or falsifies conclusions
+→ may satisfy an evidentiary precondition
+
+governing contract / accepted decision / exact admission
+→ grants normative authority
+```
 
 Core invariant:
 
-> **No representation, identifier, inference, compatibility mechanism, restoration path, or implementation convenience gains authority beyond the evidence or admitted product contract that created it.**
+> **No representation, identifier, inference, compatibility mechanism, restoration path, or implementation convenience gains normative authority beyond the governing contract, accepted decision, or exact admission that grants it.**
 
-Authority must be traceable to the evidence or governing contract that grants it.
+Authority must be traceable to the governing decision that grants it.
+
+Evidence may justify that decision or establish a factual/evidentiary condition on which it depends. Evidence does **not** independently create normative product authority unless existing governance explicitly defines satisfaction of that condition as having an authoritative consequence.
+
+Preserve:
+
+```text
+confidence can increase
+without
+authority increasing
+```
 
 Authority does **not** transfer automatically to intermediate or downstream components merely because they receive data from an authoritative source or context.
 
@@ -366,7 +425,7 @@ domain-entity authority
 
 If a proposal creates no new authority, say so.
 
-If it creates new authority, identify the exact source that earns it.
+If it creates new authority, identify the exact governing contract, accepted decision, or admission that grants it, and separately identify the evidence that establishes any factual preconditions for exercising it.
 
 ---
 
@@ -416,13 +475,29 @@ survives relevant counterexamples
 becomes candidate reusable principle
 ```
 
-Formal rule:
+For abstractions emerging from Lumen's **internal repeated patterns**, use the following default rule:
 
-> **Generalize only when multiple independent assemblies require the same substructure and the proposed abstraction survives relevant counterexamples.**
+> **Generalize only when multiple independent assemblies require the same semantic substructure and the proposed abstraction survives relevant counterexamples.**
 
 This protects Lumen from both premature abstraction and duplicated architecture.
 
 A repeated implementation shape is not enough by itself. The underlying semantic requirement must also repeat.
+
+An independently established external requirement can earn a boundary without waiting for two internal occurrences.
+
+Examples include:
+
+- a binding platform contract;
+- an interoperability requirement;
+- a security or privacy requirement;
+- a governing standard;
+- an already-admitted product consumer.
+
+Such a requirement may independently earn the **required boundary or reusable contract** when the evidence and governing need are explicit.
+
+It does **not** automatically justify a broader generalized implementation abstraction.
+
+The implementation must still satisfy the Minimum Sufficient Contract discipline.
 
 ---
 
