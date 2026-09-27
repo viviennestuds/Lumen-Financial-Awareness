@@ -2432,20 +2432,31 @@ CSV v1 guarantees only the semantics represented by its admitted columns.
 
 It does not promise restoration of JSON-only state such as Tags, source/provenance metadata, or full PaymentMethod/Category reference metadata.
 
-## 28.3 Historical/current compatibility gates
+## 28.3 Historical/current compatibility gates and residual blockers
 
-The final v1 round-trip statement cannot be accepted until the format resolves at least:
+Several compatibility questions previously listed here have since reached **ACCEPTED AT PROPOSED-CONTRACT LEVEL**:
 
-- persisted statuses that current new-Transaction confirmation cannot directly create;
-- current durable Transactions whose Category is nil;
-- exact Date → financial calendar-date conversion;
-- PortableMoneyV1 safe durable domain;
-- round-trip/export disposition for any current or historical canonical Transaction amount that falls outside the final PortableMoneyV1 admitted domain;
-- portable identity semantics sufficient for relationship reconstruction; current proposal uses document-local globally unique handles and does not require cross-export stability.
+- persisted status compatibility, including `ignored`, `duplicate`, and `review_needed`;
+- exact-null categoryless canonical Transaction compatibility;
+- financial-date conversion / compatibility / restoration semantics;
+- canonical monetary compatibility/export disposition for out-of-domain amount/currency state;
+- document-local Portable identity semantics sufficient for relationship reconstruction.
 
-For an existing canonical Transaction whose exact monetary state is outside PortableMoneyV1 or whose currency is outside the selected admitted registry, export/round-trip behavior must be explicit.
+Those accepted component gates do **not** by themselves accept the full round-trip contract.
 
-The compatibility/disposition proposal in `LUMEN_PORTABLE_V1_CANONICAL_MONEY_COMPATIBILITY_DISPOSITION_PROPOSAL.md` proposes the following distinction:
+Residual blockers include at least:
+
+- exact financial-date year interval and complete lexical/parser validity;
+- the still-unaccepted parts of the PortableMoney public domain/spelling contract, including normative precision status, upper-magnitude authority resolution, leading-zero policy, and canonical decimal serialization;
+- operational recovery/user-resolution/failure behavior where an admitted financial date cannot be established from current state;
+- Category / PaymentMethod / Tag complete-export set semantics;
+- exact non-Transaction record schemas;
+- ordinary record lifecycle-timestamp disposition where included;
+- Source/provenance portability and its distinct temporal semantics;
+- unknown-field/evolution policy;
+- deterministic allocation/order only after the exported record/scalar model is sufficiently closed.
+
+For an existing canonical Transaction whose exact monetary state is outside PortableMoneyV1 or whose currency is outside the selected admitted registry, the independently reviewed canonical monetary compatibility/disposition proposal establishes:
 
 ```text
 successful Portable v1 serialization
@@ -2453,11 +2464,11 @@ successful Portable v1 serialization
 != full supported-state round trip
 ```
 
-For a **complete Portable JSON v1 ownership export**, the independently reviewed proposed-contract rule is:
+For a **complete Portable JSON v1 ownership export**:
 
 > **Preflight the coherent in-scope canonical snapshot. If any in-scope canonical Transaction cannot be represented exactly under PortableMoneyV1 + the selected admitted currency registry, the operation must not claim successful completion as a complete Portable v1 ownership export.**
 
-This complete ownership-export guarantee belongs to **Portable JSON v1**, the normative highest-fidelity representation. Lumen CSV v1 remains deliberately narrower and is not thereby defined as a complete ownership export. Its narrower scope does not authorize monetary/currency rounding, truncation, clamping, coercion, substitution, registry fallback, or silent omission merely because the requested representation is CSV. The exact completeness/partial-export semantics of a future CSV export operation remain separately gated.
+This complete ownership-export guarantee belongs to **Portable JSON v1**, the normative highest-fidelity representation. Lumen CSV v1 remains deliberately narrower and is not thereby defined as a complete ownership export. Its narrower scope does not authorize monetary/currency rounding, truncation, clamping, coercion, substitution, registry fallback, or silent omission merely because the requested representation is CSV.
 
 Preflight must be able to associate each incompatible Transaction with deterministic reason semantics covering all materially applicable monetary/currency incompatibility axes.
 
@@ -2470,11 +2481,9 @@ The exporter/import path must **not** silently:
 - fall back to platform/current registry semantics;
 - or omit the Transaction merely to make a complete export conform.
 
-An explicitly partial Portable v1 export remains conceptually distinct from a complete ownership export and is **not admitted by this proposal**. If admitted later, it must be explicitly identified as partial and cannot claim round-trip restoration of excluded canonical state.
+An explicitly partial Portable v1 export remains conceptually distinct from a complete ownership export and is **not admitted by this contract**. If admitted later, it must be explicitly identified as partial and cannot claim round-trip restoration of excluded canonical state.
 
 A separately identified compatibility representation may also be considered later, but it must not silently broaden PortableMoneyV1 or `lumen-currency-v1`.
-
-These compatibility/disposition semantics are **PROPOSED / independently reviewed — accepted at the proposed-contract level**. Full Portable JSON / CSV v1 format acceptance remains open.
 
 ---
 
@@ -2633,29 +2642,29 @@ This format contract does not define or authorize:
 
 ---
 
-# 32. Remaining Gates Before Format Acceptance
+# 32. Gate Inventory Before Format Acceptance
 
-The first proposal intentionally leaves these questions open.
+This inventory records both accepted component gates and still-open work so a stateless reader can distinguish what must not be reopened from what still requires admission.
 
 ## PortableMoneyV1
 
 - canonical leading-zero input rule — RESEARCH / ADMISSION REQUIRED;
 - normalized significant decimal precision definition — PROPOSED;
-- <=15 normalized significant decimal digits as the conservative PortableMoneyV1 precision limit — PROPOSED;
-- product upper magnitude ceiling `x < 10^15` / adjusted exponent `A <= 14` — PROPOSED / independently reviewed;
-- normalized scale definition `S = max(0, -E)` — PROPOSED / independently reviewed;
-- global structural scale ceiling `S <= 9` / `E >= -9`, implying minimum structural magnitude `10^-9` — PROPOSED / independently reviewed;
-- currency-specific ordinary-scale definition and workflow readiness semantics — PROPOSED / independently reviewed;
-- round-trip/export disposition for current or historical canonical Transaction monetary state outside PortableMoneyV1 or the selected admitted currency registry — PROPOSED / independently reviewed;
+- <=15 normalized significant decimal digits as the conservative PortableMoneyV1 precision limit — PROPOSED; characterization/reconciliation is complete, but exact normative admission authority has not been established by this reconciliation;
+- product upper magnitude ceiling `x < 10^15` / adjusted exponent `A <= 14` — **UNRESOLVED AUTHORITY CONFLICT**: later accepted-lineage documents treat the rule as previously accepted, but the originating proposal remains `PROPOSED FOR REVIEW` and no direct review-acceptance bookkeeping commit for that exact rule was established;
+- normalized scale definition `S = max(0, -E)` — ACCEPTED AT PROPOSED-CONTRACT LEVEL;
+- global structural scale ceiling `S <= 9` / `E >= -9`, implying minimum structural magnitude `10^-9` — ACCEPTED AT PROPOSED-CONTRACT LEVEL;
+- currency-specific ordinary-scale definition and workflow readiness semantics — ACCEPTED AT PROPOSED-CONTRACT LEVEL;
+- round-trip/export disposition for current or historical canonical Transaction monetary state outside PortableMoneyV1 or the selected admitted currency registry — ACCEPTED AT PROPOSED-CONTRACT LEVEL;
 - exact language-independent plain-decimal canonical serializer — RESEARCH / ADMISSION REQUIRED.
 
 ## Currency
 
-- exact `lumen-currency-v1` admitted membership — PROPOSED;
-- pinned `lumen-currency-v1` ordinary-scale mapping — PROPOSED;
-- registry identifier transport in Portable JSON / CSV — PROPOSED;
-- immutable registry/version-evolution semantics — PROPOSED;
-- historical/withdrawn and special/fund/metal/unit codes excluded from `lumen-currency-v1`; existing canonical compatibility for such values is covered by the canonical monetary compatibility/disposition proposal — PROPOSED / independently reviewed;
+- exact `lumen-currency-v1` admitted membership — ACCEPTED AT PROPOSED-CONTRACT LEVEL;
+- pinned `lumen-currency-v1` ordinary-scale mapping — ACCEPTED AT PROPOSED-CONTRACT LEVEL;
+- registry identifier transport in Portable JSON / CSV — ACCEPTED AT PROPOSED-CONTRACT LEVEL;
+- immutable registry/version-evolution semantics — ACCEPTED AT PROPOSED-CONTRACT LEVEL;
+- historical/withdrawn and special/fund/metal/unit exclusions from `lumen-currency-v1`, together with explicit canonical compatibility disposition for non-registry state — ACCEPTED AT PROPOSED-CONTRACT LEVEL;
 - general non-cash rounding-increment disposition for any admitted registry entry with a nonzero standards-backed rounding rule — RESEARCH / ADMISSION REQUIRED.
 
 ## Dates
@@ -2672,7 +2681,7 @@ The first proposal intentionally leaves these questions open.
 - exact deterministic handle-allocation algorithm — DEFERRED to deterministic serialization/order gate;
 - same-store cross-export stability — intentionally NOT PROMISED by current proposal;
 - fresh-store re-export stability — intentionally NOT PROMISED by current proposal;
-- deterministic emitted array ordering after identity semantics — EVIDENCE GATED.
+- deterministic emitted array ordering after the record/scalar model closes — EVIDENCE GATED.
 
 ## Transaction compatibility
 
@@ -2680,10 +2689,19 @@ The first proposal intentionally leaves these questions open.
 - round-trip disposition for categoryless current-schema / compatibility-bearing Transactions — ACCEPTED AT PROPOSED-CONTRACT LEVEL; authentic historical prevalence remains unproven;
 - directional/flow sufficiency of `expense`, `income`, `refund`, and `transfer` with unsigned PortableMoneyV1 amounts — ACCEPTED AT PROPOSED-CONTRACT LEVEL.
 
+## Reference-entity ownership / complete-export set
+
+- exact Category / PaymentMethod / Tag durable record set included in a complete Portable JSON ownership snapshot, independent of current Transaction reachability — RESEARCH / ADMISSION REQUIRED;
+- seeded/default-like versus user-created state when durable creation provenance is incomplete — RESEARCH / ADMISSION REQUIRED;
+- empty-set semantics for admitted reference families in complete ownership export — RESEARCH / ADMISSION REQUIRED.
+
+`TransactionSource` is intentionally excluded from this ordinary reference-entity gate; Source/provenance portability remains separately gated because Phase 1B assigns it stronger evidence/provenance/retention responsibilities.
+
 ## Lifecycle timestamps
 
-- inclusion versus informational-only versus exclusion semantics for entity/source lifecycle timestamps — RESEARCH / ADMISSION REQUIRED;
-- if included as round-trip state, exact restoration requirements for original timestamp values — RESEARCH / ADMISSION REQUIRED.
+- inclusion versus informational-only versus exclusion semantics for ordinary canonical-record lifecycle timestamps — RESEARCH / ADMISSION REQUIRED;
+- if included as round-trip state, exact restoration requirements for original timestamp values — RESEARCH / ADMISSION REQUIRED;
+- Source/provenance temporal facts remain with the dedicated Source/provenance gate rather than being assumed to share one global timestamp disposition.
 
 ## Non-Transaction record schemas
 
@@ -2701,80 +2719,92 @@ The first proposal intentionally leaves these questions open.
 
 - unknown-field policy inside v1 — RESEARCH / ADMISSION REQUIRED.
 
-These gates must be closed before this document moves from proposed to accepted/canonical status.
+All unresolved gates and authority conflicts must close before this document moves from proposed to accepted/canonical status.
 
 ---
 
-# 33. Status-Consistency Audit and Updated Dependency Inventory
+# 33. Status-Authority Reconciliation and Updated Dependency Inventory
 
-The independently reviewed proposed-contract checkpoints are now:
-
-```text
-PortableMoneyV1 normalized precision <= 15
-        ↓
-product upper magnitude x < 10^15 / A <= 14
-        ↓
-global normalized scale S <= 9 / E >= -9 / minimum 10^-9
-        ↓
-currency ordinary-scale/readiness semantics
-        ↓
-lumen-currency-v1 membership + immutable/versioned semantics
-        ↓
-canonical monetary compatibility/export disposition
-```
-
-The last checkpoint establishes the following only for the monetary/currency compatibility gate:
+The 2026-09-27 reconciliation uses three classifications:
 
 ```text
-representability
-        ↓
-complete Portable JSON v1 ownership-export claim
-        ↓
-restoration / supported-state round-trip claim
+SAFE TO NORMALIZE
+direct acceptance record exists,
+is in current lineage,
+and matches the exact semantic being labeled
+
+HISTORICAL / SUPERSEDED
+the old statement was true when written,
+but a later accepted gate changed current disposition
+
+UNRESOLVED AUTHORITY CONFLICT
+later documents treat a rule as accepted,
+but durable governance proving that exact admission
+cannot be established
 ```
 
-It must not be generalized mechanically to other Transaction fields.
+A later document merely calling an earlier rule “accepted” is not sufficient authority to promote the originating rule.
 
-## 33.1 Status consistency
+## 33.1 Safe-to-normalize authority
 
-The earlier transition narrative that called the currency registry the "next product-domain proposal" is stale and is superseded by this inventory.
+The following exact semantics have direct acceptance bookkeeping in the current lineage and are normalized accordingly:
 
-The registry proposal and canonical monetary compatibility/disposition proposal have both passed independent review at the **PROPOSED-contract** level.
+- global normalized scale / lower structural magnitude `S <= 9`, `E >= -9`, minimum `10^-9` — review-acceptance checkpoint `cb4f6c3cca01e5f99ddb3c2186e1ae5dfdf40786`;
+- currency ordinary-scale/readiness semantics — `736fd99c17e0794fe4e31b1add33063b891e4286`;
+- `lumen-currency-v1` membership, exact `O(c)` mapping, and immutable/versioned registry semantics — `b41fb9a6c45909318f4806e9645338a1d79caa9c`;
+- canonical monetary compatibility/export disposition — explicit review-acceptance commit `53d079858a0228eaf963b346d32f0d8feee1749b`, followed by dependency-inventory checkpoint `7231cf364a7c95f7b9ce077cf7ea6437c22fded6`;
+- persisted Transaction status compatibility — `2173fb6873c7416b51838909e46f5d299c681609`;
+- categoryless canonical Transaction compatibility — `aa549af4193fc0445d8b9e9abedd566daa076f10`;
+- Transaction type/direction sufficiency — `db75dc05f7bfc103acc16b4c5635a920a994c1ce`;
+- Portable identity semantics — `e1e6622b6ebc7f1782bedad570399011991e23c7`;
+- Portable financial-date conversion / compatibility / restoration semantics — accepted financial-date lineage culminating in `54fd30ca9307f1befe0c2b7233c1d42c3544b19c` before this reconciliation.
 
-No production implementation is authorized.
+No production implementation is authorized by these status corrections.
 
-## 33.2 Remaining Transaction-compatibility cluster
+## 33.2 Historical / superseded statements
 
-Three nearby gates remain materially distinct:
+Historical sequencing remains valid where it accurately records what was unresolved at the time.
 
-### Persisted status compatibility — accepted at proposed-contract level
+In particular:
 
-Portable JSON v1 now admits all five exact current canonical status tokens. `pending`/`posted` are ordinary financial-lifecycle statuses; `ignored`/`duplicate`/`review_needed` are canonical compatibility statuses. Restoration authority remains distinct from ordinary creation authority.
+- at the upper-magnitude proposal stage, lower/scale disposition genuinely remained open;
+- the later scale/lower-magnitude gate subsequently established `S <= 9`, `E >= -9`, and minimum `10^-9`;
+- at the scale stage, registry membership/versioning and canonical monetary compatibility were still later gates;
+- those later gates subsequently reached proposed-contract acceptance.
 
-### Categoryless canonical Transactions — accepted at proposed-contract level
+Historical narrative may therefore remain historical, but present-tense headings, inventories, blocker lists, and routing summaries must report the later current disposition.
 
-`Transaction.category` is nullable in the current persisted Transaction model, and same-schema persistence tests demonstrate durable current-schema categoryless Transaction state. Those fixtures do not establish authentic historical/user-confirmed canonical provenance. Exact null semantics, complete-export compatibility, and `nil → nil` restoration under restoration-specific authority are accepted at the proposed-contract level.
+## 33.3 Unresolved authority conflicts deliberately preserved
 
-### Unsigned type/direction sufficiency — accepted at proposed-contract level
+### Product upper magnitude
 
-PortableMoneyV1 amount remains unsigned. The accepted type/direction proposal establishes that the exact token carries the Lumen-owned flow semantic:
+The originating upper-magnitude proposal branch tip is:
 
-```text
-expense  → outflow / spending / negative net
-income   → inflow / incoming / positive net
-refund   → distinct refund-positive-flow / incoming / positive net
-transfer → direction-neutral movement / neither spending nor incoming / neutral net
-```
+`9d844a34e6552ead8711ef08332453f1aab5c53a`
 
-The proposal explicitly rejects using `isOutflow == false` as proof of inflow and does not invent transfer account-side direction that current canonical `Transaction` does not own.
+and still records the proposal as `PROPOSED FOR REVIEW`.
 
-## 33.3 Latest accepted gate and dependency reassessment
+The subsequent scale branch descends directly from that tip and contains no intervening upper-magnitude review-acceptance bookkeeping commit. Later accepted-lineage documents refer to `x < 10^15` / `A <= 14` as previously accepted, but that later prose is not treated here as sufficient governance evidence to promote the originating rule.
 
-Persisted Transaction status compatibility, categoryless canonical Transaction compatibility, Portable Transaction type/direction sufficiency, Portable identity semantics, and Portable financial-date conversion / compatibility / restoration semantics are **accepted at the proposed-contract level**.
+Current reconciliation disposition:
 
-Portable identity is frozen as document-local relationship identity with one global per-document namespace and no cross-document sameness or mutation authority.
+> **UNRESOLVED AUTHORITY CONFLICT — do not promote without explicit governance evidence or a separate governance decision.**
 
-Portable financial-date semantics are frozen at the proposed-contract level as:
+This bookkeeping conflict does not retroactively reopen downstream gates that themselves have explicit independent acceptance records.
+
+### Normalized precision / <=15 rule
+
+The bounded precision characterization and standards-backed reconciliation are complete. The precision research lineage closes characterization/sequencing work, but this reconciliation did not establish a direct governance record accepting the normative `p <= 15` rule itself.
+
+Current reconciliation disposition:
+
+> **Keep the normative precision definition/limit PROPOSED. Do not equate completed characterization with rule acceptance.**
+
+## 33.4 Latest accepted semantic cluster
+
+Persisted Transaction status compatibility, categoryless canonical Transaction compatibility, Portable Transaction type/direction sufficiency, Portable identity semantics, and Portable financial-date conversion / compatibility / restoration semantics are accepted at the proposed-contract level.
+
+Portable financial-date semantics preserve:
 
 ```text
 transaction_date
@@ -2791,7 +2821,7 @@ posted_date == nil
 → exact absence of that supplementary date fact
 ```
 
-The accepted date contract also preserves:
+and:
 
 ```text
 status becoming posted
@@ -2809,26 +2839,21 @@ deterministic projection
 
 The exact admitted financial-date year interval and complete lexical/parser validity remain open.
 
-Current production `.now` synthesis in `makeTransaction()`, `TransactionDraft.apply(to:)`, and `setStatus(.posted)` remains a downstream implementation-alignment obligation, not accepted production behavior under the date contract and not implementation-authorized here.
+Current production `.now` synthesis in `makeTransaction()`, `TransactionDraft.apply(to:)`, and `setStatus(.posted)` remains a downstream implementation-alignment obligation, not accepted production behavior and not implementation-authorized here.
 
-Exact deterministic handle allocation and emitted array ordering also remain unresolved and explicitly downstream.
-
-The post-identity read-only dependency reassessment is complete, and the financial-date gate subsequently reached proposed-contract acceptance.
-
-Before opening another contract gate, perform a fresh remaining-gate dependency reassessment rather than preselecting what comes next.
-
+The post-financial-date read-only dependency reassessment is complete. It identifies reference-entity ownership/export-set semantics, ordinary lifecycle-timestamp disposition, money/date lexical closure, exact record schemas, Source/provenance, deterministic serialization/order, and parser evolution as remaining partial-order work rather than one linear queue.
 
 ---
 
 # 34. Next Design Step After This Proposal
 
-The current progression now reaches the accepted financial-date gate.
-
-The latest accepted semantic gate is:
+The latest accepted semantic gate remains:
 
 > **Portable financial-date conversion / compatibility / restoration semantics — ACCEPTED AT PROPOSED-CONTRACT LEVEL**
 
-The next contract gate remains intentionally unopened pending a **fresh remaining-gate dependency reassessment**.
+The next material contract gate is intentionally **not opened by this reconciliation**.
+
+Historical progression now includes both accepted gates and deliberately preserved authority uncertainty:
 
 ```text
 PROPOSED Portable JSON / CSV v1 contract
@@ -2836,39 +2861,49 @@ PROPOSED Portable JSON / CSV v1 contract
 bounded Double precision characterization
         ↓ complete
 standards-backed precision reconciliation
-        ↓ complete at PROPOSED-contract level
+        ↓ complete as evidence/reconciliation;
+          normative p <= 15 remains PROPOSED
 decimal-exponent / magnitude technical characterization
         ↓ complete
 PRODUCT upper magnitude proposal: x < 10^15 / A <= 14
-        ↓ independently reviewed at PROPOSED-contract level
+        ↓ authority-status conflict remains unresolved
 global normalized scale proposal: S <= 9 / E >= -9 / minimum 10^-9
-        ↓ independently reviewed at PROPOSED-contract level
-currency-specific scale / minor-unit semantics proposal
-        ↓ independently reviewed at PROPOSED-contract level
+        ↓ accepted at PROPOSED-contract level
+currency-specific scale / minor-unit semantics
+        ↓ accepted at PROPOSED-contract level
 currency-registry membership + version semantics
-        ↓ independently reviewed at PROPOSED-contract level
-read-only remaining-gate inventory
-        ↓ complete
+        ↓ accepted at PROPOSED-contract level
+canonical monetary compatibility/export disposition
+        ↓ accepted at PROPOSED-contract level
 persisted Transaction status compatibility
         ↓ accepted at PROPOSED-contract level
 categoryless canonical Transaction compatibility
         ↓ accepted at PROPOSED-contract level
-read-only remaining-gate reassessment
-        ↓ complete
 Portable Transaction type/direction sufficiency
         ↓ accepted at PROPOSED-contract level
-read-only remaining-gate reassessment
-        ↓ complete
 Portable identity semantics
         ↓ accepted at PROPOSED-contract level
-read-only remaining-gate reassessment
-        ↓ complete
 Portable financial-date conversion /
 compatibility / restoration semantics
         ↓ accepted at PROPOSED-contract level
-fresh remaining-gate dependency reassessment
+post-financial-date remaining-gate reassessment
+        ↓ complete
+status-authority reconciliation
+        ↓ current bookkeeping step
+```
+
+Future routing is explicitly iterative:
+
+```text
+reassess unresolved gates
         ↓
-next contract gate not yet opened
+select next warranted gate
+        ↓
+research / proposal / independent review
+        ↓
+unresolved acceptance gates remain?
+   ├─ yes → reassess and repeat
+   └─ no
         ↓
 accept/canonicalize Portable JSON / CSV v1 contract
         ↓
@@ -2877,12 +2912,25 @@ exact capability/persistence admission where required
 only then implementation
 ```
 
-Still open within/adjacent to the accepted financial-date area:
+The current inventory explicitly includes a still-unopened gate for **Category / PaymentMethod / Tag complete-export set semantics**. `TransactionSource` remains outside that ordinary reference-data gate and retains its dedicated Source/provenance/evidence responsibilities.
 
+Still open includes, among other items:
+
+- normative normalized-precision admission;
+- upper-magnitude authority resolution;
+- exact money canonical lexical serialization;
 - exact admitted financial-date year interval and complete lexical/parser validity;
-- lifecycle timestamp inclusion/restoration semantics and canonical timestamp spelling;
-- downstream production alignment that removes status-driven `.now` synthesis for absent `posted_date`, once separately implementation-authorized.
+- Category / PaymentMethod / Tag ownership/export-set semantics;
+- ordinary record lifecycle timestamp disposition;
+- exact reference-entity schemas;
+- Source/provenance portability;
+- deterministic ID allocation / ordering after lower-level record/scalar closure;
+- unknown-field/evolution policy;
+- downstream production alignment for status-driven `.now` synthesis once separately implementation-authorized.
 
 This document remains **PROPOSED FOR REVIEW**.
 
-The accepted component gates do not accept the full format contract and do not authorize importer implementation, workspace persistence, promotion-control persistence, schema changes, serializer implementation, production validation changes, production financial-date alignment, or implementation-pass decomposition.
+Accepted component gates do not accept the full format contract and do not authorize importer implementation, workspace persistence, promotion-control persistence, schema changes, serializer implementation, production validation changes, production financial-date alignment, or implementation-pass decomposition.
+
+---
+
