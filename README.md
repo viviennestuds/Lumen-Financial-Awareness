@@ -4,6 +4,8 @@ Lumen is a local-first financial-awareness application built around user-control
 
 This repository is Lumen's **durable system of record**.
 
+This README is **navigational and explanatory**. It does not itself create substantive authority. If a summary here conflicts with a linked governing source, the linked governing source controls.
+
 Authority is determined by the **status, role, and precedence of documents within the repository**—not merely by a file existing here.
 
 Preserve:
@@ -22,7 +24,9 @@ Chats, prompts, generated summaries, external planning discussions, and agent re
 
 A capable human or agent should orient itself from repository governance before making material changes.
 
-For substantial work, read the applicable sources in this order:
+For substantial work, use the following as an orientation path.
+
+**This sequence is for orientation, not authority precedence.**
 
 1. `docs/architecture/LUMEN_ARCHITECTURE_CONTRACT_V1.md`
 2. `docs/ROADMAP.md`
@@ -46,6 +50,10 @@ EVIDENCE
 ```
 
 On this proposal branch, the Engineering Reasoning Framework is **proposed** as Lumen's living canonical methodology. It does not override substantive governance, and it should not be treated as adopted until independent review accepts the governance change.
+
+README maintenance rule:
+
+> **Route to durable governing sources rather than duplicating them. When detailed governance, methodology, or evidence semantics evolve, update the source document first and keep this README summary intentionally shallow.**
 
 ---
 
