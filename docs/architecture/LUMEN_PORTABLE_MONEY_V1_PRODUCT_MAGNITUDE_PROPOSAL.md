@@ -4,6 +4,8 @@
 
 **PROPOSED FOR REVIEW — Phase 1C product-domain admission proposal.**
 
+**Status-authority reconciliation note (2026-09-27):** later accepted-lineage documents treat `x < 10^15` / `A <= 14` as previously accepted at the proposed-contract level, but this originating proposal lineage does not contain a direct review-acceptance bookkeeping commit before the subsequent scale/lower-magnitude gate branches from `9d844a34e6552ead8711ef08332453f1aab5c53a`. This reconciliation therefore leaves this proposal **PROPOSED FOR REVIEW** and records an **UNRESOLVED AUTHORITY CONFLICT** rather than manufacturing acceptance. Downstream independently accepted gates are not reopened by this bookkeeping note; explicit governance evidence or a separate governance decision is required to promote this originating rule.
+
 This document does not change production validation, persistence, SwiftData schema, importer behavior, serializer behavior, or the canonical ledger.
 
 It proposes only the **public upper magnitude ceiling** for PortableMoneyV1.
