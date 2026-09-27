@@ -10,7 +10,7 @@ It does **not** expand PortableMoneyV1 or `lumen-currency-v1`, and does not auth
 
 # 1. Decision Question
 
-When an existing canonical `Transaction` contains exact monetary state that cannot be represented under the admitted PortableMoneyV1 + `lumen-currency-v1` domain, what explicit export and round-trip disposition does Portable v1 provide?
+When an existing canonical `Transaction` contains exact monetary state that cannot be represented under the applicable, finally admitted PortableMoneyV1 + `lumen-currency-v1` domain, what explicit export and round-trip disposition does Portable v1 provide?
 
 ```text
 CANONICAL TRANSACTION
@@ -26,17 +26,29 @@ portable      ├─ amount outside structural domain
 path          └─ currency outside registry
 ```
 
-This is a compatibility/disposition question, not permission to widen the accepted domains.
+This is a compatibility/disposition question, not permission to widen or retroactively accept upstream numeric predicates.
 
-# 2. Boundaries Not Reopened
+# 2. Upstream Boundary Context Not Reopened
+
+This gate accepts the **compatibility/export disposition**, not every numeric predicate used as candidate context during its design.
+
+Current authority status is:
 
 ```text
-10^-9 <= x < 10^15
+S <= 9 / E >= -9 / minimum 10^-9
+→ ACCEPTED AT PROPOSED-CONTRACT LEVEL
+
 p <= 15
-S <= 9
+→ PROPOSED
+
+x < 10^15 / A <= 14
+→ UNRESOLVED AUTHORITY CONFLICT
+
+lumen-currency-v1 membership + exact O(c) mapping
+→ ACCEPTED AT PROPOSED-CONTRACT LEVEL
 ```
 
-and the immutable proposed `lumen-currency-v1` 155-code membership + exact `O(c)` mapping remain unchanged.
+The compatibility rule therefore applies generically to whatever PortableMoneyV1 numeric domain is finally admitted. Acceptance of this gate does **not** retroactively grant authority to the unresolved precision or upper-magnitude predicates.
 
 # 3. Repository Evidence
 
@@ -54,11 +66,11 @@ The ordinary draft/confirmation path is narrower: finite positive amount, `Money
 
 A repository test preserves `12.345678901 KWD` exactly through an unrelated edit. This value is inside global `S <= 9` but atypical relative to KWD ordinary scale; it demonstrates exact already-canonical preservation, not an out-of-domain amount or out-of-registry currency.
 
-The bounded money characterization also created/persisted/reopened broad diagnostic values. Probes included powers through `10^18`, integer/scale matrices through 18 integer digits, precision through 17 significant digits, subunit scales through 12, and tiny values through scale 18. The recorded investigation reports passing examples outside later conservative PortableMoneyV1 policy axes. These are diagnostic test-store records, not evidence of user production data, but they prove current durable capability and the accepted portable domain are not identical.
+The bounded money characterization also created/persisted/reopened broad diagnostic values. Probes included powers through `10^18`, integer/scale matrices through 18 integer digits, precision through 17 significant digits, subunit scales through 12, and tiny values through scale 18. The recorded investigation reports passing examples outside later conservative PortableMoneyV1 policy axes. These are diagnostic test-store records, not evidence of user production data, but they prove current durable capability and the candidate/accepted portable policy axes are narrower than raw storage capability.
 
 ## 3.4 Evidence classes
 
-**Class 1 — demonstrated in repository fixtures/tests:** exact atypical-scale preservation; diagnostic persistence/reopen of values outside later PortableMoneyV1 policy axes.
+**Class 1 — demonstrated in repository fixtures/tests:** exact atypical-scale preservation; diagnostic persistence/reopen of values outside later candidate/accepted PortableMoneyV1 policy axes.
 
 **Class 2 — model/storage-permitted but not demonstrated as real user canonical state:** finite `Double` amounts outside final portable structural admission; arbitrary persisted currency strings including historical/withdrawn/fund/unit/special/non-registry values; compatibility records produced by a path whose validation differs from today's draft UI.
 
@@ -68,13 +80,17 @@ The bounded money characterization also created/persisted/reopened broad diagnos
 
 ## A. Amount-domain incompatibility
 
-Includes canonical monetary values failing the accepted structural domain:
+Means canonical monetary state failing one or more **applicable finally admitted** PortableMoneyV1 numeric predicates.
 
-- `p > 15`;
+The gate was designed against candidate axes including:
+
+- normalized precision above the candidate `p <= 15` limit;
 - `S > 9`;
-- positive magnitude below `10^-9`;
-- magnitude `>= 10^15`;
-- another final PortableMoneyV1 structural failure.
+- positive structural magnitude below `10^-9`;
+- magnitude at or above the candidate `10^15` ceiling;
+- another final PortableMoneyV1 numeric-domain failure.
+
+Only `S <= 9` / `E >= -9` / minimum `10^-9` is independently accepted here as upstream numeric authority. Precision remains PROPOSED and upper magnitude remains an UNRESOLVED AUTHORITY CONFLICT. Those candidate reason axes become authoritative only if/when their upstream predicates are separately admitted.
 
 ## B. Currency-registry incompatibility
 
@@ -240,6 +256,6 @@ Independent review should evaluate:
 4. the demonstrated/permitted/impossible evidence classification;
 5. whether preflight diagnostics are strong enough without prematurely designing serializer/UI/persistence;
 6. separation of successful serialization, complete ownership export, and full supported-state round trip;
-7. preservation of accepted PortableMoneyV1 and `lumen-currency-v1` boundaries.
+7. preservation of the separately admitted PortableMoneyV1 and `lumen-currency-v1` boundaries without this compatibility gate enlarging or retroactively accepting upstream predicates.
 
 Independent review has accepted these compatibility/disposition semantics at the **PROPOSED-contract level**. Full Portable JSON / CSV v1 format acceptance remains open, and no production implementation is authorized by that review.
