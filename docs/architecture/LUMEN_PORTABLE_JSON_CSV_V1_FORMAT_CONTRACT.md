@@ -1749,26 +1749,62 @@ The active financial-date gate is documented in:
 
 `docs/architecture/LUMEN_PORTABLE_V1_FINANCIAL_DATE_SEMANTICS_PROPOSAL.md`
 
-Candidate Portable v1 financial-date fields use a single installation-independent **proleptic Gregorian** civil calendar and fixed-width ASCII calendar-date text:
+Candidate Portable v1 financial-date fields use a single installation-independent **proleptic Gregorian** civil calendar and the candidate fixed-width ASCII date shape:
 
 ```text
 YYYY-MM-DD
 ```
 
-Candidate fields:
+Candidate field meanings are:
 
-- `transaction_date`;
-- `posted_date`.
+- `transaction_date` — the **user-owned financial transaction civil day**;
+- non-null `posted_date` — the **Lumen-effective posting civil day**, meaning the financial civil day on which the Transaction is considered posted within Lumen under an admitted user or Lumen posting workflow.
 
-The candidate meaning is a financial civil day rather than a generic instant. Device locale, device calendar, formatter defaults, and hidden Foundation `Date` time-of-day do not independently define Portable calendar authority.
+Portable `posted_date` is **not** evidence of an externally observed financial-institution posting, settlement, or clearing day.
 
-This semantic is **not yet accepted**. Current persisted `Date` values do not durably retain per-record originating calendar/timezone or provenance sufficient to prove the original civil day for every historical/current state.
+Device locale, device calendar, formatter defaults, and hidden Foundation `Date` time-of-day do not independently define Portable calendar authority.
 
-## 18.2 Conversion, compatibility, and restoration from current `Date` storage — PROPOSED FOR REVIEW
+This gate selects the candidate civil calendar and semantic date shape. It does **not** yet freeze the exact admitted year interval or complete lexical/parser validity rules; a string shaped as `YYYY-MM-DD` is not thereby a valid admitted calendar date.
+
+This semantic remains **PROPOSED FOR REVIEW**.
+
+## 18.2 Field-specific authority — PROPOSED FOR REVIEW
+
+Candidate authority rules are:
+
+- a new Review/Confirm establishes the visible `transaction_date` day presented for confirmation;
+- an explicit financial-date-field edit followed by Save establishes a newly authorized date-level meaning for that field;
+- an unrelated edit does **not** reauthorize or reinterpret an unchanged inherited Date;
+- an admitted workflow that synthesizes `posted_date` when a Transaction becomes posted may establish a **system-owned Lumen-effective posting day**, but not a user-confirmed date or external-institution posting fact;
+- confirmation/Save does not grant Portable authority to hidden time-of-day, timezone, or raw-instant details that were not presented or separately admitted.
+
+The current durable model does not preserve which field-authority path originally produced a nonnil Date.
+
+## 18.3 Conversion, compatibility, and restoration from current `Date` storage — PROPOSED FOR REVIEW
 
 The current canonical model stores these fields using Foundation `Date`; `posted_date` may also be `nil`.
 
-The candidate contract preserves these distinctions:
+Current Transaction state does **not** durably contain a per-record originating calendar, timezone, confirmed civil-date spelling, or date-provenance class. Therefore:
+
+> **An arbitrary existing nonnil `transaction_date` or `posted_date` is not generally proven EXACTLY WARRANTED from current Transaction state alone.**
+
+The candidate authority classification distinguishes:
+
+- **EXACTLY WARRANTED** — admitted durable state itself proves the financial civil day;
+- **RECOVERABLE WITH ADMITTED CONTEXT** — separately admitted already-existing durable evidence/context recovers the previously established financial civil day;
+- **USER RESOLUTION REQUIRED** — existing durable state cannot recover the day and a user must make a new explicit authoritative date assertion;
+- **ABSENT** — only for `posted_date == nil`.
+
+Recovery and new authority are not synonyms.
+
+Export readiness is evaluated separately:
+
+- **READY** once exactly warranted or successfully recovered;
+- **NEEDS USER RESOLUTION** when a newly authoritative user assertion is required and admitted;
+- **NOT EXPORT-COMPATIBLE AS-IS** when the requested financial-day semantic cannot currently be established for the export operation;
+- **ABSENT** for true nullable absence.
+
+The candidate contract preserves:
 
 ```text
 persisted instant
@@ -1780,26 +1816,23 @@ current device timezone/calendar
 DatePicker date-only presentation
 != authority for hidden time-of-day
 
-system-synthesized posted Date
-!= proof of an externally observed institution posting day
+deterministic projection
+!= truthful recovery
 
 posted_date == nil
 = exact absence
 
 posted_date == nil
-!= incompatible/unresolved nonnil date
+!= unresolved/not-export-compatible nonnil date
+
+status
+!= authority to infer a missing posted_date
+
+posted_date presence
+!= proof of Transaction status
 ```
 
-Candidate compatibility states are:
-
-- **EXACTLY WARRANTED** — an admitted durable basis establishes the financial civil day;
-- **CONTEXT / RESOLUTION REQUIRED** — the financial day requires separately admitted context or explicit resolution;
-- **SEMANTICALLY INCOMPATIBLE** — the stronger financial-day meaning cannot truthfully be established from available canonical state;
-- **ABSENT** — only for nullable `posted_date == nil`.
-
-Current storage does not, merely by containing a nonnil `Date`, prove the first state.
-
-A fixed UTC day projection is deterministic but is not automatically equivalent to recovery of the original user-confirmed financial day. A current-device projection is environment-dependent. Neither may silently become Portable truth through formatter convenience.
+A fixed UTC day projection is deterministic but is not recovery of the admitted financial day. A current-device projection is environment-dependent. Neither may silently become Portable truth through formatter convenience.
 
 Restoring `YYYY-MM-DD` into Foundation `Date` necessarily introduces a calendar/timezone/time-of-day representation convention. The resulting anchor instant is not additional Portable financial meaning.
 
@@ -1815,7 +1848,7 @@ same exact absence state for nullable posted_date
 
 Raw Foundation `Date` equality is not required merely by this candidate date semantic.
 
-For a claimed complete Portable ownership export, an incompatible required `transaction_date` or incompatible nonnil `posted_date` must not be silently guessed, projected, normalized, or converted to absence. The exact operational failure/resolution mechanism remains separately gated.
+For a claimed complete Portable ownership export, a required `transaction_date` or nonnil `posted_date` that is not export-compatible under the admitted financial-day meaning must not be silently guessed, projected, normalized, or converted to absence. The exact operational failure/recovery/user-resolution mechanism remains separately gated.
 
 JSON and CSV must use the same admitted financial-date meaning for shared fields.
 
