@@ -938,3 +938,31 @@ This reopening does **not**:
 - open another Phase 1C gate.
 
 This gate remains **PROPOSED FOR REVIEW**.
+
+
+---
+
+# 21. Narrow reopening branch audit
+
+Audit immediately before this bookkeeping update:
+
+- frozen effective Phase 1C proposal-development baseline: `ab7e75675b1d11061fdac30cb8ed4f2189103598`;
+- pre-reopening checkpoint reviewed: `c6dc093b8d1b074ed4f41c327f4757ec1f773a13`;
+- posted-date semantic revision: `904d39fa9a58fd19c818775f65bd92715be87183`;
+- Portable format-contract alignment: `bb61ee8584bafee8d3af3e5a3d919d9f16bfccb5`;
+- branch compare against frozen base before this bookkeeping commit: ahead 12, behind 0;
+- merge base remains exactly `ab7e75675b1d11061fdac30cb8ed4f2189103598`;
+- canonical `main` remains unchanged at `8e0b71d17c14ae917a2726ccdc0403157d3cb53a`;
+- frozen convergence branch remains unchanged at `ab7e75675b1d11061fdac30cb8ed4f2189103598`.
+
+Net final-tree scope remains limited to:
+
+1. `docs/architecture/LUMEN_PORTABLE_V1_FINANCIAL_DATE_SEMANTICS_PROPOSAL.md`;
+2. date sections of `docs/architecture/LUMEN_PORTABLE_JSON_CSV_V1_FORMAT_CONTRACT.md`;
+3. bounded characterization probes already present in `ios-lumen-finance/LumenFinanceTests/LumenFinanceTests.swift`.
+
+This reopening changed **no production Swift** and changed no test source beyond the characterization probes already present at the earlier reviewed checkpoint.
+
+The revised proposal explicitly treats the three current `.now` synthesis paths as downstream implementation-alignment requirements if this contract is accepted; it does not modify them here.
+
+The gate remains **PROPOSED FOR REVIEW**. Do not record proposed-contract acceptance or open another gate from this checkpoint without separate review/authorization.
