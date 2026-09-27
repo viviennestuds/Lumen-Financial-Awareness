@@ -164,31 +164,62 @@ The exporter must not repair either condition by guessing.
 
 # 4. Value origin and authority-event taxonomy
 
+Value origin and semantic authority are separate questions.
+
+```text
+where a Date value came from
+!=
+what event grants financial-day authority
+```
+
 ## 4.1 transaction_date
 
-| Value origin | Repository path | Candidate authority event | What is established before this gate is accepted |
+Portable `transaction_date` is proposed to mean the **user-owned financial transaction civil day** for the Transaction.
+
+| Value origin | Repository path | Authority event | Proposed authority result |
 | --- | --- | --- | --- |
-| Draft default `.now` | `TransactionDraft` initialization | Review → Confirm | A Date value exists; Review shows a date-only rendering before confirmation. The stronger durable civil-day contract remains to be admitted. |
-| Explicit DatePicker interaction | Transaction form | Review → Confirm or edit Save | User selects through a date-only control, but the resulting Date is persisted unchanged; hidden time/context behavior is not a Portable fact. |
-| Upload-flow untouched default | upload-created draft using ordinary draft defaults | Review → Confirm | Confirmation can canonize the reviewed Transaction, but source acquisition did not independently establish the transaction day. |
-| Inherited existing value | `TransactionDraft.init(from:)` | edit Save if edited; otherwise preservation | Existing instant is preserved. Original calendar/timezone/provenance is not reconstructed. |
+| Draft default `.now` | `TransactionDraft` initialization | new Review → Confirm | Confirmation establishes the **visible transaction day presented in Review** as the user-authorized financial transaction day. The default's hidden instant/time-of-day is not thereby authorized. |
+| Explicit DatePicker interaction before new confirmation | Transaction form | new Review → Confirm | Confirmation establishes the visibly selected financial transaction day. |
+| Upload-flow untouched default | upload-created draft using ordinary draft defaults | new Review → Confirm | Confirmation establishes the visible reviewed transaction day. Source acquisition did not independently establish it. |
+| Explicit date-field edit on an existing Transaction | DatePicker change followed by Save | explicit date-field edit + Save | The newly selected visible financial transaction day becomes the new user-authorized day. |
+| Inherited existing value, unchanged during unrelated edit | `TransactionDraft.init(from:)` | unrelated Save | **No new date authority is created.** Saving another field does not reauthorize or reinterpret an unchanged date, even if the environment now renders the stored instant as another day. |
+| Inherited existing value, no edit | persisted canonical state | none | Existing instant is preserved, but original calendar/timezone/provenance is not recovered merely from persistence. |
 
-Candidate field-specific principle:
+Field-specific rule:
 
-> Confirmation may grant authority to the **visible date-level meaning actually presented for confirmation**. It does not grant semantic authority to hidden time-of-day, timezone, or instant details that were not presented as financial meaning.
+> **New Review/Confirm establishes authority only for the date-level meaning actually presented for confirmation. An explicit financial-date-field edit followed by Save can establish new date-level authority. An unrelated edit does not reauthorize or reinterpret an unchanged inherited date. Hidden time-of-day, timezone, and raw-instant details that were not presented as financial meaning do not gain Portable authority merely because the Transaction was confirmed or saved.**
 
-That principle is proposed, not yet accepted.
+## 4.2 posted_date public meaning
 
-## 4.2 posted_date
+Portable `posted_date` is proposed to mean the **Lumen-effective posting civil day**:
 
-| Value origin | Repository path | Candidate authority event | What is established before this gate is accepted |
+> **the financial civil day on which the Transaction is considered posted within Lumen's canonical ledger under an admitted user or Lumen posting workflow.**
+
+It does **not** mean, and must not be presented as proof of:
+
+- the financial institution's externally observed posting day;
+- settlement day;
+- clearing-network day;
+- an independently verified bank/provider timestamp.
+
+This choice deliberately gives explicit user selection and system posting transitions one public semantic instead of preserving indistinguishable mixed meanings.
+
+A system transition can therefore establish a **Lumen-owned effective posting day** under the admitted posting workflow without pretending that the day was externally observed or user-confirmed.
+
+## 4.3 posted_date authority events
+
+| Value origin | Repository path | Authority event | Proposed authority result |
 | --- | --- | --- | --- |
 | `nil` | default/current canonical state | none required | Exact absence. |
-| Explicit DatePicker value | user adds/edits posted date | Review → Confirm or edit Save | User-visible date-level meaning may be confirmed; hidden instant payload is not thereby public meaning. |
-| Synthesized during new posted confirmation | `makeTransaction`: `posted_date ?? .now` | confirmation creates record | Lumen generated a posting-associated instant after the draft could have been reviewed with no Posted row. External-institution posting day is not established by that synthesis alone. |
-| Synthesized on edit transition to posted | `apply(to:)` | edit Save | Lumen generated an instant because status changed. Stronger external posting-day meaning is not established by synthesis alone. |
-| Synthesized by direct status action | Transaction Detail `setStatus` | status action | Same limitation: action time is known; external posting day is not independently known. |
-| Inherited canonical value | edit draft copies persisted value | preservation/edit | Stored instant exists; original provenance/context may be unavailable. |
+| Explicit DatePicker value before new confirmation | user adds/edits posted date | new Review → Confirm | The visible selected value establishes a user-authorized Lumen-effective posting day. |
+| Explicit DatePicker edit on existing Transaction | date-field edit + Save | explicit posted-date edit + Save | Establishes a newly user-authorized Lumen-effective posting day. |
+| Synthesized during new posted confirmation | `makeTransaction`: `posted_date ?? .now` | admitted new-posted confirmation workflow | Establishes a **system-owned Lumen-effective posting day**, not a user-confirmed date and not an external-institution posting day. The current reviewed screen may have shown no Posted row. |
+| Synthesized on edit transition to posted | `apply(to:)` | admitted status-transition Save | Establishes a system-owned Lumen-effective posting day under the transition rule; not external posting evidence. |
+| Synthesized by direct status action | Transaction Detail `setStatus` | admitted direct posting action | Same Lumen-effective meaning; not external posting evidence. |
+| Inherited canonical value, unchanged during unrelated edit | edit draft copies persisted value | unrelated Save | No new posted-date authority is created. |
+| Inherited canonical value | persisted canonical state | none | Stored instant exists, but the current model does not preserve which authority path produced it or which calendar/timezone established its original civil day. |
+
+The current durable model collapses explicit and synthesized nonnil `posted_date` provenance into the same `Date?` representation. Because Portable v1 now proposes **one Lumen-effective posted-day semantic**, that provenance collapse need not create two public meanings. It still creates a serious **recoverability** limitation: after persistence, the record does not prove which civil day was originally established.
 
 ---
 
@@ -286,52 +317,103 @@ A bounded characterization test accompanies this proposal for timezone/calendar/
 
 ---
 
-# 8. Compatibility alternatives
+# 8. Compatibility and authority classification
 
-## Alternative A — recover original financial civil day from current Date
+## 8.1 Current record-local classifiability
 
-**Not supported by current evidence as a universal rule.**
+The current durable `Transaction` representation contains:
 
-The originating per-record timezone/calendar is not durably retained. Some records may once have had a visible confirmed day, but arbitrary historical recovery cannot be proven.
+```text
+transaction_date: Date
+posted_date: Date?
+status
+other Transaction fields
+```
 
-## Alternative B — require per-record explicit resolution/context
+It does **not** durably contain:
 
-Truthful but operationally heavy. Current canonical records do not carry a durable flag distinguishing explicit selection, default confirmation, inherited values, or synthesized posted dates. A future resolution workflow could supply missing authority, but this gate does not design one.
+- the calendar used when a date-level meaning was established;
+- the timezone used when that civil day was established;
+- a provenance marker saying whether `transaction_date` was defaulted, explicitly selected, or inherited;
+- a provenance marker saying whether nonnil `posted_date` was explicitly selected or system-synthesized;
+- a durable copy of the visible date string the user confirmed.
 
-## Alternative C — classify unsupported states as incompatible with the stronger Portable financial-day contract
+Therefore:
 
-Semantically conservative. If Portable v1 promises preservation of a durable financial civil day, current storage cannot prove that promise for every canonical nonnil Date.
+> **For an arbitrary existing persisted nonnil `transaction_date` or `posted_date`, current Transaction state alone does not provide a general record-local proof of the originally established financial civil day.**
 
-This can protect ownership truth but may make complete export unavailable until a separate resolution/storage strategy exists.
+Accordingly, the class **EXACTLY WARRANTED FROM CURRENT TRANSACTION STATE ALONE** is not presently shown to contain arbitrary existing nonnil financial dates.
 
-## Alternative D — define Portable dates as export-time observed calendar days
+A value that happens to project to a plausible day does not cure this:
 
-This is implementable without historical recovery if the governing environment is defined.
+```text
+plausible/currently displayed day
+!=
+durable authority for original financial civil day
+```
+
+A future accepted durable auxiliary source could change classifiability for a specific record, but no such general auxiliary authority is admitted by this proposal.
+
+## 8.2 Recovery is not new authority
+
+The proposal separates two operations that must not share one label.
+
+### EXACTLY WARRANTED
+
+The admitted durable state itself proves the financial civil day.
+
+### RECOVERABLE WITH ADMITTED CONTEXT
+
+The Transaction alone is insufficient, but separately admitted **already-existing durable evidence/context** can recover the previously established financial civil day without asking the user to invent or replace it.
+
+No general current repository source has yet been admitted to perform this role for arbitrary Transaction dates.
+
+### USER RESOLUTION REQUIRED
+
+The available durable state cannot recover the financial civil day. A user must make a **new explicit authoritative date assertion**.
+
+This is not recovery:
+
+```text
+existing fact recovered from evidence
+!=
+new user authority supplied now
+```
+
+A future resolution workflow could make the newly asserted day exportable. This gate does not design that UX or persistence mechanism.
+
+### ABSENT
+
+Only `posted_date == nil` has this state.
+
+True absence is not a recovery failure.
+
+## 8.3 Export readiness is a separate axis
+
+Authority origin and export readiness are related but not identical.
+
+A date may be:
+
+- **READY** once exactly warranted or successfully recovered under admitted context;
+- **NEEDS USER RESOLUTION** when new date authority is required and such resolution is admitted by the operation;
+- **NOT EXPORT-COMPATIBLE AS-IS** when the requested stronger financial-day semantic cannot currently be established for the export operation;
+- **ABSENT** for nullable `posted_date == nil`.
+
+This avoids using “semantically incompatible” to mean both “not recoverable from current state” and “impossible to repair forever.”
+
+## 8.4 Rejected convenience alternative — export-time observed projection
+
+Defining Portable dates as the day observed at export time would avoid historical recovery.
 
 However:
 
-- device-local observation is not stable across timezone/calendar changes;
-- fixed UTC observation is stable but is not necessarily the user's financial day;
-- the result is a projection of an instant, not recovery of historical civil intent.
+- device-local observation changes with timezone/calendar environment;
+- fixed UTC observation is stable but is not necessarily the user-owned financial day;
+- both are projections of an instant, not proof of the previously established financial civil day.
 
-This is a materially weaker product semantic and should be named as such if selected.
+**This proposal rejects export-time observed projection as the primary Portable v1 financial-date meaning.**
 
-## Proposed disposition for review
-
-**Do not collapse the contract to Alternative D merely to make serialization easy.**
-
-For the intended meaning “financial calendar date,” the proposal recommends treating the stronger date semantic as **not universally recoverable from current persisted Date state**.
-
-Candidate compatibility taxonomy:
-
-- **EXACTLY WARRANTED** — the exporter has an admitted, durable basis for the financial civil day;
-- **CONTEXT / RESOLUTION REQUIRED** — a financial day may be resolvable only with separately admitted context or explicit user resolution;
-- **SEMANTICALLY INCOMPATIBLE** — the requested stronger date meaning cannot be truthfully established from available canonical state;
-- **ABSENT** — only for nullable `posted_date == nil`.
-
-At present, the existing model does not durably encode enough provenance/context to classify arbitrary historical nonnil Date records as EXACTLY WARRANTED solely from their stored fields.
-
-This is intentionally a proposal result, not an implementation authorization.
+The stronger user/Lumen-owned financial civil-day semantic is retained, with incompatibility/resolution consequences made explicit.
 
 ---
 
@@ -477,21 +559,29 @@ Representation of true absence may differ according to each format's already-adm
 
 The following language is proposed for independent review, not accepted:
 
-> **Portable financial calendar.** Portable v1 financial-date values use the proleptic Gregorian calendar and fixed-width ASCII `YYYY-MM-DD` spelling. Device locale, device calendar, and formatter defaults do not define Portable calendar authority.
+> **Portable financial calendar.** Portable v1 financial-date values use the proleptic Gregorian calendar and the candidate fixed-width ASCII date shape `YYYY-MM-DD`. Device locale, device calendar, and formatter defaults do not define Portable calendar authority. This gate selects the civil calendar and semantic date shape; exact admitted year range and complete lexical/parser validity rules remain separately gated. A syntactically shaped value is not thereby a valid calendar date.
 
-> **Financial-date meaning.** `transaction_date` and a non-null `posted_date` denote admitted financial civil-day meanings, not generic instants. Foundation `Date` is the current persistence representation and does not, by itself, prove the originating civil-day context.
+> **transaction_date meaning.** Portable `transaction_date` denotes the user-owned financial transaction civil day, not a generic instant. A new Review/Confirm establishes the visible transaction day presented for confirmation. An explicit transaction-date-field edit followed by Save establishes a new user-authorized transaction day. An unrelated edit does not reauthorize or reinterpret an unchanged inherited date.
 
-> **Field-specific authority.** Confirmation or editing may establish the date-level meaning actually presented to the user under the governing workflow. It does not automatically grant Portable authority to hidden time-of-day, timezone, or instant details that were not presented as financial meaning. A system-synthesized `posted_date` establishes the fact admitted by that workflow; it must not be upgraded without separate authority into proof of an externally observed financial-institution posting day.
+> **posted_date meaning.** Portable non-null `posted_date` denotes the **Lumen-effective posting civil day**: the financial civil day on which the Transaction is considered posted within Lumen's canonical ledger under an admitted user or Lumen posting workflow. It is not proof of an externally observed financial-institution posting, settlement, or clearing day.
 
-> **Absence.** `posted_date == nil` is exact absence. An unresolved or incompatible nonnil posted Date must not be serialized as null/blank merely because its financial civil-day meaning cannot be established.
+> **posted_date authority.** Explicit user selection can establish a user-authorized Lumen-effective posting day. An admitted workflow that synthesizes a posting date when a Transaction becomes posted can establish a system-owned Lumen-effective posting day, but does not make that date user-confirmed or externally observed. An unrelated edit does not reauthorize an unchanged inherited posted date.
+
+> **Hidden representation.** Confirmation or Save does not grant Portable authority to hidden time-of-day, timezone, or raw-instant details that were not presented or admitted as financial meaning.
+
+> **Current durable classifiability.** Current Transaction state stores Date / Date? but no per-record calendar, timezone, confirmed civil-date spelling, or date-provenance class. Therefore an arbitrary existing nonnil `transaction_date` or `posted_date` is not generally proven **EXACTLY WARRANTED** from current Transaction state alone.
+
+> **Recovery versus new authority.** Recovery using admitted already-existing durable context is distinct from explicit user resolution that creates or replaces financial-date authority. The format and exporter must not describe a new user assertion as recovery of historical truth.
+
+> **Absence.** `posted_date == nil` is exact absence. An unresolved, not-export-compatible, or otherwise unsupported nonnil posted Date must not be serialized as null/blank merely because its financial civil-day meaning cannot be established.
 
 > **Status independence.** Transaction status does not authorize inference of a missing `posted_date`, and presence of `posted_date` does not establish Transaction status.
 
-> **Compatibility.** A current canonical Date is Portable-financial-date compatible only when Lumen has an admitted basis for mapping it to the required financial civil day. Current device timezone, current device calendar, or a fixed UTC projection must not be treated as recovery of original financial-day intent unless the governing contract explicitly defines that weaker projection as the Portable meaning.
+> **Compatibility.** Current device timezone, current device calendar, export-time rendering, or a fixed UTC projection must not be treated as recovery of the admitted financial civil day. A deterministic projection is not truthful recovery.
 
-> **Complete export truthfulness.** A claimed complete Portable ownership export must not silently guess, null, normalize, or substitute an environment-dependent/UTC projection for a required admitted financial civil-day fact that cannot be established. The operational resolution/failure mechanism remains separately gated.
+> **Complete export truthfulness.** A claimed complete Portable ownership export must not silently guess, null, normalize, or substitute an environment-dependent/UTC projection for a required admitted financial civil-day fact that cannot be established. The exact failure/resolution mechanism remains separately gated.
 
-> **Restoration.** Restoring `YYYY-MM-DD` into the current Foundation `Date` representation necessarily uses a documented calendar/timezone/time-of-day convention. The resulting anchor instant is representation, not additional Portable financial meaning. Semantic round-trip equivalence is evaluated on the admitted financial civil day and absence state, not raw Date equality.
+> **Restoration.** Restoring `YYYY-MM-DD` into the current Foundation `Date` representation necessarily uses a documented calendar/timezone/time-of-day convention. The resulting anchor instant is representation, not additional Portable financial meaning. Semantic round-trip equivalence is evaluated on the admitted financial civil day and exact absence state, not raw Date equality.
 
 > **JSON/CSV equivalence.** Shared financial-date fields have the same semantic meaning in Portable JSON v1 and Lumen CSV v1. Syntax or null representation may differ only where separately admitted; date meaning may not.
 
@@ -515,17 +605,24 @@ The tests are characterization evidence only.
 
 # 17. Unresolved implications
 
-Independent review must decide whether the intended Portable v1 product contract should:
+This hardening pass now proposes the stronger Portable meaning rather than export-time projection:
 
-- retain the stronger durable financial-day meaning and accept that current historical state may require explicit resolution / be incompatible;
-- deliberately adopt a narrower projection semantic;
-- or defer final financial-date admission until a future storage/resolution design can support the stronger meaning.
+- `transaction_date` = user-owned financial transaction civil day;
+- `posted_date` = Lumen-effective posting civil day, not external-institution posting evidence;
+- proleptic Gregorian = Portable calendar candidate;
+- current arbitrary persisted nonnil Dates are not generally classifiable as exactly warranted from Transaction state alone.
 
-If the stronger meaning is retained, later work must decide how complete export handles incompatible current records operationally.
+Remaining implications are operational and storage-related rather than semantic ambiguity about those field names:
 
-If restoration into Foundation `Date` remains part of v1 implementation, later implementation design must ensure the representation convention does not silently become new semantic authority.
+1. later work must decide whether and how admitted durable context can recover existing financial days;
+2. later work must decide whether explicit user resolution is available and how a new authoritative assertion is persisted;
+3. complete-export behavior must account for records that are not export-compatible as-is;
+4. restoration into Foundation `Date` must not let its anchor representation become public financial meaning;
+5. exact year domain and full lexical/parser validation for Portable dates remain separately gated.
 
-This gate does not choose a SwiftData migration or new civil-date field.
+If current storage cannot support the accepted ownership guarantee without future persistence evolution, that limitation must be carried forward explicitly.
+
+This gate does not choose a SwiftData migration, new civil-date field, resolution UX, or exporter/importer implementation.
 
 ---
 
