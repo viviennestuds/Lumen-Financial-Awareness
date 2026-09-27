@@ -6,11 +6,20 @@
 
 This document does not change production validation, persistence, SwiftData schema, amount-entry behavior, currency formatting, importer/exporter behavior, serializer behavior, or the canonical ledger.
 
-It proposes the readiness semantics that apply **after** an amount already satisfies the independently reviewed PortableMoneyV1 global structural rules:
+It proposes the readiness semantics that apply **after** an amount satisfies the applicable upstream PortableMoneyV1 numeric predicates.
 
-    10^-9 <= x < 10^15
-    p <= 15
+This gate owns and relies on the independently accepted structural-scale rule:
+
     S <= 9
+    E >= -9
+    minimum structural magnitude = 10^-9
+
+During this gate's design, the candidate upstream envelope also used:
+
+    proposed p <= 15
+    candidate x < 10^15
+
+This gate does **not** retroactively accept those upstream predicates. The current status-authority reconciliation leaves `p <= 15` PROPOSED and the upper-magnitude rule `x < 10^15` / `A <= 14` in an UNRESOLVED AUTHORITY CONFLICT.
 
 It does not define the complete PortableMoneyV1 admitted-currency registry.
 
@@ -20,18 +29,18 @@ It does not authorize implementation.
 
 # 1. Decision Question
 
-The global structural money domain is now accepted at the **PROPOSED-contract** level:
+The scale/lower-magnitude portion of the upstream numeric contract is accepted at the **PROPOSED-contract** level:
 
     x = C × 10^E
-    p = digits(C)
     S = max(0, -E)
 
-    p <= 15
-    x < 10^15
     S <= 9
     E >= -9
+    minimum structural magnitude = 10^-9
 
-Those rules answer:
+Other candidate upstream numeric predicates, including normalized precision and upper magnitude, retain their own authority status and are not accepted by this currency-scale gate.
+
+The upstream numeric contract answers, once all of its predicates are admitted:
 
 > Can this exact decimal value participate in PortableMoneyV1's public numeric representation at all?
 
@@ -196,10 +205,8 @@ Until that separate disposition is admitted, `O(c)` answers only the ordinary fr
 
 # 4. Proposed Currency-Scale Classification
 
-For an amount that already satisfies:
+For an amount that already satisfies the applicable upstream PortableMoneyV1 numeric predicates, including the accepted structural-scale requirement:
 
-    10^-9 <= x < 10^15
-    p <= 15
     S <= 9
 
 and for a currency c whose ordinary scale O(c) is admitted:
@@ -402,7 +409,7 @@ Export must not silently:
 
 merely because the canonical amount exceeds ordinary currency scale.
 
-If an existing canonical amount falls outside the **global structural** PortableMoneyV1 domain itself, the separately open historical/current out-of-domain disposition still governs.
+If an existing canonical amount falls outside the applicable PortableMoneyV1 numeric domain itself, the separately governed historical/current out-of-domain disposition applies. This currency-scale gate does not define or enlarge that upstream numeric domain.
 
 This proposal does not resolve that separate case.
 
@@ -674,8 +681,8 @@ Examples:
 
     123456789012345.1
     p = 16
-    → outside precision ceiling
-    → currency ordinary scale is irrelevant
+    → outside the candidate precision predicate used during this gate's design
+    → currency ordinary scale is irrelevant if that upstream predicate is later admitted
 
     12.345 USD
     p = 5
@@ -808,18 +815,21 @@ It does **not**:
 - define the exact canonical decimal serializer;
 - authorize production validation, importer/exporter behavior, persistence/schema changes, migrations, or serializer implementation.
 
-The accepted boundary remains:
+The accepted boundary owned by this gate remains:
 
-    GLOBAL STRUCTURAL ADMISSION
-    10^-9 <= x < 10^15
-    p <= 15
-    S <= 9
+    APPLICABLE UPSTREAM NUMERIC ADMISSION
+    (upstream precision / magnitude keep their own authority status)
+            +
+    ACCEPTED STRUCTURAL SCALE
+    S <= 9 / E >= -9 / minimum 10^-9
             ↓
     ADMITTED CURRENCY + LUMEN-OWNED O(c)
             ↓
     currency-scale readiness
             ↓
     workflow-specific authority
+
+Acceptance of this currency-scale gate does **not** grant authority to unresolved upstream precision or upper-magnitude predicates.
 
 The next distinct currency gate is the coupled question of:
 
