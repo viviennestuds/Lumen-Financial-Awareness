@@ -2,7 +2,7 @@
 
 ## Status
 
-**PROPOSED / INDEPENDENTLY REVIEWED — accepted at the proposed-contract level; full Portable JSON / CSV v1 format acceptance remains open.**
+**ACCEPTED AT PROPOSED-CONTRACT LEVEL — independently reviewed; full Portable JSON / CSV v1 format acceptance remains open.**
 
 This proposal starts from accepted checkpoint `b41fb9a6c45909318f4806e9645338a1d79caa9c`.
 
