@@ -2648,7 +2648,8 @@ The first proposal intentionally leaves these questions open.
 
 ## Dates
 
-- current `Date` → financial calendar-date conversion, compatibility, and restoration semantics — PROPOSED FOR REVIEW;
+- current `Date` → financial calendar-date conversion, compatibility, and restoration semantics — ACCEPTED AT PROPOSED-CONTRACT LEVEL;
+- exact financial-date year interval and complete lexical/parser validity — RESEARCH / ADMISSION REQUIRED;
 - canonical fractional-second timestamp spelling — RESEARCH / ADMISSION REQUIRED.
 
 ## Identity / ordering
@@ -2757,30 +2758,65 @@ The proposal explicitly rejects using `isOutflow == false` as proof of inflow an
 
 ## 33.3 Latest accepted gate and dependency reassessment
 
-Persisted Transaction status compatibility, categoryless canonical Transaction compatibility, Portable Transaction type/direction sufficiency, and Portable identity semantics are **accepted at the proposed-contract level**.
+Persisted Transaction status compatibility, categoryless canonical Transaction compatibility, Portable Transaction type/direction sufficiency, Portable identity semantics, and Portable financial-date conversion / compatibility / restoration semantics are **accepted at the proposed-contract level**.
 
-Portable identity is now frozen as document-local relationship identity with one global per-document namespace and no cross-document sameness or mutation authority.
+Portable identity is frozen as document-local relationship identity with one global per-document namespace and no cross-document sameness or mutation authority.
 
-Exact deterministic handle allocation and emitted array ordering remain unresolved and explicitly downstream.
+Portable financial-date semantics are frozen at the proposed-contract level as:
 
-Before opening the next contract gate, the remaining dependency graph should be reassessed rather than assuming ordering is automatically next.
+```text
+transaction_date
+→ user-owned financial transaction civil day
+
+posted
+→ ordinary Lumen financial-lifecycle status
+  whose validity is independent of posted_date
+
+posted_date
+→ optional separately authorized recorded posting civil day
+
+posted_date == nil
+→ exact absence of that supplementary date fact
+```
+
+The accepted date contract also preserves:
+
+```text
+status becoming posted
+!= authority to synthesize posted_date
+
+status changing away from posted
+!= authority to erase posted_date
+
+posted_date
+!= Lumen lifecycle-transition timestamp
+
+deterministic projection
+!= truthful recovery
+```
+
+The exact admitted financial-date year interval and complete lexical/parser validity remain open.
+
+Current production `.now` synthesis in `makeTransaction()`, `TransactionDraft.apply(to:)`, and `setStatus(.posted)` remains a downstream implementation-alignment obligation, not accepted production behavior under the date contract and not implementation-authorized here.
+
+Exact deterministic handle allocation and emitted array ordering also remain unresolved and explicitly downstream.
+
+The post-identity read-only dependency reassessment is complete, and the financial-date gate subsequently reached proposed-contract acceptance.
+
+Before opening another contract gate, perform a fresh remaining-gate dependency reassessment rather than preselecting what comes next.
 
 
 ---
 
 # 34. Next Design Step After This Proposal
 
-The current progression is now:
+The current progression now reaches the accepted financial-date gate.
 
-The latest accepted semantic proposal is:
+The latest accepted semantic gate is:
 
-> **Portable Transaction type/direction sufficiency — ACCEPTED AT PROPOSED-CONTRACT LEVEL**
+> **Portable financial-date conversion / compatibility / restoration semantics — ACCEPTED AT PROPOSED-CONTRACT LEVEL**
 
-The latest accepted structural proposal is:
-
-> **Portable identity semantics — ACCEPTED AT PROPOSED-CONTRACT LEVEL**
-
-The next contract gate remains intentionally unopened pending a fresh dependency reassessment.
+The next contract gate remains intentionally unopened pending a **fresh remaining-gate dependency reassessment**.
 
 ```text
 PROPOSED Portable JSON / CSV v1 contract
@@ -2814,6 +2850,13 @@ read-only remaining-gate reassessment
 Portable identity semantics
         ↓ accepted at PROPOSED-contract level
 read-only remaining-gate reassessment
+        ↓ complete
+Portable financial-date conversion /
+compatibility / restoration semantics
+        ↓ accepted at PROPOSED-contract level
+fresh remaining-gate dependency reassessment
+        ↓
+next contract gate not yet opened
         ↓
 accept/canonicalize Portable JSON / CSV v1 contract
         ↓
@@ -2822,6 +2865,12 @@ exact capability/persistence admission where required
 only then implementation
 ```
 
+Still open within/adjacent to the accepted financial-date area:
+
+- exact admitted financial-date year interval and complete lexical/parser validity;
+- lifecycle timestamp inclusion/restoration semantics and canonical timestamp spelling;
+- downstream production alignment that removes status-driven `.now` synthesis for absent `posted_date`, once separately implementation-authorized.
+
 This document remains **PROPOSED FOR REVIEW**.
 
-The completed technical money characterizations do not accept the full format contract and do not authorize importer implementation, workspace persistence, promotion-control persistence, schema changes, serializer implementation, production validation changes, or implementation-pass decomposition.
+The accepted component gates do not accept the full format contract and do not authorize importer implementation, workspace persistence, promotion-control persistence, schema changes, serializer implementation, production validation changes, production financial-date alignment, or implementation-pass decomposition.
