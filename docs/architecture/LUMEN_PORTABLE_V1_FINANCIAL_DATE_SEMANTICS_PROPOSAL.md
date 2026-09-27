@@ -2,7 +2,7 @@
 
 ## Status
 
-**PROPOSED FOR REVIEW — Phase 1C date-semantics research/proposal gate.**
+**ACCEPTED AT PROPOSED-CONTRACT LEVEL — Phase 1C financial-date conversion, compatibility, and restoration semantics.**
 
 - **Frozen effective Phase 1C proposal-development baseline:** `ab7e75675b1d11061fdac30cb8ed4f2189103598`
 - **Branch:** `docs/phase1c-portable-v1-financial-date-semantics-proposal`
@@ -592,7 +592,7 @@ Representation of true absence may differ according to each format's already-adm
 
 # 15. Exact candidate contract language
 
-The following language is proposed for independent review, not accepted:
+The following language is **ACCEPTED AT PROPOSED-CONTRACT LEVEL** for this Phase 1C gate. It is normative for subsequent proposal work unless separately superseded; it does not itself authorize production implementation:
 
 > **Portable financial calendar.** Portable v1 financial-date values use the proleptic Gregorian calendar and the candidate fixed-width ASCII date shape `YYYY-MM-DD`. Device locale, device calendar, and formatter defaults do not define Portable calendar authority. This gate selects the civil calendar and semantic date shape; exact admitted year range and complete lexical/parser validity rules remain separately gated. A syntactically shaped value is not thereby a valid calendar date.
 
@@ -670,7 +670,7 @@ This gate does not choose a SwiftData migration, new civil-date field, resolutio
 
 # 18. Review boundary
 
-This proposal remains **PROPOSED FOR REVIEW**.
+This proposal is **ACCEPTED AT PROPOSED-CONTRACT LEVEL**.
 
 It does not:
 
@@ -720,7 +720,7 @@ This pass therefore makes the following proposal-level choices explicit:
    - exact admitted year interval and complete lexical/parser validity remain separately gated;
    - `YYYY-MM-DD` shape alone does not make an impossible date valid.
 
-These refinements remain **PROPOSED FOR REVIEW** and do not record acceptance.
+These refinements are retained as part of the **ACCEPTED AT PROPOSED-CONTRACT LEVEL** financial-date contract.
 
 ## 19.2 Executed characterization evidence
 
@@ -811,7 +811,7 @@ Final-tree intent remains limited to:
 
 No production Swift, persisted model/schema, migration, importer/exporter implementation, lifecycle-timestamp, PortableMoney, reference-entity, Source/provenance, identity-allocation, ordering, or parser-evolution implementation is authorized or changed by this gate.
 
-The gate remains **PROPOSED FOR REVIEW**. Stop here for independent review before recording proposed-contract acceptance or opening another gate.
+The gate is **ACCEPTED AT PROPOSED-CONTRACT LEVEL**. Do not open another Phase 1C gate or begin production implementation without separate authorization.
 
 
 ---
@@ -937,7 +937,7 @@ This reopening does **not**:
 - alter the completed characterization evidence;
 - open another Phase 1C gate.
 
-This gate remains **PROPOSED FOR REVIEW**.
+This gate is **ACCEPTED AT PROPOSED-CONTRACT LEVEL**.
 
 
 ---
@@ -965,4 +965,72 @@ This reopening changed **no production Swift** and changed no test source beyond
 
 The revised proposal explicitly treats the three current `.now` synthesis paths as downstream implementation-alignment requirements if this contract is accepted; it does not modify them here.
 
-The gate remains **PROPOSED FOR REVIEW**. Do not record proposed-contract acceptance or open another gate from this checkpoint without separate review/authorization.
+The gate is **ACCEPTED AT PROPOSED-CONTRACT LEVEL**. Do not open another gate or begin implementation from this checkpoint without separate authorization.
+
+
+---
+
+# 22. Proposed-contract acceptance
+
+Independent review of:
+
+`docs/phase1c-portable-v1-financial-date-semantics-proposal @ cbf8f69861058b0a6291d998d2a50681af5c9023`
+
+accepted this financial-date gate at the **proposed-contract level**.
+
+The accepted content includes, together:
+
+- Portable financial civil dates use the **proleptic Gregorian** calendar; exact admitted year interval and complete lexical/parser validity remain separately gated;
+- `transaction_date` is the user-owned financial transaction civil day;
+- `posted` is an ordinary Lumen financial-lifecycle status whose validity is independent of a separately recorded `posted_date`;
+- nonnull `posted_date` is an optional, separately authorized recorded posting civil day;
+- `posted_date == nil` is exact absence of that supplementary date fact, including when `status == posted`;
+- status does not authorize inference, synthesis, or erasure of `posted_date`;
+- presence of `posted_date` does not prove current Transaction status;
+- `posted_date` is not a Lumen lifecycle-transition timestamp;
+- arbitrary current nonnull `Date` / `Date?` values are not generally EXACTLY WARRANTED from current Transaction state alone;
+- recovery from admitted existing context is distinct from new user resolution/authority;
+- deterministic UTC or current-environment projection is not truthful recovery of an admitted financial civil day;
+- semantic date round-trip equivalence is civil-day/absence equivalence, not raw Foundation `Date` equality;
+- complete ownership export must not silently guess, project, normalize, null, or otherwise invent an unresolved required financial-date fact;
+- Portable JSON and Lumen CSV shared financial-date fields carry the same admitted semantic.
+
+The previously executed five characterization probes remain evidence for the bounded Foundation/calendar representation claims. Their successful execution does not establish historical user intent or field authority.
+
+## 22.1 Downstream implementation-alignment requirement
+
+Acceptance of this contract does **not** authorize production changes.
+
+Current production still has three known paths that can synthesize `.now` solely because a Transaction enters `posted`:
+
+- `TransactionDraft.makeTransaction()`;
+- `TransactionDraft.apply(to:)`;
+- `TransactionDetailView.setStatus(.posted)`.
+
+A later separately authorized implementation pass must reconcile those paths with the accepted contract so that:
+
+```text
+status becomes posted
++
+posted_date == nil
+        ↓
+posted_date remains nil
+```
+
+unless a separately authorized posting date is supplied.
+
+Until that production alignment occurs, newly synthesized nonnull `posted_date` values remain compatibility-bearing current state and do not acquire separate posted-date authority merely because this contract has been accepted.
+
+## 22.2 Authority boundary
+
+This acceptance:
+
+- is **not** canonical-main promotion;
+- is **not** production implementation authorization;
+- does **not** authorize schema or migration changes;
+- does **not** reopen the accepted five-status compatibility contract;
+- does **not** define lifecycle timestamps;
+- does **not** admit exact year-range/parser rules;
+- does **not** open another Phase 1C gate.
+
+The accepted proposed-contract checkpoint is the branch HEAD produced by the acceptance bookkeeping commits that follow the independently reviewed semantic checkpoint `cbf8f698...`.
