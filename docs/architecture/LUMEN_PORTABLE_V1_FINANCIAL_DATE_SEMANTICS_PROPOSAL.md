@@ -544,3 +544,37 @@ It does not:
 - open deterministic serialization/order.
 
 After the proposal and characterization evidence are committed, stop for independent review.
+
+
+---
+
+# 19. Branch / evidence audit
+
+Audit before this bookkeeping update:
+
+- frozen base: `ab7e75675b1d11061fdac30cb8ed4f2189103598`;
+- proposal branch: `docs/phase1c-portable-v1-financial-date-semantics-proposal`;
+- proposal commit: `3202505ae53e780150e5098c12673453acd8d20c`;
+- characterization-source commit: `c8ea6c0f7743e2c12d28554481beabc86ab48ff3`;
+- format-contract application commit: `56618a00b8d2b714b0566b53571296352c5aaedb`;
+- compare against frozen base: ahead 3, behind 0;
+- merge base remains exactly `ab7e75675b1d11061fdac30cb8ed4f2189103598`.
+
+Changed files at that checkpoint:
+
+1. `docs/architecture/LUMEN_PORTABLE_V1_FINANCIAL_DATE_SEMANTICS_PROPOSAL.md` — new proposal;
+2. `docs/architecture/LUMEN_PORTABLE_JSON_CSV_V1_FORMAT_CONTRACT.md` — date sections only moved from evidence-gated placeholders to proposed-for-review candidate language;
+3. `ios-lumen-finance/LumenFinanceTests/LumenFinanceTests.swift` — bounded characterization probes only.
+
+No production Swift, model/schema, migration, workflow, importer/exporter, implementation-plan, PortableMoney, lifecycle-timestamp, reference-entity, Source/provenance, identity-allocation, ordering, or parser-evolution file changed.
+
+The characterization probes were **not executed by this repository write**. The commits used `[skip ci]`, the commit has no reported status contexts, and no workflow run is associated with the checkpoint. Their current evidentiary status is therefore:
+
+```text
+probe source added
+!= probe execution passed
+```
+
+Independent review should treat source-inspection findings and already-existing executable evidence separately from these newly added but not-yet-executed probes. No acceptance claim depends on pretending they ran.
+
+This bookkeeping section does not record acceptance. The gate remains **PROPOSED FOR REVIEW**.
