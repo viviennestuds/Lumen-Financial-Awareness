@@ -18,15 +18,15 @@ It does **not** admit per-currency minor-unit rules.
 
 # 1. Decision Question
 
-The previously accepted product proposal now gives PortableMoneyV1 a proposed public upper monetary magnitude:
+The upstream candidate money contract supplies two contextual predicates used during this gate's design:
 
-    0 < x < 10^15
+    proposed upper magnitude: 0 < x < 10^15
 
-with:
+    proposed normalized significant decimal precision: p <= 15
 
-    normalized significant decimal precision p <= 15
+This scale gate does **not** grant authority to either upstream predicate. The current status-authority reconciliation leaves `p <= 15` PROPOSED and the `x < 10^15` / `A <= 14` upper-magnitude rule in an UNRESOLVED AUTHORITY CONFLICT.
 
-The lower/tiny-value side remains open because a lower normalized decimal exponent is a scale decision in disguise.
+At this historical stage, the lower/tiny-value side remained open because a lower normalized decimal exponent is a scale decision in disguise.
 
 The next product question is therefore:
 
