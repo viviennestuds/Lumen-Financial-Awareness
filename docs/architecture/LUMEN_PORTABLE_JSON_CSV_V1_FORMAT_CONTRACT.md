@@ -1743,7 +1743,7 @@ Portable v1 must not rewrite the native transaction fact into the user's preferr
 
 # 18. Financial Dates and Timestamps
 
-## 18.1 Financial calendar dates — PROPOSED FOR REVIEW
+## 18.1 Financial calendar dates — ACCEPTED AT PROPOSED-CONTRACT LEVEL
 
 The active financial-date gate is documented in:
 
@@ -1755,7 +1755,7 @@ Candidate Portable v1 financial-date fields use a single installation-independen
 YYYY-MM-DD
 ```
 
-Candidate field meanings are:
+Accepted field meanings at the proposed-contract level are:
 
 - `transaction_date` — the **user-owned financial transaction civil day**;
 - non-null `posted_date` — an **optional, separately authorized recorded posting civil day**.
@@ -1779,11 +1779,11 @@ Device locale, device calendar, formatter defaults, and hidden Foundation `Date`
 
 This gate selects the candidate civil calendar and semantic date shape. It does **not** yet freeze the exact admitted year interval or complete lexical/parser validity rules; a string shaped as `YYYY-MM-DD` is not thereby a valid admitted calendar date.
 
-This semantic remains **PROPOSED FOR REVIEW**.
+This semantic is **ACCEPTED AT PROPOSED-CONTRACT LEVEL**. Exact admitted year interval and complete lexical/parser validity remain separately gated.
 
-## 18.2 Field-specific authority — PROPOSED FOR REVIEW
+## 18.2 Field-specific authority — ACCEPTED AT PROPOSED-CONTRACT LEVEL
 
-Candidate authority rules are:
+Accepted authority rules at the proposed-contract level are:
 
 - a new Review/Confirm establishes the visible `transaction_date` day presented for confirmation;
 - an explicit financial-date-field edit followed by Save establishes a newly authorized date-level meaning for that field;
@@ -1805,7 +1805,7 @@ The public field does not need to encode which provenance path supplied it.
 
 The current durable model does not preserve whether a nonnil `posted_date` received separate field-level authority or was silently synthesized by current implementation behavior.
 
-## 18.3 Conversion, compatibility, and restoration from current `Date` storage — PROPOSED FOR REVIEW
+## 18.3 Conversion, compatibility, and restoration from current `Date` storage — ACCEPTED AT PROPOSED-CONTRACT LEVEL
 
 The current canonical model stores these fields using Foundation `Date`; `posted_date` may also be `nil`.
 
@@ -1825,7 +1825,7 @@ current automatic .now synthesis
 
 The persisted value alone does not reveal which path occurred.
 
-The candidate authority classification distinguishes:
+The accepted proposed-contract authority classification distinguishes:
 
 - **EXACTLY WARRANTED** — admitted durable state itself proves the financial civil day;
 - **RECOVERABLE WITH ADMITTED CONTEXT** — separately admitted already-existing durable evidence/context recovers the previously established financial civil day;
@@ -1879,7 +1879,7 @@ A fixed UTC day projection is deterministic but is not recovery of the admitted 
 
 Restoring `YYYY-MM-DD` into Foundation `Date` necessarily introduces a calendar/timezone/time-of-day representation convention. The resulting anchor instant is not additional Portable financial meaning.
 
-Candidate semantic round-trip equivalence is:
+Accepted proposed-contract semantic round-trip equivalence is:
 
 ```text
 same admitted Portable calendar
@@ -1898,6 +1898,26 @@ For a claimed complete Portable ownership export, a required `transaction_date` 
 JSON and CSV must use the same admitted financial-date meaning for shared fields.
 
 The format must not simply call a default Date formatter and assume the result is portable truth.
+
+### 18.3.1 Downstream production-alignment requirement — ACCEPTED CONTRACT / IMPLEMENTATION NOT AUTHORIZED
+
+The accepted financial-date contract does not itself modify production behavior.
+
+Current `TransactionDraft.makeTransaction()`, `TransactionDraft.apply(to:)`, and `TransactionDetailView.setStatus(.posted)` can still synthesize `.now` when status becomes `posted` and `posted_date` is absent.
+
+A later separately authorized implementation pass must align those paths with the accepted contract:
+
+```text
+status becomes posted
++
+posted_date == nil
+        ↓
+posted_date remains nil
+```
+
+unless a separately authorized posting date is supplied.
+
+Until that alignment occurs, newly synthesized nonnull `posted_date` values remain compatibility-bearing current state and are not granted separate posted-date authority merely by this contract's acceptance.
 
 ## 18.4 Lifecycle timestamps — PROPOSED
 
