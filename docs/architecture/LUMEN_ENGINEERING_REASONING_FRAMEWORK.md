@@ -2,7 +2,7 @@
 
 ## Status
 
-**PROPOSED FOR REVIEW — intended living canonical development-methodology document.**
+**Living canonical development-methodology document.**
 
 This document defines the reasoning disciplines Lumen uses to decompose, propose, sequence, evaluate, review, and admit architectural and product-semantic changes.
 
@@ -17,7 +17,7 @@ It does **not** override substantive repository governance, including:
 
 Where this methodology conflicts with a governing architectural or product rule, the governing rule wins.
 
-Once accepted, this framework governs **how decisions are reasoned about**. It does not itself authorize implementation, migration, persistence, scope expansion, or product behavior.
+This framework governs **how decisions are reasoned about**. It does not itself authorize implementation, migration, persistence, scope expansion, or product behavior.
 
 Changes to this framework govern future reasoning and work that is explicitly reopened for review. They do **not** retroactively invalidate accepted substantive decisions merely because the methodology later evolves. Reopening an accepted architectural, product, admission, or implementation decision requires the authority and review appropriate to that decision.
 
@@ -574,9 +574,9 @@ If implementation discovers a contradiction with an admitted contract, return to
 
 # 14. Methodology Evolution
 
-Once accepted, this framework is intentionally living.
+This framework is intentionally living.
 
-Lumen may refine its accepted reasoning methodology as the project learns.
+Lumen may refine its reasoning methodology as the project learns.
 
 However:
 
@@ -753,10 +753,16 @@ Simplify the parts that become ritual.
 
 ---
 
-# 20. Proposal Disposition
+# 20. Adoption Status
 
-This document remains **PROPOSED FOR REVIEW**.
+This document is **accepted as Lumen's living canonical development methodology**.
 
-Independent review should decide whether it should be adopted as Lumen's living canonical development methodology and whether the linked README/Roadmap/knowledge routing changes are appropriately narrow.
+Its adoption changes reasoning governance only. It does not change any product invariant, Roadmap phase scope, implementation admission, production behavior, schema, code, or test requirement.
 
-No product invariant, Roadmap phase scope, implementation admission, production behavior, schema change, or code/test change is authorized by this proposal.
+Future revisions remain subject to the methodology-evolution boundary defined above:
+
+```text
+methodology evolution
+!=
+automatic reopening of accepted substantive decisions
+```
