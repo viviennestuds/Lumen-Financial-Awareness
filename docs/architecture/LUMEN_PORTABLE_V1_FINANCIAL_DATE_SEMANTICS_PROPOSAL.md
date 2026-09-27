@@ -645,33 +645,129 @@ After the proposal and characterization evidence are committed, stop for indepen
 
 ---
 
-# 19. Branch / evidence audit
+# 19. Independent-review hardening and evidence audit
 
-Audit before this bookkeeping update:
+## 19.1 Hardening applied
 
-- frozen base: `ab7e75675b1d11061fdac30cb8ed4f2189103598`;
-- proposal branch: `docs/phase1c-portable-v1-financial-date-semantics-proposal`;
-- proposal commit: `3202505ae53e780150e5098c12673453acd8d20c`;
-- characterization-source commit: `c8ea6c0f7743e2c12d28554481beabc86ab48ff3`;
-- format-contract application commit: `56618a00b8d2b714b0566b53571296352c5aaedb`;
-- compare against frozen base: ahead 3, behind 0;
-- merge base remains exactly `ab7e75675b1d11061fdac30cb8ed4f2189103598`.
+Independent review of `ecf9a4ec9096b9ee70977167cb700c67c6a6d7df` accepted the central architectural finding but requested authority/classifiability hardening before proposed-contract acceptance.
 
-Changed files at that checkpoint:
+This pass therefore makes the following proposal-level choices explicit:
 
-1. `docs/architecture/LUMEN_PORTABLE_V1_FINANCIAL_DATE_SEMANTICS_PROPOSAL.md` — new proposal;
-2. `docs/architecture/LUMEN_PORTABLE_JSON_CSV_V1_FORMAT_CONTRACT.md` — date sections only moved from evidence-gated placeholders to proposed-for-review candidate language;
-3. `ios-lumen-finance/LumenFinanceTests/LumenFinanceTests.swift` — bounded characterization probes only.
+1. **Current record-local classifiability**
+   - an arbitrary existing nonnil `transaction_date` or `posted_date` is **not generally proven EXACTLY WARRANTED from current Transaction state alone**;
+   - current persistence has no per-record originating calendar, timezone, confirmed civil-date spelling, or date-provenance class.
 
-No production Swift, model/schema, migration, workflow, importer/exporter, implementation-plan, PortableMoney, lifecycle-timestamp, reference-entity, Source/provenance, identity-allocation, ordering, or parser-evolution file changed.
+2. **Recovery versus new authority**
+   - **RECOVERABLE WITH ADMITTED CONTEXT** means already-existing durable evidence/context recovers a previously established date;
+   - **USER RESOLUTION REQUIRED** means the user must make a new authoritative assertion;
+   - recovery and new authority are not interchangeable.
 
-The characterization probes were **not executed by this repository write**. The commits used `[skip ci]`, the commit has no reported status contexts, and no workflow run is associated with the checkpoint. Their current evidentiary status is therefore:
+3. **Field-specific authority**
+   - new Review/Confirm establishes the visible `transaction_date` financial day;
+   - an explicit financial-date-field edit followed by Save establishes new date-level authority;
+   - an unrelated edit does not reauthorize an unchanged inherited Date;
+   - system synthesis after Review/direct status transition is not retroactively user-confirmed date authority.
+
+4. **posted_date public meaning**
+   - nonnull Portable `posted_date` means **Lumen-effective posting civil day**;
+   - it does not mean externally observed institution posting/settlement/clearing day;
+   - explicit user selection and system posting workflows therefore share one public semantic even though their authority events differ;
+   - the current `Date?` model still loses the calendar/timezone/provenance needed to recover the originally established civil day later.
+
+5. **Lexical scope**
+   - this gate selects proleptic Gregorian calendar semantics and candidate `YYYY-MM-DD` shape;
+   - exact admitted year interval and complete lexical/parser validity remain separately gated;
+   - `YYYY-MM-DD` shape alone does not make an impossible date valid.
+
+These refinements remain **PROPOSED FOR REVIEW** and do not record acceptance.
+
+## 19.2 Executed characterization evidence
+
+A temporary branch-scoped GitHub Actions workflow executed only the five bounded financial-date probe tests.
+
+Execution identity:
+
+- workflow run ID: `36298026371`;
+- tested commit: `48085e7af3bb0081e55725df0ac6fab305d0be6f`;
+- tested branch: `docs/phase1c-portable-v1-financial-date-semantics-proposal`;
+- macOS: `26.6.2`;
+- Xcode: `26.6` / build `17F113`;
+- iPhone Simulator SDK: `26.5`;
+- artifact: `Lumen-Phase1C-FinancialDate-1`;
+- artifact ID: `10924892081`;
+- artifact SHA-256 digest: `d96b3ada612d07fe5d0a80939607d7a6159543558dc6a552520a437f8b587687`.
+
+Result:
 
 ```text
-probe source added
-!= probe execution passed
+Selected tests
+Executed: 5
+Failures: 0
+Unexpected: 0
+Result: TEST SUCCEEDED
 ```
 
-Independent review should treat source-inspection findings and already-existing executable evidence separately from these newly added but not-yet-executed probes. No acceptance claim depends on pretending they ran.
+Passed probes:
 
-This bookkeeping section does not record acceptance. The gate remains **PROPOSED FOR REVIEW**.
+- `testFinancialDateProbeSameInstantProjectsToDifferentGregorianDaysAcrossTimeZones`;
+- `testFinancialDateProbeCalendarSystemChangesYearMonthDayInterpretation`;
+- `testFinancialDateProbeDSTCivilDaysAreNotUniformTwentyFourHourIntervals`;
+- `testFinancialDateProbeFixedZoneRestorationAnchorCanRenderAsAdjacentDayElsewhere`;
+- `testFinancialDateProbePostedDatePresenceIsStructurallyIndependentOfStatus`.
+
+The run establishes the bounded representation facts encoded by those probes:
+
+- one instant can map to different Gregorian civil days across timezones;
+- calendar-system choice can change year/month/day interpretation;
+- New York civil days around the tested DST transitions span 23 or 25 elapsed hours;
+- a fixed-zone restoration anchor can render as an adjacent civil day in another timezone;
+- the model can hold `posted_date` independently of status in the characterized combinations.
+
+The run does **not** establish:
+
+- original historical user intent;
+- a per-record original timezone/calendar;
+- whether an arbitrary existing Date is exactly warranted;
+- external institution posting-day truth;
+- a production conversion/restoration algorithm;
+- acceptance of the proposed public semantics.
+
+The runner emitted CoreData store-creation/recovery diagnostics during application startup; recovery succeeded and the selected characterization suite completed with 5/5 passes. Those diagnostics are not used as financial-date evidence.
+
+## 19.3 Temporary workflow disposition
+
+The temporary characterization workflow was created only to execute this evidence pass and was removed after the successful run.
+
+```text
+temporary executable evidence mechanism
+!= permanent CI acceptance gate
+```
+
+The final branch tree therefore does not retain a new financial-date workflow.
+
+## 19.4 Branch / diff audit
+
+Frozen base:
+
+`integration/phase1c-portable-v1-framework-baseline @ ab7e75675b1d11061fdac30cb8ed4f2189103598`
+
+Relevant checkpoints in this gate:
+
+- initial proposal: `3202505ae53e780150e5098c12673453acd8d20c`;
+- characterization source: `c8ea6c0f7743e2c12d28554481beabc86ab48ff3`;
+- initial format-contract application: `56618a00b8d2b714b0566b53571296352c5aaedb`;
+- pre-review audit checkpoint: `ecf9a4ec9096b9ee70977167cb700c67c6a6d7df`;
+- authority-model hardening: `0b4c8c69a2ba2aa22008b6d0da906f595bdcf72f`;
+- format-contract authority alignment: `99f0c1e87a17e4790b4919d72bc8a9af275861be`;
+- temporary characterization workflow/run trigger: `48085e7af3bb0081e55725df0ac6fab305d0be6f`;
+- temporary workflow removal: `e08ef01cbe545d35f6b7e98fdf225d3389fad0f3`.
+
+Final-tree intent remains limited to:
+
+1. `docs/architecture/LUMEN_PORTABLE_V1_FINANCIAL_DATE_SEMANTICS_PROPOSAL.md`;
+2. date sections of `docs/architecture/LUMEN_PORTABLE_JSON_CSV_V1_FORMAT_CONTRACT.md`;
+3. bounded characterization probes in `ios-lumen-finance/LumenFinanceTests/LumenFinanceTests.swift`.
+
+No production Swift, persisted model/schema, migration, importer/exporter implementation, lifecycle-timestamp, PortableMoney, reference-entity, Source/provenance, identity-allocation, ordering, or parser-evolution implementation is authorized or changed by this gate.
+
+The gate remains **PROPOSED FOR REVIEW**. Stop here for independent review before recording proposed-contract acceptance or opening another gate.
