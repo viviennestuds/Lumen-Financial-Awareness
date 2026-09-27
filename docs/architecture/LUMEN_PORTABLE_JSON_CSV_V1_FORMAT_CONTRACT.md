@@ -217,7 +217,7 @@ It is not a serialization of `ModelContext`, SwiftData metadata, application pre
 | --- | --- | --- | --- |
 | `format` | string | PROPOSED | Must equal `"lumen-portable"` for this format family |
 | `version` | integer | PROPOSED | Must equal `1` for v1 |
-| `currency_registry` | string | PROPOSED | Required immutable Lumen currency-registry identifier; initially `"lumen-currency-v1"` |
+| `currency_registry` | string | ACCEPTED AT PROPOSED-CONTRACT LEVEL | Required immutable Lumen currency-registry identifier; initially `"lumen-currency-v1"` |
 | `exported_at` | timestamp string | PROPOSED | Export-generation instant; not a financial transaction date |
 | `categories` | array | PROPOSED | Supported Category portable records |
 | `payment_methods` | array | PROPOSED | Supported PaymentMethod portable records |
@@ -489,13 +489,13 @@ The example is synthetic and demonstrates shape only.
 | Portable field | Required? | Candidate source semantic | Status |
 | --- | --- | --- | --- |
 | `portable_id` | yes | document-local public relationship key | identity/lifetime/namespace/grammar ACCEPTED AT PROPOSED-CONTRACT LEVEL; deterministic allocation deferred |
-| `amount` | yes | native monetary magnitude | lexical contract PROPOSED; semantic domain EVIDENCE GATED |
-| `currency` | yes | native transaction denomination | token grammar PROPOSED; admitted universe RESEARCH / ADMISSION REQUIRED |
+| `amount` | yes | native monetary magnitude | mixed: global scale/lower-magnitude + canonical compatibility ACCEPTED AT PROPOSED-CONTRACT LEVEL; normalized precision limit remains PROPOSED; upper-magnitude authority status is unresolved; canonical plain-decimal serializer remains RESEARCH / ADMISSION REQUIRED |
+| `currency` | yes | native transaction denomination | token grammar remains PROPOSED; `lumen-currency-v1` membership / `O(c)` mapping / immutable registry semantics ACCEPTED AT PROPOSED-CONTRACT LEVEL; general non-cash rounding disposition remains open |
 | `type` | yes | transaction direction/type | exact four-token semantic sufficiency ACCEPTED AT PROPOSED-CONTRACT LEVEL |
 | `merchant_name` | yes | merchant/counterparty | PROPOSED |
-| `transaction_date` | yes | financial transaction calendar date | PROPOSED encoding; conversion from current storage EVIDENCE GATED |
-| `posted_date` | nullable | financial posted calendar date | PROPOSED encoding; conversion from current storage EVIDENCE GATED |
-| `status` | yes | current canonical transaction status | portability domain partially gated |
+| `transaction_date` | yes | financial transaction calendar date | financial civil-day conversion / compatibility / restoration semantics ACCEPTED AT PROPOSED-CONTRACT LEVEL; exact year interval and complete lexical/parser validity remain open |
+| `posted_date` | nullable | optional separately authorized recorded posting civil day | financial civil-day conversion / compatibility / restoration semantics ACCEPTED AT PROPOSED-CONTRACT LEVEL; exact year interval and complete lexical/parser validity remain open |
+| `status` | yes | current canonical transaction status | exact five-token portability / compatibility semantics ACCEPTED AT PROPOSED-CONTRACT LEVEL |
 | `notes` | nullable | user-authored notes | PROPOSED |
 | `category_ref` | nullable in representation | Category association | PROPOSED representation; exact-null categoryless compatibility ACCEPTED AT PROPOSED-CONTRACT LEVEL; non-null reference identity/resolution remains separately gated |
 | `payment_method_ref` | nullable | PaymentMethod association | PROPOSED |
@@ -1049,13 +1049,15 @@ Reference points:
 
 Portable v1 must not equate `Double.greatestFiniteMagnitude`, Foundation Decimal's current exponent range, or any other implementation maximum with a useful financial product limit.
 
-### Product upper magnitude — PROPOSED
+### Product upper magnitude — PROPOSED / UNRESOLVED AUTHORITY CONFLICT
 
 The technical characterization is intentionally much wider than the product contract should promise.
 
 A separate product-domain proposal is recorded in:
 
 `docs/architecture/LUMEN_PORTABLE_MONEY_V1_PRODUCT_MAGNITUDE_PROPOSAL.md`
+
+**Current authority-status note:** later accepted-lineage documents treat the following ceiling as previously accepted at the proposed-contract level, but the originating magnitude proposal remains `PROPOSED FOR REVIEW` and no direct review-acceptance bookkeeping commit for that exact rule was established in the 2026-09-27 status-authority reconciliation. This aggregate contract therefore records an **UNRESOLVED AUTHORITY CONFLICT** rather than promoting the rule by inference.
 
 PortableMoneyV1 proposes the following public **upper** magnitude ceiling:
 
@@ -1097,7 +1099,7 @@ Values at or above `10^15` are not claimed to be technically unrepresentable. Th
 
 > **Technical capability is a ceiling, not the product promise.**
 
-### Lower/minimum magnitude remains open
+### Lower/minimum magnitude remained open at this gate
 
 This proposal does **not** set a minimum positive PortableMoneyV1 magnitude.
 
@@ -1118,7 +1120,17 @@ The lower/tiny-value side of the monetary domain must therefore be admitted toge
 
 The existing guardrail for current or historical canonical amounts outside the final PortableMoneyV1 admitted domain remains unchanged: export must not silently round, coerce, substitute, or omit those values.
 
-## 14.6 Global normalized scale and lower structural magnitude — PROPOSED / independently reviewed
+**Subsequent disposition:** the later independently reviewed scale/lower-magnitude gate at `cb4f6c3cca01e5f99ddb3c2186e1ae5dfdf40786` established at the proposed-contract level:
+
+```text
+S <= 9
+E >= -9
+minimum structural magnitude = 10^-9
+```
+
+The paragraph above is preserved as historical sequencing for the earlier upper-magnitude stage; it no longer describes the current lower/scale status.
+
+## 14.6 Global normalized scale and lower structural magnitude — ACCEPTED AT PROPOSED-CONTRACT LEVEL
 
 PortableMoneyV1 defines **normalized scale** from the already-defined normalized decimal form:
 
@@ -1241,7 +1253,7 @@ The ordinary-scale proposal uses stable CLDR general currency `digits` semantics
 
 Cash-specific `cashDigits` / `cashRounding` do not become general Transaction readiness rules.
 
-Complete registry membership and registry/version semantics remain a separate gate from ordinary-scale readiness and are now proposed in `docs/architecture/LUMEN_PORTABLE_MONEY_V1_CURRENCY_REGISTRY_PROPOSAL.md`. Historical/current canonical compatibility remains separately open.
+**Historical sequencing note:** when this scale section was first authored, complete registry membership/version semantics and historical/current canonical compatibility were still separate future gates. They subsequently reached proposed-contract acceptance through the registry review checkpoint `b41fb9a6c45909318f4806e9645338a1d79caa9c` and canonical monetary compatibility review lineage `53d079858a0228eaf963b346d32f0d8feee1749b` → `7231cf364a7c95f7b9ce077cf7ea6437c22fded6`.
 
 Current manual entry and Foundation display formatting remain implementation behavior, not portable authority.
 
@@ -1408,7 +1420,7 @@ The candidate governing rule is:
 
 That definition may be derived from ISO 4217 semantics, but Lumen must deliberately decide what is valid as a denomination for canonical Transactions.
 
-## 15.3 Ordinary currency scale and readiness — PROPOSED
+## 15.3 Ordinary currency scale and readiness — ACCEPTED AT PROPOSED-CONTRACT LEVEL
 
 For each admitted currency to which ordinary fractional-scale semantics apply, Portable v1 proposes a Lumen-owned, versioned value:
 
@@ -1454,9 +1466,9 @@ The complete decision record is:
 
 `docs/architecture/LUMEN_PORTABLE_MONEY_V1_CURRENCY_SCALE_SEMANTICS_PROPOSAL.md`
 
-These ordinary-scale/readiness semantics are **PROPOSED / independently reviewed**.
+These ordinary-scale/readiness semantics are **ACCEPTED AT PROPOSED-CONTRACT LEVEL**.
 
-## 15.4 Currency registry membership — PROPOSED
+## 15.4 Currency registry membership — ACCEPTED AT PROPOSED-CONTRACT LEVEL
 
 A separate registry proposal is recorded in:
 
@@ -1507,9 +1519,9 @@ For each admitted code, the immutable `O(c)` value is taken from pinned CLDR 48.
 
 The complete 155-code membership and `O(c)` grouping are normative in the registry proposal.
 
-These registry semantics are **PROPOSED / independently reviewed**.
+These registry semantics are **ACCEPTED AT PROPOSED-CONTRACT LEVEL**.
 
-## 15.5 Registry identity and evolution — PROPOSED
+## 15.5 Registry identity and evolution — ACCEPTED AT PROPOSED-CONTRACT LEVEL
 
 Portable currency semantics must carry an explicit immutable registry identifier.
 
@@ -2523,7 +2535,7 @@ A future Lumen version may:
 
 It must not silently reinterpret incompatible future semantics through v1 rules.
 
-## 29.4 Currency-registry identity and evolution — PROPOSED
+## 29.4 Currency-registry identity and evolution — ACCEPTED AT PROPOSED-CONTRACT LEVEL
 
 Portable v1 carries currency-registry identity explicitly rather than inferring it only from the top-level format version.
 
