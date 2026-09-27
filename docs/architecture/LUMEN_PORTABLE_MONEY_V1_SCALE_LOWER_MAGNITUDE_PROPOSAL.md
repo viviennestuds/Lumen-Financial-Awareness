@@ -2,7 +2,7 @@
 
 ## Status
 
-**PROPOSED / INDEPENDENTLY REVIEWED — accepted at the proposed-contract level; full Portable JSON / CSV v1 format acceptance remains open.**
+**ACCEPTED AT PROPOSED-CONTRACT LEVEL — independently reviewed; full Portable JSON / CSV v1 format acceptance remains open.**
 
 This document does not change production validation, persistence, SwiftData schema, amount-entry behavior, currency formatting, importer behavior, serializer behavior, or the canonical ledger.
 
