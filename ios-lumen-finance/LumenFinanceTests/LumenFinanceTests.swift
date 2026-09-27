@@ -182,4 +182,115 @@ final class LumenFinanceTests: XCTestCase {
         XCTAssertNil(stub.confidence_score)
         XCTAssertFalse(stub.canConfirm, "A category must be deliberately chosen")
     }
+
+    // MARK: - Phase 1C financial-date characterization probes
+    //
+    // Evidence only. These tests characterize Foundation Date/calendar behavior and
+    // current model permissiveness. They are not Portable v1 acceptance tests and
+    // do not define production conversion or restoration policy.
+
+    func testFinancialDateProbeSameInstantProjectsToDifferentGregorianDaysAcrossTimeZones() throws {
+        let parser = ISO8601DateFormatter()
+        let instant = try XCTUnwrap(parser.date(from: "2026-03-01T00:30:00Z"))
+
+        var utc = Calendar(identifier: .gregorian)
+        utc.timeZone = try XCTUnwrap(TimeZone(secondsFromGMT: 0))
+        var pacific = Calendar(identifier: .gregorian)
+        pacific.timeZone = try XCTUnwrap(TimeZone(identifier: "America/Los_Angeles"))
+
+        let utcParts = utc.dateComponents([.year, .month, .day], from: instant)
+        let pacificParts = pacific.dateComponents([.year, .month, .day], from: instant)
+
+        XCTAssertEqual([utcParts.year, utcParts.month, utcParts.day], [2026, 3, 1])
+        XCTAssertEqual([pacificParts.year, pacificParts.month, pacificParts.day], [2026, 2, 28])
+        XCTAssertNotEqual(utcParts.day, pacificParts.day)
+    }
+
+    func testFinancialDateProbeCalendarSystemChangesYearMonthDayInterpretation() throws {
+        let parser = ISO8601DateFormatter()
+        let instant = try XCTUnwrap(parser.date(from: "2026-03-01T12:00:00Z"))
+        let utc = try XCTUnwrap(TimeZone(secondsFromGMT: 0))
+
+        var gregorian = Calendar(identifier: .gregorian)
+        gregorian.timeZone = utc
+        var buddhist = Calendar(identifier: .buddhist)
+        buddhist.timeZone = utc
+
+        let gregorianParts = gregorian.dateComponents([.year, .month, .day], from: instant)
+        let buddhistParts = buddhist.dateComponents([.year, .month, .day], from: instant)
+
+        XCTAssertEqual([gregorianParts.year, gregorianParts.month, gregorianParts.day], [2026, 3, 1])
+        XCTAssertNotEqual(gregorianParts.year, buddhistParts.year)
+    }
+
+    func testFinancialDateProbeDSTCivilDaysAreNotUniformTwentyFourHourIntervals() throws {
+        var newYork = Calendar(identifier: .gregorian)
+        newYork.timeZone = try XCTUnwrap(TimeZone(identifier: "America/New_York"))
+
+        let springStart = try XCTUnwrap(newYork.date(from: DateComponents(year: 2026, month: 3, day: 8)))
+        let springNext = try XCTUnwrap(newYork.date(byAdding: .day, value: 1, to: springStart))
+        let fallStart = try XCTUnwrap(newYork.date(from: DateComponents(year: 2026, month: 11, day: 1)))
+        let fallNext = try XCTUnwrap(newYork.date(byAdding: .day, value: 1, to: fallStart))
+
+        XCTAssertEqual(springNext.timeIntervalSince(springStart), 23 * 60 * 60, accuracy: 1)
+        XCTAssertEqual(fallNext.timeIntervalSince(fallStart), 25 * 60 * 60, accuracy: 1)
+    }
+
+    func testFinancialDateProbeFixedZoneRestorationAnchorCanRenderAsAdjacentDayElsewhere() throws {
+        var utc = Calendar(identifier: .gregorian)
+        utc.timeZone = try XCTUnwrap(TimeZone(secondsFromGMT: 0))
+        let restoredAnchor = try XCTUnwrap(
+            utc.date(from: DateComponents(year: 2026, month: 3, day: 1, hour: 0, minute: 0))
+        )
+
+        var pacific = Calendar(identifier: .gregorian)
+        pacific.timeZone = try XCTUnwrap(TimeZone(identifier: "America/Los_Angeles"))
+        let parts = pacific.dateComponents([.year, .month, .day], from: restoredAnchor)
+
+        XCTAssertEqual([parts.year, parts.month, parts.day], [2026, 2, 28])
+    }
+
+    @MainActor
+    func testFinancialDateProbePostedDatePresenceIsStructurallyIndependentOfStatus() throws {
+        let parser = ISO8601DateFormatter()
+        let posted = try XCTUnwrap(parser.date(from: "2026-03-01T12:00:00Z"))
+
+        let pendingWithDate = Transaction(
+            amount: 1,
+            merchant_name: "Pending with date",
+            posted_date: posted,
+            status: .pending
+        )
+        let postedWithoutDate = Transaction(
+            amount: 1,
+            merchant_name: "Posted without date",
+            posted_date: nil,
+            status: .posted
+        )
+        let ignoredWithDate = Transaction(
+            amount: 1,
+            merchant_name: "Ignored with date",
+            posted_date: posted,
+            status: .ignored
+        )
+        let duplicateWithoutDate = Transaction(
+            amount: 1,
+            merchant_name: "Duplicate without date",
+            posted_date: nil,
+            status: .duplicate
+        )
+        let reviewNeededWithDate = Transaction(
+            amount: 1,
+            merchant_name: "Review needed with date",
+            posted_date: posted,
+            status: .review_needed
+        )
+
+        XCTAssertEqual(pendingWithDate.posted_date, posted)
+        XCTAssertNil(postedWithoutDate.posted_date)
+        XCTAssertEqual(ignoredWithDate.posted_date, posted)
+        XCTAssertNil(duplicateWithoutDate.posted_date)
+        XCTAssertEqual(reviewNeededWithDate.posted_date, posted)
+    }
+
 }
