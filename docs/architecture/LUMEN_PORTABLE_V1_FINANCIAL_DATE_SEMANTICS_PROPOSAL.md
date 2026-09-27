@@ -1034,3 +1034,35 @@ This acceptance:
 - does **not** open another Phase 1C gate.
 
 The accepted proposed-contract checkpoint is the branch HEAD produced by the acceptance bookkeeping commits that follow the independently reviewed semantic checkpoint `cbf8f698...`.
+
+
+---
+
+# 23. Acceptance promotion audit
+
+Promotion was performed only after independent review accepted semantic checkpoint:
+
+`cbf8f69861058b0a6291d998d2a50681af5c9023`
+
+at the proposed-contract level.
+
+Acceptance bookkeeping commits:
+
+- `b6ea4244ffd4bf951d8cb4ef85945cd98c62b612` — proposal status and proposed-contract acceptance record;
+- `b6649b24703dcbb2919e75b4e1ef06e621e78d9e` — candidate Portable format date sections promoted consistently, including the downstream production-alignment note.
+
+At the pre-audit acceptance checkpoint:
+
+- branch was 15 commits ahead / 0 behind frozen `ab7e75675b1d11061fdac30cb8ed4f2189103598`;
+- merge base remained exactly `ab7e75675b1d11061fdac30cb8ed4f2189103598`;
+- canonical `main` and the frozen convergence branch had not moved.
+
+Net tree scope remained limited to:
+
+1. `docs/architecture/LUMEN_PORTABLE_V1_FINANCIAL_DATE_SEMANTICS_PROPOSAL.md`;
+2. financial-date sections of `docs/architecture/LUMEN_PORTABLE_JSON_CSV_V1_FORMAT_CONTRACT.md`;
+3. the previously reviewed bounded characterization probes in `ios-lumen-finance/LumenFinanceTests/LumenFinanceTests.swift`.
+
+No production Swift, schema, migration, importer/exporter implementation, lifecycle-timestamp implementation, status-model change, PaymentMethod change, or other Phase 1C gate was modified by acceptance promotion.
+
+This audit records **proposed-contract acceptance only**. It does not canonicalize the branch into `main`, authorize the downstream `.now` synthesis fix, or authorize another gate.
