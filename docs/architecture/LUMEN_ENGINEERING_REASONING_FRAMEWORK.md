@@ -127,8 +127,8 @@ What accepted pieces does this consume?
 What later work consumes this piece?
         ↓
 AUTHORITY BUDGET
-What authority is created?
-What earns it?
+What normative authority is created?
+What governing decision grants it?
         ↓
 ASSEMBLY DEBT
 What unresolved lower-level dependency remains?
@@ -671,8 +671,9 @@ They need not reproduce every heading literally.
 
 ## Authority Budget
 
-- New authority introduced:
-- Evidence or contract that earns it:
+- New normative authority introduced:
+- Governing contract, accepted decision, or exact admission that grants it:
+- Evidence establishing any factual/evidentiary preconditions:
 - Authorities explicitly not granted:
 - Does any authority risk transferring transitively through an intermediate component?
 
