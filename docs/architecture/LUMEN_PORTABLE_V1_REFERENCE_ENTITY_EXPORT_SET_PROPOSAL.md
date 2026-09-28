@@ -2,7 +2,7 @@
 
 ## Status
 
-**PROPOSED FOR REVIEW — Phase 1C ownership/export-set proposal.**
+**ACCEPTED AT PROPOSED-CONTRACT LEVEL — Phase 1C Category / PaymentMethod / Tag complete-export set gate.**
 
 This document proposes only which durable `Category`, `PaymentMethod`, and `Tag` records belong in a **complete Portable JSON v1 ownership snapshot**.
 
@@ -908,9 +908,9 @@ The commitment is justified because any narrower rule would require either prove
 
 ---
 
-# 17. Exact proposed contract language
+# 17. Exact accepted proposed-contract language
 
-The following language is PROPOSED FOR REVIEW, not accepted:
+The following language is **ACCEPTED AT PROPOSED-CONTRACT LEVEL**:
 
 > Category / PaymentMethod / Tag complete-export set. For a complete Portable JSON v1 ownership export, the categories, payment_methods, and tags arrays represent the complete durable sets of the corresponding admitted reference-entity families in the selected coherent export snapshot. Every durably persisted Category, PaymentMethod, and Tag in that snapshot belongs to its corresponding export set independent of Transaction reachability, active/default-like state, display-name similarity, or recoverable creation provenance.
 >
@@ -983,10 +983,28 @@ Independent review should answer:
 
 ---
 
-# 21. Review boundary
+# 21. Independent-review acceptance
 
-This proposal remains PROPOSED FOR REVIEW.
+Independent review accepts the Category / PaymentMethod / Tag complete-export set semantics at the **PROPOSED-contract** level.
 
-Do not record acceptance from this branch without independent review.
+Accepted semantics:
 
-Do not open the lifecycle-timestamp, exact entity-schema, Source/provenance, deterministic-ordering, or another Phase 1C gate from this proposal checkpoint without separate authorization.
+- every durably persisted Category in the selected coherent complete-export snapshot belongs to `categories[]`;
+- every durably persisted PaymentMethod belongs to `payment_methods[]`;
+- every durably persisted Tag belongs to `tags[]`;
+- membership is independent of Transaction reachability, `Category.is_default`, `PaymentMethod.is_active`, seeded/default-like appearance, display-name similarity, recoverable creation provenance, or expected destination bootstrap;
+- an empty entity-family array means the corresponding admitted durable family set is actually empty;
+- same name or semantic similarity does not establish identity;
+- export-set membership does not grant restoration, merge, overwrite, replacement, or deduplication authority;
+- an in-scope durable record that later proves unrepresentable under an accepted exact entity schema requires explicit compatibility/disposition handling and must not be silently omitted while a complete ownership export is claimed;
+- `TransactionSource` remains outside this gate.
+
+This acceptance does **not** admit exact entity schemas, lifecycle timestamps, reference-restoration/conflict matching, Source/provenance semantics, deterministic Portable-ID allocation, array ordering, unknown-field policy, schema/migration changes, production exporter/importer implementation, or full Portable JSON / CSV v1 acceptance.
+
+---
+
+# 22. Review boundary
+
+This gate is closed at **ACCEPTED AT PROPOSED-CONTRACT LEVEL**.
+
+Do not open the lifecycle-timestamp, exact entity-schema, Source/provenance, deterministic-ordering, or another Phase 1C gate from this checkpoint without separate authorization.
