@@ -292,21 +292,21 @@ Exclusion from v1 does not mean a concept is unimportant.
 
 It means its portable semantics are not admitted by this contract.
 
-## 8.1 Category / PaymentMethod / Tag complete-export set — PROPOSED FOR REVIEW
+## 8.1 Category / PaymentMethod / Tag complete-export set — ACCEPTED AT PROPOSED-CONTRACT LEVEL
 
-The proposal in LUMEN_PORTABLE_V1_REFERENCE_ENTITY_EXPORT_SET_PROPOSAL.md proposes a record-set rule for complete Portable JSON v1 ownership export:
+The independently reviewed LUMEN_PORTABLE_V1_REFERENCE_ENTITY_EXPORT_SET_PROPOSAL.md establishes the following proposed-contract record-set rule for complete Portable JSON v1 ownership export:
 
 - every durably persisted Category in the selected coherent snapshot belongs to categories[];
 - every durably persisted PaymentMethod in the selected coherent snapshot belongs to payment_methods[];
 - every durably persisted Tag in the selected coherent snapshot belongs to tags[].
 
-Proposed membership is independent of current Transaction reachability, active/default-like state, display-name similarity, or recoverable creation provenance.
+Accepted proposed-contract membership is independent of current Transaction reachability, active/default-like state, display-name similarity, or recoverable creation provenance.
 
-The proposal explicitly does not infer that Category.is_default proves bootstrap origin, does not infer that same-name records share identity across installations, and does not treat receiving-store bootstrap as permission to omit durable source-store records.
+The accepted component gate does not infer that Category.is_default proves bootstrap origin, does not infer that same-name records share identity across installations, and does not treat receiving-store bootstrap as permission to omit durable source-store records.
 
-Under the proposed rule, an empty Category / PaymentMethod / Tag array in a complete ownership artifact means the corresponding admitted durable set in the selected coherent snapshot is empty, not that durable records were filtered because they were unreferenced/default-like or expected to be recreated elsewhere.
+Under the accepted proposed-contract rule, an empty Category / PaymentMethod / Tag array in a complete ownership artifact means the corresponding admitted durable set in the selected coherent snapshot is empty, not that durable records were filtered because they were unreferenced/default-like or expected to be recreated elsewhere.
 
-This proposal does not finalize exact entity fields, lifecycle timestamps, restoration conflict handling, deterministic Portable-ID allocation, or array ordering. TransactionSource remains outside this ordinary reference-data gate.
+This accepted component gate does not finalize exact entity fields, lifecycle timestamps, restoration conflict handling, deterministic Portable-ID allocation, or array ordering. TransactionSource remains outside this ordinary reference-data gate.
 
 ---
 
@@ -2465,7 +2465,6 @@ Residual blockers include at least:
 - exact financial-date year interval and complete lexical/parser validity;
 - the still-unaccepted parts of the PortableMoney public domain/spelling contract, including normative precision status, upper-magnitude authority resolution, leading-zero policy, and canonical decimal serialization;
 - operational recovery/user-resolution/failure behavior where an admitted financial date cannot be established from current state;
-- Category / PaymentMethod / Tag complete-export set semantics;
 - exact non-Transaction record schemas;
 - ordinary record lifecycle-timestamp disposition where included;
 - Source/provenance portability and its distinct temporal semantics;
@@ -2707,9 +2706,9 @@ This inventory records both accepted component gates and still-open work so a st
 
 ## Reference-entity ownership / complete-export set
 
-- exact Category / PaymentMethod / Tag durable record set included in a complete Portable JSON ownership snapshot, independent of current Transaction reachability — PROPOSED FOR REVIEW;
-- seeded/default-like versus user-created state when durable creation provenance is incomplete — PROPOSED FOR REVIEW; proposal does not treat current durable state as a reliable uniform creation-provenance source;
-- empty-set semantics for admitted reference families in complete ownership export — PROPOSED FOR REVIEW.
+- exact Category / PaymentMethod / Tag durable record set included in a complete Portable JSON ownership snapshot, independent of current Transaction reachability — ACCEPTED AT PROPOSED-CONTRACT LEVEL;
+- seeded/default-like versus user-created state when durable creation provenance is incomplete — ACCEPTED AT PROPOSED-CONTRACT LEVEL; durable family membership is authoritative for set inclusion and current durable state is not treated as a reliable uniform creation-provenance source;
+- empty-set semantics for admitted reference families in complete ownership export — ACCEPTED AT PROPOSED-CONTRACT LEVEL.
 
 `TransactionSource` is intentionally excluded from this ordinary reference-entity gate; Source/provenance portability remains separately gated because Phase 1B assigns it stronger evidence/provenance/retention responsibilities.
 
@@ -2818,7 +2817,7 @@ Current reconciliation disposition:
 
 ## 33.4 Latest accepted semantic cluster
 
-Persisted Transaction status compatibility, categoryless canonical Transaction compatibility, Portable Transaction type/direction sufficiency, Portable identity semantics, and Portable financial-date conversion / compatibility / restoration semantics are accepted at the proposed-contract level.
+Persisted Transaction status compatibility, categoryless canonical Transaction compatibility, Portable Transaction type/direction sufficiency, Portable identity semantics, Portable financial-date conversion / compatibility / restoration semantics, and Category / PaymentMethod / Tag complete-export set semantics are accepted at the proposed-contract level.
 
 Portable financial-date semantics preserve:
 
@@ -2857,17 +2856,17 @@ The exact admitted financial-date year interval and complete lexical/parser vali
 
 Current production `.now` synthesis in `makeTransaction()`, `TransactionDraft.apply(to:)`, and `setStatus(.posted)` remains a downstream implementation-alignment obligation, not accepted production behavior and not implementation-authorized here.
 
-The post-financial-date read-only dependency reassessment is complete. It identifies reference-entity ownership/export-set semantics, ordinary lifecycle-timestamp disposition, money/date lexical closure, exact record schemas, Source/provenance, deterministic serialization/order, and parser evolution as remaining partial-order work rather than one linear queue.
+The post-financial-date read-only dependency reassessment is complete. The reference-entity ownership/export-set gate selected from that reassessment has since reached proposed-contract acceptance. Ordinary lifecycle-timestamp disposition, money/date lexical closure, exact record schemas, Source/provenance, deterministic serialization/order, and parser evolution remain partial-order work rather than one linear queue.
 
 ---
 
 # 34. Next Design Step After This Proposal
 
-The latest accepted semantic gate remains:
+The latest accepted semantic gate is:
 
-> **Portable financial-date conversion / compatibility / restoration semantics — ACCEPTED AT PROPOSED-CONTRACT LEVEL**
+> **Category / PaymentMethod / Tag complete-export set semantics — ACCEPTED AT PROPOSED-CONTRACT LEVEL**
 
-The Category / PaymentMethod / Tag complete-export set gate is now **PROPOSED FOR REVIEW** on this proposal branch. No acceptance is recorded by this candidate-contract update.
+Portable financial-date conversion / compatibility / restoration semantics remain accepted at the proposed-contract level as the preceding semantic gate.
 
 Historical progression now includes both accepted gates and deliberately preserved authority uncertainty:
 
@@ -2907,7 +2906,7 @@ post-financial-date remaining-gate reassessment
 status-authority reconciliation
         ↓ complete
 Category / PaymentMethod / Tag complete-export set semantics
-        ↓ PROPOSED FOR REVIEW
+        ↓ accepted at PROPOSED-contract level
 ```
 
 Future routing is explicitly iterative:
@@ -2930,7 +2929,7 @@ exact capability/persistence admission where required
 only then implementation
 ```
 
-The current inventory records **Category / PaymentMethod / Tag complete-export set semantics** as PROPOSED FOR REVIEW. `TransactionSource` remains outside that ordinary reference-data gate and retains its dedicated Source/provenance/evidence responsibilities.
+The current inventory records **Category / PaymentMethod / Tag complete-export set semantics** as ACCEPTED AT PROPOSED-CONTRACT LEVEL. `TransactionSource` remains outside that ordinary reference-data gate and retains its dedicated Source/provenance/evidence responsibilities.
 
 Still open includes, among other items:
 
@@ -2938,7 +2937,6 @@ Still open includes, among other items:
 - upper-magnitude authority resolution;
 - exact money canonical lexical serialization;
 - exact admitted financial-date year interval and complete lexical/parser validity;
-- independent review/admission of the currently proposed Category / PaymentMethod / Tag ownership/export-set semantics;
 - ordinary record lifecycle timestamp disposition;
 - exact reference-entity schemas;
 - Source/provenance portability;
