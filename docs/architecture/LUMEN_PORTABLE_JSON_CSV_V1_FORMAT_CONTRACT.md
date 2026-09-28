@@ -492,9 +492,7 @@ A candidate transaction record is:
   "category_ref": "cat-example",
   "payment_method_ref": null,
   "tag_refs": [],
-  "source_ref": null,
-  "created_at": "2026-01-04T15:20:00Z",
-  "updated_at": "2026-01-04T15:20:00Z"
+  "source_ref": null
 }
 ```
 
@@ -517,8 +515,6 @@ The example is synthetic and demonstrates shape only.
 | `payment_method_ref` | nullable | PaymentMethod association | PROPOSED |
 | `tag_refs` | array | Tag associations | PROPOSED |
 | `source_ref` | nullable | limited source/provenance association | PROPOSED |
-| `created_at` | yes | canonical record creation instant | inclusion/restoration semantics RESEARCH / ADMISSION REQUIRED |
-| `updated_at` | yes | canonical record update instant | inclusion/restoration semantics RESEARCH / ADMISSION REQUIRED |
 
 ## 10.3 Deliberately excluded current Transaction fields
 
@@ -528,14 +524,19 @@ The candidate v1 Transaction projection excludes:
 - `confidence_score`;
 - `duplicate_fingerprint`;
 - `cashflow_phase_id`;
-- `budget_id`.
+- `budget_id`;
+- `created_at` — PROPOSED FOR REVIEW by the ordinary lifecycle-timestamp disposition gate;
+- `updated_at` — PROPOSED FOR REVIEW by the ordinary lifecycle-timestamp disposition gate.
 
 Reasons:
 
 - local/user-account identity is not automatically portable transaction identity;
 - machine confidence is not canonical financial truth;
 - duplicate fingerprint semantics are internal duplicate-awareness/control state, not portable event identity;
-- CashflowPhase/Budget portability is not admitted in v1.
+- CashflowPhase/Budget portability is not admitted in v1;
+- ordinary lifecycle timestamps are proposed for exclusion from Portable v1 because current evidence does not establish them as admitted portable semantics.
+
+The `created_at` / `updated_at` exclusion remains **PROPOSED FOR REVIEW** on the lifecycle-timestamp proposal branch.
 
 This is a portable DTO decision, not a request to remove those fields from current persistence.
 
@@ -1947,38 +1948,30 @@ unless a separately authorized posting date is supplied.
 
 Until that alignment occurs, newly synthesized nonnull `posted_date` values remain compatibility-bearing current state and are not granted separate posted-date authority merely by this contract's acceptance.
 
-## 18.4 Lifecycle timestamps — PROPOSED
+## 18.4 Ordinary canonical-record lifecycle timestamps — PROPOSED FOR REVIEW
 
-Lifecycle fields such as:
-
-- `exported_at`;
-- `created_at`;
-- `updated_at`;
-
-represent instants.
-
-They use an RFC 3339 / ISO-8601 offset-aware representation normalized to UTC for canonical export.
-
-Exact fractional-second canonicalization remains **RESEARCH / ADMISSION REQUIRED** before byte-level deterministic serialization is frozen.
-
-Whether lifecycle timestamps are themselves round-trip-preserved portable semantics is also **RESEARCH / ADMISSION REQUIRED**.
-
-Before format acceptance, the contract must decide whether fields such as:
+The proposal in `LUMEN_PORTABLE_V1_LIFECYCLE_TIMESTAMP_DISPOSITION_PROPOSAL.md` proposes that Portable JSON v1 **exclude** these ordinary canonical-record lifecycle fields:
 
 - `Transaction.created_at`;
 - `Transaction.updated_at`;
 - `Category.created_at`;
 - `PaymentMethod.created_at`;
-- `Tag.created_at`;
-- portable Source `created_at`;
+- `Tag.created_at`.
 
-are:
+Under the proposed rule:
 
-- restored as original portable semantics;
-- exported as informational metadata that may legitimately be regenerated on import;
-- or excluded from the final portable contract.
+- these values remain valid current persistence state in the originating store;
+- complete Portable JSON v1 does not emit them;
+- supported restoration may create new installation-local lifecycle timestamps;
+- source/destination lifecycle timestamp equality is not part of Portable semantic round-trip equivalence;
+- `Transaction.updated_at` grants no Portable identity, merge, overwrite, freshness, conflict, restoration, synchronization, or ordering authority;
+- no in-scope timestamp is admitted merely as informational export metadata.
 
-The format must not simultaneously admit a timestamp as round-trip-preserved state and silently regenerate a different value during restoration.
+This gate does **not** govern top-level `exported_at`, financial `transaction_date` / `posted_date`, UserProfile lifecycle fields, or TransactionSource / provenance temporal facts.
+
+Exact RFC 3339 / ISO-8601 fractional-second canonicalization remains **RESEARCH / ADMISSION REQUIRED** for timestamp fields that are actually admitted elsewhere.
+
+The proposed exclusion is a Portable DTO decision, not a request to remove or rewrite current persistence fields.
 
 ## 18.4 Foreign temporal representations do not define Lumen format
 
@@ -2008,8 +2001,7 @@ They do not require Lumen CSV v1 to reproduce each source shape.
   "group": "custom",
   "color": "#2F6B57",
   "icon": "tag",
-  "is_default": false,
-  "created_at": "2026-01-01T12:00:00Z"
+  "is_default": false
 }
 ```
 
@@ -2026,7 +2018,9 @@ Current candidate v1 group values mirror the current canonical enum:
 
 ## 19.3 Field exactness
 
-The candidate shape does not yet freeze the required/nullable/omitted disposition of every Category field or the round-trip role of `created_at`. Those decisions remain explicit format-acceptance gates in Section 32.
+The candidate shape does not yet freeze the required/nullable/omitted disposition of every non-temporal Category field.
+
+`Category.created_at` is omitted from this candidate shape under the ordinary lifecycle-timestamp proposal and remains **PROPOSED FOR REVIEW** until that gate receives independent disposition.
 
 ## 19.4 Conflict behavior is not identity
 
@@ -2050,8 +2044,7 @@ Exact reference-entity conflict behavior remains governed by the accepted Phase 
   "institution_name": "Example Institution",
   "last_four": "1234",
   "notes": null,
-  "is_active": true,
-  "created_at": "2026-01-01T12:00:00Z"
+  "is_active": true
 }
 ```
 
@@ -2070,7 +2063,9 @@ The example is synthetic.
 
 ## 20.3 Field exactness
 
-The candidate shape does not yet freeze the required/nullable/omitted disposition of every PaymentMethod field. In particular, `institution_name`, `last_four`, `notes`, and the round-trip role of `created_at` remain explicit format-acceptance gates in Section 32.
+The candidate shape does not yet freeze the required/nullable/omitted disposition of every non-temporal PaymentMethod field. In particular, `institution_name`, `last_four`, and `notes` remain explicit format-acceptance gates in Section 32.
+
+`PaymentMethod.created_at` is omitted from this candidate shape under the ordinary lifecycle-timestamp proposal and remains **PROPOSED FOR REVIEW** until that gate receives independent disposition.
 
 ## 20.4 Credential boundary
 
@@ -2094,14 +2089,15 @@ This contract does not authorize portability of:
 {
   "portable_id": "tag-example",
   "name": "Example Tag",
-  "color": "#2F6B57",
-  "created_at": "2026-01-01T12:00:00Z"
+  "color": "#2F6B57"
 }
 ```
 
 Tag relationships are represented from Transaction through `tag_refs`.
 
-The candidate shape does not yet freeze the required/nullable/omitted disposition of every Tag field or the round-trip role of `created_at`; those remain explicit format-acceptance gates in Section 32.
+The candidate shape does not yet freeze the required/nullable/omitted disposition of every non-temporal Tag field.
+
+`Tag.created_at` is omitted from this candidate shape under the ordinary lifecycle-timestamp proposal and remains **PROPOSED FOR REVIEW** until that gate receives independent disposition.
 
 Tags are intentionally omitted from initial CSV v1 because they are multi-valued and JSON is the higher-fidelity reference graph.
 
@@ -2466,7 +2462,7 @@ Residual blockers include at least:
 - the still-unaccepted parts of the PortableMoney public domain/spelling contract, including normative precision status, upper-magnitude authority resolution, leading-zero policy, and canonical decimal serialization;
 - operational recovery/user-resolution/failure behavior where an admitted financial date cannot be established from current state;
 - exact non-Transaction record schemas;
-- ordinary record lifecycle-timestamp disposition where included;
+- independent review/admission of the currently proposed exclusion of ordinary canonical-record lifecycle timestamps;
 - Source/provenance portability and its distinct temporal semantics;
 - unknown-field/evolution policy;
 - deterministic allocation/order only after the exported record/scalar model is sufficiently closed.
@@ -2686,7 +2682,7 @@ This inventory records both accepted component gates and still-open work so a st
 
 - current `Date` → financial calendar-date conversion, compatibility, and restoration semantics — ACCEPTED AT PROPOSED-CONTRACT LEVEL;
 - exact financial-date year interval and complete lexical/parser validity — RESEARCH / ADMISSION REQUIRED;
-- canonical fractional-second timestamp spelling — RESEARCH / ADMISSION REQUIRED.
+- canonical fractional-second timestamp spelling for timestamp fields actually admitted elsewhere — RESEARCH / ADMISSION REQUIRED.
 
 ## Identity / ordering
 
@@ -2714,8 +2710,10 @@ This inventory records both accepted component gates and still-open work so a st
 
 ## Lifecycle timestamps
 
-- inclusion versus informational-only versus exclusion semantics for ordinary canonical-record lifecycle timestamps — RESEARCH / ADMISSION REQUIRED;
-- if included as round-trip state, exact restoration requirements for original timestamp values — RESEARCH / ADMISSION REQUIRED;
+- `Transaction.created_at`, `Transaction.updated_at`, `Category.created_at`, `PaymentMethod.created_at`, and `Tag.created_at` — PROPOSED FOR REVIEW as EXCLUDED FROM PORTABLE V1;
+- no in-scope ordinary lifecycle timestamp is proposed as informational-only export metadata;
+- if the proposal is accepted, source/destination ordinary lifecycle timestamp equality will not be part of Portable semantic round-trip equivalence;
+- top-level `exported_at` remains separate export-event metadata;
 - Source/provenance temporal facts remain with the dedicated Source/provenance gate rather than being assumed to share one global timestamp disposition.
 
 ## Non-Transaction record schemas
@@ -2856,7 +2854,7 @@ The exact admitted financial-date year interval and complete lexical/parser vali
 
 Current production `.now` synthesis in `makeTransaction()`, `TransactionDraft.apply(to:)`, and `setStatus(.posted)` remains a downstream implementation-alignment obligation, not accepted production behavior and not implementation-authorized here.
 
-The post-financial-date read-only dependency reassessment is complete. The reference-entity ownership/export-set gate selected from that reassessment has since reached proposed-contract acceptance. Ordinary lifecycle-timestamp disposition, money/date lexical closure, exact record schemas, Source/provenance, deterministic serialization/order, and parser evolution remain partial-order work rather than one linear queue.
+The post-financial-date read-only dependency reassessment is complete. The reference-entity ownership/export-set gate selected from that reassessment has since reached proposed-contract acceptance. The subsequent read-only reassessment selected ordinary canonical-record lifecycle timestamp disposition as the next gate; that gate is now **PROPOSED FOR REVIEW**. Money/date lexical closure, exact record schemas, Source/provenance, deterministic serialization/order, and parser evolution remain partial-order work rather than one linear queue.
 
 ---
 
@@ -2907,6 +2905,8 @@ status-authority reconciliation
         ↓ complete
 Category / PaymentMethod / Tag complete-export set semantics
         ↓ accepted at PROPOSED-contract level
+ordinary canonical-record lifecycle timestamp disposition
+        ↓ PROPOSED FOR REVIEW
 ```
 
 Future routing is explicitly iterative:
@@ -2937,7 +2937,7 @@ Still open includes, among other items:
 - upper-magnitude authority resolution;
 - exact money canonical lexical serialization;
 - exact admitted financial-date year interval and complete lexical/parser validity;
-- ordinary record lifecycle timestamp disposition;
+- independent review/admission of the proposed ordinary canonical-record lifecycle timestamp exclusion;
 - exact reference-entity schemas;
 - Source/provenance portability;
 - deterministic ID allocation / ordering after lower-level record/scalar closure;
