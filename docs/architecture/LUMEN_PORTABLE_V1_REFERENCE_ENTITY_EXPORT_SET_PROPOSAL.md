@@ -69,7 +69,7 @@ The accepted Portable identity contract separately establishes:
 
 ```text
 same display/content semantics
-!!=
+!=
 same portable identity
 
 portable_id
@@ -97,7 +97,7 @@ A reachability graph can answer:
 
 It cannot by itself answer:
 
- ~ Which durable reference data belongs to a complete ownership snapshot? ~
+> Which durable reference data belongs to a complete ownership snapshot?
 
 Those are different responsibilities.
 
@@ -115,7 +115,7 @@ and:
 durable
 !=
 user-created
-!0=
+!=
 seeded/default-like
 !=
 referenced
@@ -176,7 +176,7 @@ Current durable fields include:
 - `is_active`;
 - `created_at`.
 
-The model has **no durable seed/user-origin field*.
+The model has **no durable seed/user-origin field**.
 
 ### Tag
 
@@ -187,7 +187,7 @@ Current durable fields include:
 - `color`;
 - `created_at`.
 
-The model has **no durable seed/user-origin field*.
+The model has **no durable seed/user-origin field**.
 
 Tags have an inverse relationship to Transactions, but a Tag can exist durably with zero Transactions.
 
@@ -202,7 +202,7 @@ seed Categories
 
 PaymentMethod count == 0
 →
-*seed PaymentMethods
+seed PaymentMethods
 
 Tag count == 0
 →
@@ -227,7 +227,7 @@ Tag("recurring")
 id = UUID-A
 Store B
 Tag("recurring")
-id = UID-B
+id = UUID-B
 ```
 
 The same is true for Categories and PaymentMethods.
@@ -246,9 +246,9 @@ same object identity
 
 ```text
 LedgerStore.open()
-        Ↄ
+        ↓
 Seed.bootstrapIfNeeded(mainContext)
-        Ↄ
+        ↓
 application container becomes available
 ```
 
@@ -264,7 +264,7 @@ It does **not** change what an exported object's identity means.
 
 Reference seeding occurs even when there are zero Transactions.
 
-gLedgerPersistenceTests.testSeedIdempotencyAndFailureRetryWithoutSamples()` verifies successful bootstrap while Transaction count remains zero.
+`LedgerPersistenceTests.testSeedIdempotencyAndFailureRetryWithoutSamples()` verifies successful bootstrap while Transaction count remains zero.
 
 The same test establishes:
 
@@ -275,9 +275,9 @@ The same test establishes:
 
 Therefore:
 
- > **A durable Category / PaymentMethod / Tag with zero Transaction references is normal current Lumen state, not merely a hypothetical compatibility case.**
+> **A durable Category / PaymentMethod / Tag with zero Transaction references is normal current Lumen state, not merely a hypothetical compatibility case.**
 
-Transaction deletion tests also demonstrate that deleting a Transaction does not imply deleting the durable Tag familiy.
+Transaction deletion tests also demonstrate that deleting a Transaction does not imply deleting the durable Tag family.
 
 ## 4.5 Current Transaction workflows consume reference records
 
