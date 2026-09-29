@@ -2,9 +2,9 @@
 
 ## Status
 
-**PROPOSED FOR REVIEW — Phase 1C lifecycle-timestamp semantic-disposition proposal.**
+**ACCEPTED AT PROPOSED-CONTRACT LEVEL — independently reviewed Phase 1C lifecycle-timestamp semantic disposition.**
 
-This document proposes only the Portable v1 semantic disposition of these current durable fields:
+This document governs only the accepted-at-proposed-contract-level Portable v1 semantic disposition of these current durable fields:
 
 - `Transaction.created_at`;
 - `Transaction.updated_at`;
@@ -559,7 +559,7 @@ The proposal explicitly separates:
 
 Current `TransactionDetailView.evidenceResolutionKey` uses `updated_at`.
 
-If this proposal is later accepted, that current local use remains allowed.
+Under this accepted component gate, that current local use remains allowed.
 
 But the Portable contract must not turn an imported historical `updated_at` into:
 
@@ -595,7 +595,7 @@ It applies Minimum Sufficient Contract to metadata that current ownership semant
 
 # 13. Exact schema consequence
 
-If this proposal is later accepted, candidate exact schemas should no longer include:
+Under this accepted component gate, candidate exact schemas should no longer include:
 
 - Transaction `created_at`;
 - Transaction `updated_at`;
@@ -726,7 +726,7 @@ New normative authority proposed:
 
 The Portable v1 format may exclude these five lifecycle timestamps from its admitted semantic state while still claiming complete ownership of the fields/entities v1 explicitly supports.
 
-Governing basis if accepted:
+Governing basis for this accepted component gate:
 
 Phase 1C ownership contract plus independent admission of this proposal.
 
@@ -789,7 +789,7 @@ If future product value requires audit/history portability, that richer contract
 
 # 18. Exact proposed contract language
 
-The following language is **PROPOSED FOR REVIEW**, not accepted:
+The following language is **ACCEPTED AT PROPOSED-CONTRACT LEVEL**:
 
 > **Ordinary canonical-record lifecycle timestamps.** Portable JSON v1 does not admit `Transaction.created_at`, `Transaction.updated_at`, `Category.created_at`, `PaymentMethod.created_at`, or `Tag.created_at` as portable semantic fields.
 >
@@ -805,7 +805,7 @@ The following language is **PROPOSED FOR REVIEW**, not accepted:
 
 ---
 
-# 19. Downstream consequences if accepted
+# 19. Downstream consequences of acceptance
 
 1. remove these five lifecycle fields from candidate Portable record shapes;
 2. exact Category / PaymentMethod / Tag schema work no longer depends on their timestamp disposition;
@@ -821,7 +821,6 @@ The following language is **PROPOSED FOR REVIEW**, not accepted:
 
 Still open after this proposal:
 
-- independent review/admission of this lifecycle disposition;
 - exact Category schema;
 - exact PaymentMethod schema;
 - exact Tag schema;
@@ -854,10 +853,60 @@ Independent review should answer:
 
 ---
 
-# 22. Review boundary
+# 22. Independent review acceptance and boundary
 
-This proposal remains **PROPOSED FOR REVIEW**.
+Independent review of:
 
-Do not record acceptance without independent review.
+`7058bc273753a77f3756640d9d8bb24051d71d33`
+
+passes at the proposed-contract level.
+
+Accepted exactly:
+
+- `Transaction.created_at` — EXCLUDED FROM PORTABLE JSON v1 semantic state;
+- `Transaction.updated_at` — EXCLUDED FROM PORTABLE JSON v1 semantic state;
+- `Category.created_at` — EXCLUDED FROM PORTABLE JSON v1 semantic state;
+- `PaymentMethod.created_at` — EXCLUDED FROM PORTABLE JSON v1 semantic state;
+- `Tag.created_at` — EXCLUDED FROM PORTABLE JSON v1 semantic state.
+
+Consequences accepted with that disposition:
+
+- complete Portable JSON v1 does not emit these five fields;
+- source/destination equality for these fields is not part of supported Portable semantic round-trip equivalence;
+- receiving-store lifecycle behavior may establish new local values without violating this contract;
+- `Transaction.updated_at` grants no Portable identity, freshness, merge, overwrite, conflict, restoration, synchronization, or ordering authority;
+- none of the five is emitted as informational-only metadata.
+
+Preserve:
+
+```text
+exclusion from Portable v1
+!= mutation / deletion / normalization of source canonical state
+
+persisted
+!= portable
+
+machine-generated
+!= automatically excluded
+
+operationally consumed
+!= portable authority
+```
+
+This is a **v1 admission decision**. It does not establish that lifecycle history can never be user-owned or portable. A future audit/history portability contract may admit richer lifecycle chronology explicitly and compatibly.
+
+This acceptance does not govern:
+
+- top-level `exported_at`;
+- financial `transaction_date` / `posted_date`;
+- UserProfile lifecycle fields;
+- `TransactionSource.created_at`, `uploaded_at`, `captured_at`, or `source_timezone`;
+- exact timestamp lexical spelling;
+- exact reference-entity schemas;
+- restoration/conflict mechanics;
+- schema/migration behavior;
+- production implementation.
+
+This component-gate acceptance does not accept the full Portable JSON / CSV v1 contract and does not authorize implementation.
 
 Do not open exact reference-schema, Source/provenance, deterministic-ordering, or another Phase 1C gate from this checkpoint without separate authorization.
