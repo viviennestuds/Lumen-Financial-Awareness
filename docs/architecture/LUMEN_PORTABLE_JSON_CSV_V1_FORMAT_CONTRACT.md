@@ -1990,13 +1990,15 @@ They do not require Lumen CSV v1 to reproduce each source shape.
 
 ---
 
-# 19. Category Portable Record
+# 19. Category Portable Record — PROPOSED FOR REVIEW
 
-## 19.1 Candidate shape — PROPOSED
+The exact Category schema proposal is defined in `LUMEN_PORTABLE_V1_REFERENCE_ENTITY_SCHEMA_PROPOSAL.md`.
+
+## 19.1 Proposed exact shape
 
 ```json
 {
-  "portable_id": "cat-example",
+  "portable_id": "p1-000000000001",
   "name": "Example Category",
   "group": "custom",
   "color": "#2F6B57",
@@ -2005,9 +2007,18 @@ They do not require Lumen CSV v1 to reproduce each source shape.
 }
 ```
 
-## 19.2 Proposed group tokens
+All six keys are required.
 
-Current candidate v1 group values mirror the current canonical enum:
+| Field | Proposed domain |
+| --- | --- |
+| `portable_id` | accepted Portable-ID grammar |
+| `name` | exact JSON string |
+| `group` | one of the six exact CategoryGroup tokens |
+| `color` | exact JSON string |
+| `icon` | exact JSON string |
+| `is_default` | JSON boolean |
+
+## 19.2 Proposed group tokens
 
 - `fixed_costs`;
 - `investments`;
@@ -2016,29 +2027,42 @@ Current candidate v1 group values mirror the current canonical enum:
 - `income`;
 - `custom`.
 
-## 19.3 Field exactness
+`custom` is an exact canonical token, not fallback authority for an unknown future group.
 
-The candidate shape does not yet freeze the required/nullable/omitted disposition of every non-temporal Category field.
+## 19.3 String / display semantics
 
-`Category.created_at` is omitted from this candidate shape under the ordinary lifecycle-timestamp disposition, **ACCEPTED AT PROPOSED-CONTRACT LEVEL**.
+`name`, `color`, and `icon` preserve exact canonical strings. This proposal does not trim, case-fold, normalize, validate color syntax, validate symbol availability, or treat display similarity as identity.
 
-## 19.4 Conflict behavior is not identity
+`is_default` preserves the canonical boolean but does not prove bootstrap provenance or cross-installation built-in identity.
 
-A matching name/group may support a merge proposal.
+## 19.4 Explicit omissions
+
+The v1 Category record does not contain:
+
+- native `Category.id`;
+- `Category.created_at` — excluded by the accepted lifecycle gate;
+- computed `Category.tint`;
+- Transaction back-references.
+
+## 19.5 Conflict behavior is not identity
+
+A matching name/group may support a later merge proposal.
 
 It does not automatically establish entity identity or overwrite authority.
 
-Exact reference-entity conflict behavior remains governed by the accepted Phase 1C responsibility contract and later import design.
+Exact reference-entity conflict behavior remains separately gated.
 
 ---
 
-# 20. PaymentMethod Portable Record
+# 20. PaymentMethod Portable Record — PROPOSED FOR REVIEW
 
-## 20.1 Candidate shape — PROPOSED
+The exact PaymentMethod schema proposal is defined in `LUMEN_PORTABLE_V1_REFERENCE_ENTITY_SCHEMA_PROPOSAL.md`.
+
+## 20.1 Proposed exact shape
 
 ```json
 {
-  "portable_id": "pm-example",
+  "portable_id": "p1-000000000002",
   "name": "Example Card",
   "method_type": "credit_card",
   "institution_name": "Example Institution",
@@ -2048,7 +2072,17 @@ Exact reference-entity conflict behavior remains governed by the accepted Phase 
 }
 ```
 
-The example is synthetic.
+All seven keys are required. Canonically optional fields use explicit JSON null.
+
+| Field | Proposed domain |
+| --- | --- |
+| `portable_id` | accepted Portable-ID grammar |
+| `name` | exact JSON string |
+| `method_type` | one of the eight exact PaymentMethodType tokens |
+| `institution_name` | JSON string or null |
+| `last_four` | exactly four ASCII decimal digits or null |
+| `notes` | JSON string or null |
+| `is_active` | JSON boolean |
 
 ## 20.2 Proposed method-type tokens
 
@@ -2061,47 +2095,75 @@ The example is synthetic.
 - `gift_card`;
 - `other`.
 
-## 20.3 Field exactness
+`other` is an exact canonical token, not fallback authority for an unknown future type.
 
-The candidate shape does not yet freeze the required/nullable/omitted disposition of every non-temporal PaymentMethod field. In particular, `institution_name`, `last_four`, and `notes` remain explicit format-acceptance gates in Section 32.
+## 20.3 Null / exact-string semantics
 
-`PaymentMethod.created_at` is omitted from this candidate shape under the ordinary lifecycle-timestamp disposition, **ACCEPTED AT PROPOSED-CONTRACT LEVEL**.
+`institution_name`, `last_four`, and `notes` keys are required even when their canonical value is nil. JSON null means exact canonical absence.
 
-## 20.4 Credential boundary
+Except for the narrower `last_four` domain, admitted strings preserve exact canonical spelling without trimming/case folding/normalization.
 
-Portable PaymentMethod data must not evolve into credential export by accident.
+`is_active == false` preserves an inactive canonical PaymentMethod. It does not mean deletion or permission to omit the record.
 
-This contract does not authorize portability of:
+## 20.4 last_four representability boundary
 
-- full card numbers;
-- banking credentials;
-- authentication tokens;
-- cryptographic secrets;
-- account-login state.
+A non-null `last_four` must match exactly:
+
+```text
+^[0-9]{4}$
+```
+
+No truncation, masking, null substitution, or credential-like longer value is authorized.
+
+An already-owned durable PaymentMethod whose non-null `last_four` falls outside this domain remains owned but becomes a reference-schema compatibility case.
+
+## 20.5 Explicit omissions / credential boundary
+
+The v1 PaymentMethod record does not contain:
+
+- native `PaymentMethod.id`;
+- `PaymentMethod.created_at` — excluded by the accepted lifecycle gate;
+- full card/account credentials, authentication tokens, PIN/CVV values, cryptographic secrets, or account-login state.
+
+The proposal does not create heuristic secret-scanning or redaction behavior.
 
 ---
 
-# 21. Tag Portable Record
+# 21. Tag Portable Record — PROPOSED FOR REVIEW
 
-## 21.1 Candidate shape — PROPOSED
+The exact Tag schema proposal is defined in `LUMEN_PORTABLE_V1_REFERENCE_ENTITY_SCHEMA_PROPOSAL.md`.
+
+## 21.1 Proposed exact shape
 
 ```json
 {
-  "portable_id": "tag-example",
+  "portable_id": "p1-000000000003",
   "name": "Example Tag",
   "color": "#2F6B57"
 }
 ```
 
+All three keys are required.
+
+| Field | Proposed domain |
+| --- | --- |
+| `portable_id` | accepted Portable-ID grammar |
+| `name` | exact JSON string |
+| `color` | exact JSON string |
+
+`name` and `color` preserve exact canonical strings without trimming, case folding, color normalization, or content-based identity inference.
+
+## 21.2 Explicit omissions / relationship direction
+
+The v1 Tag record does not contain:
+
+- native `Tag.id`;
+- `Tag.created_at` — excluded by the accepted lifecycle gate;
+- inverse `Tag.transactions`.
+
 Tag relationships are represented from Transaction through `tag_refs`.
 
-The candidate shape does not yet freeze the required/nullable/omitted disposition of every non-temporal Tag field.
-
-`Tag.created_at` is omitted from this candidate shape under the ordinary lifecycle-timestamp disposition, **ACCEPTED AT PROPOSED-CONTRACT LEVEL**.
-
-Tags are intentionally omitted from initial CSV v1 because they are multi-valued and JSON is the higher-fidelity reference graph.
-
-A later CSV revision may admit a deterministic tag encoding if product value earns it.
+Tags remain intentionally omitted from initial CSV v1 because JSON is the higher-fidelity reference graph.
 
 ---
 
@@ -2718,9 +2780,10 @@ This inventory records both accepted component gates and still-open work so a st
 
 ## Non-Transaction record schemas
 
-- exact required/nullable/omitted disposition for Category fields — RESEARCH / ADMISSION REQUIRED;
-- exact required/nullable/omitted disposition for PaymentMethod fields, including `institution_name`, `last_four`, and `notes` — RESEARCH / ADMISSION REQUIRED;
-- exact required/nullable/omitted disposition for Tag fields — RESEARCH / ADMISSION REQUIRED;
+- exact Category required-field/token/string semantics — PROPOSED FOR REVIEW;
+- exact PaymentMethod required/nullable/token semantics, including the four-ASCII-digit non-null `last_four` boundary — PROPOSED FOR REVIEW;
+- exact Tag required-field/string semantics — PROPOSED FOR REVIEW;
+- owned reference record that cannot satisfy an accepted exact schema remains owned and requires explicit compatibility/disposition; silent omission/normalization is not authorized — PROPOSED FOR REVIEW as a consequence of the exact-schema proposal plus the accepted owned-set rule;
 - exact required/nullable/omitted disposition for Source fields, including `mime_type` and `file_size_bytes` — RESEARCH / ADMISSION REQUIRED;
 - normalized Portable v1 `source_type` token set — RESEARCH / ADMISSION REQUIRED.
 
@@ -2854,7 +2917,7 @@ The exact admitted financial-date year interval and complete lexical/parser vali
 
 Current production `.now` synthesis in `makeTransaction()`, `TransactionDraft.apply(to:)`, and `setStatus(.posted)` remains a downstream implementation-alignment obligation, not accepted production behavior and not implementation-authorized here.
 
-The post-financial-date read-only dependency reassessment is complete. The reference-entity ownership/export-set gate selected from that reassessment reached proposed-contract acceptance. The subsequent read-only reassessment selected ordinary canonical-record lifecycle timestamp disposition, and that gate has now reached **ACCEPTED AT PROPOSED-CONTRACT LEVEL**. Money/date lexical closure, exact record schemas, Source/provenance, deterministic serialization/order, and parser evolution remain partial-order work rather than one linear queue.
+The post-financial-date read-only dependency reassessment is complete. The reference-entity ownership/export-set gate selected from that reassessment reached proposed-contract acceptance. The subsequent read-only reassessment selected ordinary canonical-record lifecycle timestamp disposition, and that gate reached **ACCEPTED AT PROPOSED-CONTRACT LEVEL**. After composition-only convergence with current canonical main, the exact Category / PaymentMethod / Tag record-schema gate is now **PROPOSED FOR REVIEW**. Money/date lexical closure, Source/provenance, deterministic serialization/order, compatibility/restoration, and parser evolution remain partial-order work rather than one linear queue.
 
 ---
 
@@ -2907,6 +2970,10 @@ Category / PaymentMethod / Tag complete-export set semantics
         ↓ accepted at PROPOSED-contract level
 ordinary canonical-record lifecycle timestamp disposition
         ↓ accepted at PROPOSED-contract level
+composition-only current-main convergence
+        ↓ complete; no semantic admission
+exact Category / PaymentMethod / Tag record schemas
+        ↓ PROPOSED FOR REVIEW
 ```
 
 Future routing is explicitly iterative:
@@ -2929,7 +2996,7 @@ exact capability/persistence admission where required
 only then implementation
 ```
 
-The current inventory records both **Category / PaymentMethod / Tag complete-export set semantics** and **ordinary canonical-record lifecycle timestamp disposition** as ACCEPTED AT PROPOSED-CONTRACT LEVEL. `TransactionSource` remains outside the ordinary reference-data gate and retains its dedicated Source/provenance/evidence responsibilities.
+The current inventory records both **Category / PaymentMethod / Tag complete-export set semantics** and **ordinary canonical-record lifecycle timestamp disposition** as ACCEPTED AT PROPOSED-CONTRACT LEVEL. Exact Category / PaymentMethod / Tag record schemas are now **PROPOSED FOR REVIEW**. `TransactionSource` remains outside the ordinary reference-data gate and retains its dedicated Source/provenance/evidence responsibilities.
 
 Still open includes, among other items:
 
@@ -2937,7 +3004,7 @@ Still open includes, among other items:
 - upper-magnitude authority resolution;
 - exact money canonical lexical serialization;
 - exact admitted financial-date year interval and complete lexical/parser validity;
-- exact reference-entity schemas;
+- independent review/admission of the currently proposed exact Category / PaymentMethod / Tag record schemas;
 - Source/provenance portability;
 - deterministic ID allocation / ordering after lower-level record/scalar closure;
 - unknown-field/evolution policy;
