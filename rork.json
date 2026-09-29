@@ -1,10 +1,13 @@
 {
+  "$schema": "https://rork.com/schema/rork.json",
   "apps": [
     {
       "name": "Lumen Finance",
       "path": "ios-lumen-finance",
-      "framework": "swift"
+      "framework": "swift",
+      "settings": {
+        "displayName": "Lumen"
+      }
     }
-  ],
-  "$schema": "https://rork.com/schema/rork.json"
+  ]
 }
