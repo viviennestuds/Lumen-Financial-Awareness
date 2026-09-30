@@ -2007,7 +2007,9 @@ The exact Category schema proposal is defined in `LUMEN_PORTABLE_V1_REFERENCE_EN
 }
 ```
 
-All six keys are required.
+All six known v1 keys are required.
+
+This requirement defines the canonical exporter/known-schema surface only. Treatment of additional unrecognized input keys remains reserved for the downstream unknown-field/evolution gate.
 
 | Field | Proposed domain |
 | --- | --- |
@@ -2072,7 +2074,9 @@ The exact PaymentMethod schema proposal is defined in `LUMEN_PORTABLE_V1_REFEREN
 }
 ```
 
-All seven keys are required. Canonically optional fields use explicit JSON null.
+All seven known v1 keys are required. Canonically optional fields use explicit JSON null.
+
+These are known-key presence semantics. This gate does not decide whether additional unrecognized input keys are rejected, ignored, preserved, or handled through version/evolution negotiation.
 
 | Field | Proposed domain |
 | --- | --- |
@@ -2080,7 +2084,7 @@ All seven keys are required. Canonically optional fields use explicit JSON null.
 | `name` | exact JSON string |
 | `method_type` | one of the eight exact PaymentMethodType tokens |
 | `institution_name` | JSON string or null |
-| `last_four` | exactly four ASCII decimal digits or null |
+| `last_four` | final four ASCII decimal digits of a non-secret payment-instrument identifier, or null |
 | `notes` | JSON string or null |
 | `is_active` | JSON boolean |
 
@@ -2107,13 +2111,30 @@ Except for the narrower `last_four` domain, admitted strings preserve exact cano
 
 ## 20.4 last_four representability boundary
 
-A non-null `last_four` must match exactly:
+Current persistence stores `last_four` as `String?` and does not enforce a decimal lexical validator. The decimal-only rule below is therefore an **explicit proposed Portable v1 product semantic**, not a claim about what SwiftData already guarantees.
+
+When non-null, `last_four` means:
+
+> the final four ASCII decimal digits of a non-secret payment-instrument identifier, used only for display/disambiguation.
+
+It must match exactly:
 
 ```text
 ^[0-9]{4}$
 ```
 
-No truncation, masking, null substitution, or credential-like longer value is authorized.
+A PaymentMethod without a meaningful numeric identifier suffix uses canonical `null` for this portable field. `method_type` does not imply that every PaymentMethod has a non-null `last_four`.
+
+The rule does not authorize:
+
+- truncation;
+- automatic suffix extraction from a longer value;
+- masking;
+- null substitution;
+- interpreting a PIN/CVV/authentication code or other secret as `last_four`;
+- moving an incompatible value into another field.
+
+The credential boundary supports keeping the field bounded, but it does not itself prove the decimal alphabet. Decimal digits are proposed intentionally as the minimum v1 product semantic; a broader alphanumeric/arbitrary-character suffix domain is not currently admitted.
 
 An already-owned durable PaymentMethod whose non-null `last_four` falls outside this domain remains owned but becomes a reference-schema compatibility case.
 
@@ -2143,7 +2164,9 @@ The exact Tag schema proposal is defined in `LUMEN_PORTABLE_V1_REFERENCE_ENTITY_
 }
 ```
 
-All three keys are required.
+All three known v1 keys are required.
+
+As with Category and PaymentMethod, this freezes required known-key emission/presence only. Additional unknown input-key behavior remains downstream.
 
 | Field | Proposed domain |
 | --- | --- |
@@ -2526,7 +2549,7 @@ Residual blockers include at least:
 - exact non-Transaction record schemas;
 - independent review/admission of the currently proposed exclusion of ordinary canonical-record lifecycle timestamps;
 - Source/provenance portability and its distinct temporal semantics;
-- unknown-field/evolution policy;
+- unknown-field/evolution policy, including treatment of additional unrecognized keys beyond the required known v1 schema surface;
 - deterministic allocation/order only after the exported record/scalar model is sufficiently closed.
 
 For an existing canonical Transaction whose exact monetary state is outside PortableMoneyV1 or whose currency is outside the selected admitted registry, the independently reviewed canonical monetary compatibility/disposition proposal establishes:
@@ -2781,7 +2804,7 @@ This inventory records both accepted component gates and still-open work so a st
 ## Non-Transaction record schemas
 
 - exact Category required-field/token/string semantics — PROPOSED FOR REVIEW;
-- exact PaymentMethod required/nullable/token semantics, including the four-ASCII-digit non-null `last_four` boundary — PROPOSED FOR REVIEW;
+- exact PaymentMethod required/nullable/token semantics, including the explicit proposed v1 meaning that non-null `last_four` is the final four ASCII decimal digits of a non-secret payment-instrument identifier — PROPOSED FOR REVIEW;
 - exact Tag required-field/string semantics — PROPOSED FOR REVIEW;
 - owned reference record that cannot satisfy an accepted exact schema remains owned and requires explicit compatibility/disposition; silent omission/normalization is not authorized — PROPOSED FOR REVIEW as a consequence of the exact-schema proposal plus the accepted owned-set rule;
 - exact required/nullable/omitted disposition for Source fields, including `mime_type` and `file_size_bytes` — RESEARCH / ADMISSION REQUIRED;
