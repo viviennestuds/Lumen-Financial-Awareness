@@ -231,6 +231,8 @@ Current seed state demonstrates non-null:
 
 Current seed `last_four` examples are four ASCII decimal digits.
 
+Current persistence does **not** enforce a lexical validator for `last_four`. Therefore the stored model establishes `String?` plus current examples; it does not itself prove a decimal-only public format domain. Any narrower Portable v1 domain must be admitted explicitly as a Lumen product/format semantic.
+
 `is_active` is durable state. The accepted export-set gate already established:
 
 ```text
@@ -330,9 +332,9 @@ A future reference-management workflow may impose stronger creation validation w
 
 ---
 
-# 6. Required-key rule
+# 6. Required known-key rule
 
-For exact record validation, every field admitted by an entity schema is a required JSON object key.
+For the canonical v1 exporter and validation of known v1 fields, every field admitted by an entity schema is a required JSON object key.
 
 Fields whose canonical value may be absent use explicit JSON `null`.
 
@@ -356,7 +358,9 @@ This provides:
 - exact null semantics;
 - no ambiguity between absent schema field and canonical nil.
 
-Unknown-field/evolution behavior remains a later gate.
+This rule freezes the presence semantics of **known v1 keys only**.
+
+It does **not** decide what a v1 parser must do when an input object contains additional unrecognized keys. Whether such keys are rejected, ignored, preserved, or trigger version/evolution handling remains reserved for the downstream unknown-field/evolution gate.
 
 ---
 
@@ -476,7 +480,7 @@ An unknown token is not representable as a v1 Category group and must receive fu
 | `name` | required | JSON string | exact canonical PaymentMethod name |
 | `method_type` | required | eight admitted PaymentMethodType tokens | exact canonical method classification |
 | `institution_name` | required, nullable | JSON string or null | exact institution display metadata or exact absence |
-| `last_four` | required, nullable | exactly four ASCII decimal digits or null | limited non-secret display suffix or exact absence |
+| `last_four` | required, nullable | exactly four ASCII decimal digits or null | final four digits of a non-secret payment-instrument identifier for display/disambiguation, or exact absence |
 | `notes` | required, nullable | JSON string or null | exact canonical PaymentMethod descriptive note or exact absence |
 | `is_active` | required | JSON boolean | exact canonical active/inactive flag |
 
@@ -530,7 +534,22 @@ They must not silently become `other`.
 
 `last_four` is deliberately narrower than the other free-form string fields.
 
-If non-null, v1 requires:
+## 11.1 Repository evidence versus proposed product semantic
+
+Current repository evidence establishes:
+
+- canonical persistence stores `last_four` as `String?`;
+- current seed examples are `"4821"` and `"9023"`;
+- no model-level lexical validator currently constrains the field;
+- the field is intended as a limited payment-method suffix rather than a full credential container.
+
+That evidence does **not** independently prove that every canonical value already satisfies a decimal-only alphabet.
+
+Therefore the following rule is an **explicit proposed Lumen Portable v1 semantic**, not an inference that current persistence already enforces it:
+
+> A non-null Portable v1 `last_four` is the final four ASCII decimal digits of a **non-secret payment-instrument identifier**, carried only for display/disambiguation.
+
+If non-null, v1 therefore requires:
 
 ```text
 ^[0-9]{4}$
@@ -538,11 +557,13 @@ If non-null, v1 requires:
 
 using ASCII digits only.
 
+A PaymentMethod that has no meaningful numeric identifier suffix uses canonical `null` for this portable field. `method_type` does not imply that every PaymentMethod must have a non-null `last_four`.
+
 Examples:
 
 ```text
 "4821"
-→ representable
+→ representable numeric identifier suffix
 
 null
 → representable exact absence
@@ -551,33 +572,42 @@ null
 "•••• 4821"
 "12345"
 "4111111111111111"
+"AB12"
 "ABCD"
 ""
 → not representable as Portable v1 last_four
 ```
 
-Rationale:
+## 11.2 Why v1 chooses decimal digits instead of a generic four-character suffix
 
-- field name and current seed/example evidence establish a four-digit suffix role;
-- Portable PaymentMethod data must not become a full-card/account credential channel;
-- truncating or masking a source value would change canonical state;
-- exporting a longer credential-like value would violate the admitted credential boundary.
+The credential-safety boundary supports rejecting arbitrary full credential strings, but **does not by itself prove the decimal alphabet**.
+
+The decimal alphabet is proposed as a deliberate Minimum Sufficient Contract because:
+
+- Lumen's current `last_four` name and seed usage are consistent with the familiar final-four-digits payment-instrument meaning;
+- v1 currently has no admitted product requirement for alphanumeric or arbitrary-Unicode payment-instrument suffixes;
+- broadening the field to generic four-character display metadata would invent a new semantic domain, including unresolved character-counting/Unicode questions, rather than preserve an established canonical contract;
+- types such as `cash`, `gift_card`, `other`, or future instruments are not forced to fabricate a suffix; canonical absence remains `null`;
+- a future version may admit a broader identifier-suffix representation if product evidence earns it.
 
 Therefore:
 
 ```text
 canonical non-null last_four outside four ASCII digits
         ↓
-schema representability problem
+owned PaymentMethod remains owned
+        ↓
+schema representability / compatibility problem
 ```
 
-It does not authorize:
+The rule does **not** authorize:
 
 - truncation;
-- taking the last four characters automatically;
+- automatically taking the last four characters or digits from a longer source value;
 - masking;
 - substitution with null;
 - moving the value into notes;
+- interpreting a PIN, CVV, authentication code, or other secret as `last_four`;
 - omitting the PaymentMethod.
 
 The later reference compatibility gate must decide the complete-export disposition for such a record.
@@ -894,7 +924,17 @@ Rejected.
 
 That would turn a field whose admitted purpose is a limited suffix into a potentially unbounded payment credential channel.
 
-The narrow four-ASCII-digit contract earns a concrete representability boundary instead.
+## Alternative F — Admit any four-character non-secret suffix
+
+Rejected for v1.
+
+This would avoid decimal-only spelling, but it would create a broader public semantic that current Lumen does not yet require:
+
+- what counts as one character would need a Unicode/code-point/grapheme contract;
+- alphanumeric and arbitrary-symbol suffixes would become permanently admitted v1 state;
+- the current repository has no accepted product consumer that requires that broader domain.
+
+The narrower four-ASCII-decimal-digit rule is therefore proposed intentionally as a v1 product semantic rather than claimed as a persistence invariant.
 
 ---
 
@@ -939,6 +979,7 @@ Not established:
 - a universal SF Symbol validity invariant;
 - trimming/case-folding equivalence;
 - cross-installation reference identity from content;
+- a persistence-level decimal validator for `PaymentMethod.last_four`;
 - safe arbitrary credential export.
 
 Claims are narrowed accordingly.
@@ -947,7 +988,7 @@ Claims are narrowed accordingly.
 
 The proposed schemas preserve every current non-temporal domain/display field except responsibilities already excluded or replaced.
 
-They add one narrow safety-driven lexical rule for `last_four`.
+They add one narrow, explicit Portable v1 product-semantic rule for `last_four`: when non-null it means the final four ASCII decimal digits of a non-secret payment-instrument identifier used for display/disambiguation. This rule is intentionally **not** presented as an existing SwiftData validation invariant.
 
 No generalized reference-data framework is added.
 
@@ -978,7 +1019,7 @@ Proposed new authority:
 - these exact fields define v1 reference record semantics;
 - enum token sets are exact;
 - PaymentMethod nullable keys use explicit null;
-- `last_four` uses four ASCII digits when non-null.
+- Portable v1 explicitly defines non-null `last_four` as the final four ASCII decimal digits of a non-secret payment-instrument identifier used only for display/disambiguation.
 
 Explicitly not granted:
 
@@ -1034,11 +1075,13 @@ Therefore no additional field is included merely because it exists in SwiftData.
 
 The following is **PROPOSED FOR REVIEW**, not accepted.
 
-> **Category record.** A Portable JSON v1 Category record contains exactly the required keys `portable_id`, `name`, `group`, `color`, `icon`, and `is_default`. `portable_id` follows the accepted document-local identity contract. `name`, `color`, and `icon` preserve their exact canonical string values without trimming, case folding, normalization, or rendering validation. `group` is exactly one of `fixed_costs`, `investments`, `savings_goals`, `guilt_free_spending`, `income`, or `custom`. `is_default` preserves the canonical boolean but does not prove bootstrap provenance or grant merge identity.
+> **Category record.** A Portable JSON v1 Category record defines the following required v1 keys: `portable_id`, `name`, `group`, `color`, `icon`, and `is_default`. `portable_id` follows the accepted document-local identity contract. `name`, `color`, and `icon` preserve their exact canonical string values without trimming, case folding, normalization, or rendering validation. `group` is exactly one of `fixed_costs`, `investments`, `savings_goals`, `guilt_free_spending`, `income`, or `custom`. `is_default` preserves the canonical boolean but does not prove bootstrap provenance or grant merge identity.
 >
-> **PaymentMethod record.** A Portable JSON v1 PaymentMethod record contains exactly the required keys `portable_id`, `name`, `method_type`, `institution_name`, `last_four`, `notes`, and `is_active`. `institution_name`, `last_four`, and `notes` are nullable but their keys are required; JSON null means exact canonical nil. `method_type` is exactly one of `cash`, `debit_card`, `credit_card`, `bank_transfer`, `hsa`, `fsa`, `gift_card`, or `other`. A non-null `last_four` is exactly four ASCII decimal digits. `is_active` preserves the canonical boolean and does not mean deletion when false.
+> **PaymentMethod record.** A Portable JSON v1 PaymentMethod record defines the following required v1 keys: `portable_id`, `name`, `method_type`, `institution_name`, `last_four`, `notes`, and `is_active`. `institution_name`, `last_four`, and `notes` are nullable but their keys are required; JSON null means exact canonical nil. `method_type` is exactly one of `cash`, `debit_card`, `credit_card`, `bank_transfer`, `hsa`, `fsa`, `gift_card`, or `other`. A non-null `last_four` is exactly the final four ASCII decimal digits of a non-secret payment-instrument identifier used only for display/disambiguation. This decimal-only rule is an explicit proposed Portable v1 product semantic; it is not claimed as a current persistence validator. `is_active` preserves the canonical boolean and does not mean deletion when false.
 >
-> **Tag record.** A Portable JSON v1 Tag record contains exactly the required keys `portable_id`, `name`, and `color`. `name` and `color` preserve exact canonical strings.
+> **Tag record.** A Portable JSON v1 Tag record defines the following required v1 keys: `portable_id`, `name`, and `color`. `name` and `color` preserve exact canonical strings.
+>
+> These required-key rules define the known canonical v1 exporter/schema surface. Treatment of **additional unrecognized input keys** remains reserved for the downstream unknown-field/evolution gate; this schema proposal does not decide whether such keys are rejected, ignored, preserved, or require version negotiation.
 >
 > Native SwiftData `id` values, ordinary `created_at` lifecycle timestamps, computed display helpers, and Tag inverse Transaction relationships are not fields in these v1 records.
 >
@@ -1076,7 +1119,7 @@ Independent review should decide:
 5. Are PaymentMethod optional canonical values best represented as required nullable keys?
 6. Is the eight-token method_type set exact, with no unknown→other coercion?
 7. Is the six-token Category group set exact, with no unknown→custom coercion?
-8. Is four ASCII digits the correct v1 safety/meaning boundary for non-null `last_four`?
+8. Is it appropriate to admit, as an explicit Lumen Portable v1 product semantic rather than a persistence invariant, that non-null `last_four` means the final four ASCII decimal digits of a non-secret payment-instrument identifier used only for display/disambiguation?
 9. Should names/colors/icons/notes/institution strings remain exact opaque strings without normalization?
 10. Does `is_active == false` correctly remain exact state rather than deletion?
 11. Is Tag inverse relationship omission correct because Transaction tag_refs own the association?
