@@ -2188,6 +2188,56 @@ Tag relationships are represented from Transaction through `tag_refs`.
 
 Tags remain intentionally omitted from initial CSV v1 because JSON is the higher-fidelity reference graph.
 
+## 21.3 Cross-family reference-record compatibility disposition — PROPOSED FOR REVIEW
+
+The proposal in `LUMEN_PORTABLE_V1_REFERENCE_RECORD_COMPATIBILITY_DISPOSITION_PROPOSAL.md` defines the candidate operation-level consequence when an already-owned Category, PaymentMethod, or Tag cannot satisfy its accepted exact v1 schema.
+
+Proposed rule:
+
+```text
+owned durable reference record
++
+accepted v1 schema cannot represent it exactly
+        ↓
+complete Portable JSON v1 ownership export
+must not claim successful completion
+```
+
+Before complete-export success is claimed, every durably owned Category, PaymentMethod, and Tag in the selected coherent snapshot must be preflighted against its accepted known-field schema.
+
+The current concrete model/schema mismatch is:
+
+```text
+PaymentMethod.last_four
+canonical persistence = String?
+accepted v1 domain = null or ^[0-9]{4}$
+```
+
+A non-null out-of-domain value remains owned but is not representable as Portable v1 `last_four`.
+
+Future CategoryGroup / PaymentMethodType enum expansion may create additional v1 incompatibility if a canonical token falls outside the accepted v1 token set. Current enum definitions do not demonstrate such state today.
+
+The proposed disposition forbids:
+
+- silently omitting the owned reference record;
+- normalizing/coercing the incompatible field;
+- truncating or automatically extracting a `last_four` suffix;
+- substituting JSON null;
+- moving incompatible content into another field;
+- fabricating a replacement reference object;
+- rewriting Transaction references;
+- claiming a partial artifact is a complete ownership export.
+
+Preflight must provide deterministic source-object association and stable incompatibility reason semantics. Exact diagnostic wire shape, UI, persistence, and ordering remain downstream.
+
+For `PaymentMethod.last_four`, diagnostic reporting must not require disclosure of the raw incompatible value merely to establish the failure.
+
+A future explicitly partial export or separately identified compatibility representation remains possible only through separate admission. Neither is admitted by this proposal.
+
+This disposition governs complete Portable JSON v1 ownership export. It does not promote Lumen CSV v1 into a complete reference-graph ownership format and grants no destination matching, merge, overwrite, deduplication, or conflict-resolution authority.
+
+Portable-ID allocation/capacity remains outside this field-domain compatibility gate and stays with the identity / deterministic-serialization line.
+
 ---
 
 # 22. TransactionSource / Provenance Projection
@@ -2807,6 +2857,7 @@ This inventory records both accepted component gates and still-open work so a st
 - exact PaymentMethod required/nullable/token semantics, including the explicit v1 meaning that non-null `last_four` is the final four ASCII decimal digits of a non-secret payment-instrument identifier — ACCEPTED AT PROPOSED-CONTRACT LEVEL;
 - exact Tag required-field/string semantics — ACCEPTED AT PROPOSED-CONTRACT LEVEL;
 - owned reference record that cannot satisfy an accepted exact schema remains owned and requires explicit compatibility/disposition; silent omission/normalization is not authorized — ACCEPTED AT PROPOSED-CONTRACT LEVEL as a consequence of the exact-schema gate plus the accepted owned-set rule;
+- operation-level disposition for complete Portable JSON ownership export when an owned Category / PaymentMethod / Tag cannot satisfy the accepted exact schema — PROPOSED FOR REVIEW; candidate rule is all-or-nothing complete-export success with deterministic non-mutating diagnostics;
 - exact required/nullable/omitted disposition for Source fields, including `mime_type` and `file_size_bytes` — RESEARCH / ADMISSION REQUIRED;
 - normalized Portable v1 `source_type` token set — RESEARCH / ADMISSION REQUIRED.
 
@@ -2940,7 +2991,7 @@ The exact admitted financial-date year interval and complete lexical/parser vali
 
 Current production `.now` synthesis in `makeTransaction()`, `TransactionDraft.apply(to:)`, and `setStatus(.posted)` remains a downstream implementation-alignment obligation, not accepted production behavior and not implementation-authorized here.
 
-The post-financial-date read-only dependency reassessment is complete. The reference-entity ownership/export-set gate selected from that reassessment reached proposed-contract acceptance. The subsequent read-only reassessment selected ordinary canonical-record lifecycle timestamp disposition, and that gate reached **ACCEPTED AT PROPOSED-CONTRACT LEVEL**. After composition-only convergence with current canonical main, the exact Category / PaymentMethod / Tag record-schema gate has now reached **ACCEPTED AT PROPOSED-CONTRACT LEVEL**. Money/date lexical closure, Source/provenance, deterministic serialization/order, compatibility/restoration, and parser evolution remain partial-order work rather than one linear queue.
+The post-financial-date read-only dependency reassessment is complete. The reference-entity ownership/export-set gate selected from that reassessment reached proposed-contract acceptance. The subsequent read-only reassessment selected ordinary canonical-record lifecycle timestamp disposition, and that gate reached **ACCEPTED AT PROPOSED-CONTRACT LEVEL**. After composition-only convergence with current canonical main, the exact Category / PaymentMethod / Tag record-schema gate reached **ACCEPTED AT PROPOSED-CONTRACT LEVEL**. The dependent reference-record compatibility/export-disposition gate is now **PROPOSED FOR REVIEW**. Money/date lexical closure, Source/provenance, deterministic serialization/order, restoration/conflict, and parser evolution remain partial-order work rather than one linear queue.
 
 ---
 
@@ -2997,6 +3048,8 @@ composition-only current-main convergence
         ↓ complete; no semantic admission
 exact Category / PaymentMethod / Tag record schemas
         ↓ accepted at PROPOSED-contract level
+reference-record compatibility / complete-export disposition
+        ↓ PROPOSED FOR REVIEW
 ```
 
 Future routing is explicitly iterative:
@@ -3019,7 +3072,7 @@ exact capability/persistence admission where required
 only then implementation
 ```
 
-The current inventory records **Category / PaymentMethod / Tag complete-export set semantics**, **ordinary canonical-record lifecycle timestamp disposition**, and **exact Category / PaymentMethod / Tag record schemas** as ACCEPTED AT PROPOSED-CONTRACT LEVEL. `TransactionSource` remains outside the ordinary reference-data gate and retains its dedicated Source/provenance/evidence responsibilities.
+The current inventory records **Category / PaymentMethod / Tag complete-export set semantics**, **ordinary canonical-record lifecycle timestamp disposition**, and **exact Category / PaymentMethod / Tag record schemas** as ACCEPTED AT PROPOSED-CONTRACT LEVEL. **Reference-record compatibility / complete-export disposition** is now PROPOSED FOR REVIEW. `TransactionSource` remains outside the ordinary reference-data gate and retains its dedicated Source/provenance/evidence responsibilities.
 
 Still open includes, among other items:
 
@@ -3027,6 +3080,8 @@ Still open includes, among other items:
 - upper-magnitude authority resolution;
 - exact money canonical lexical serialization;
 - exact admitted financial-date year interval and complete lexical/parser validity;
+- independent review/admission of the proposed reference-record compatibility / complete-export disposition;
+- reference restoration / matching / merge / conflict semantics;
 - Source/provenance portability;
 - deterministic ID allocation / ordering after lower-level record/scalar closure;
 - unknown-field/evolution policy;
