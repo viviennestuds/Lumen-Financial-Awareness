@@ -2238,6 +2238,93 @@ This disposition governs complete Portable JSON v1 ownership export. It does not
 
 Portable-ID allocation/capacity remains outside this field-domain compatibility gate and stays with the identity / deterministic-serialization line.
 
+## 21.4 Ordinary reference restoration / destination conflict semantics — PROPOSED FOR REVIEW
+
+The proposal in `LUMEN_PORTABLE_V1_REFERENCE_RESTORATION_CONFLICT_SEMANTICS_PROPOSAL.md` addresses what happens after a valid admitted Category, PaymentMethod, or Tag record reaches a receiving store that may already contain independently created reference state.
+
+Current repository evidence makes this an immediate round-trip question: `LumenApp.openLedger()` opens the ledger and calls `Seed.bootstrapIfNeeded()` before exposing the container to the UI. A normal fresh receiving installation may therefore already contain independently seeded Categories, PaymentMethods, and Tags with fresh installation-local UUIDs before import begins.
+
+The proposed identity boundary is:
+
+```text
+portable_id
+→ document-local relationship identity only
+
+native reference id
+→ installation-local and not exported
+
+same name
+!= identity
+
+exact admitted field equality
+!= historical identity
+
+is_default / seed resemblance
+!= bootstrap provenance
+```
+
+The current v1 repository establishes no generally available stable cross-install identity mechanism for ordinary Category / PaymentMethod / Tag records.
+
+The proposed minimum restoration rule is:
+
+```text
+exact admitted semantic equality
+        ↓
+eligible for explicit non-mutating REUSE
+
+no accepted reuse
+        ↓
+CREATE one distinct destination object
+with exact source semantics
+
+field difference
+        ↓
+no v1 reuse / overwrite / merge authority
+```
+
+Exact equality is reuse eligibility, not identity proof. Reuse requires explicit reference-import confirmation because choosing one existing destination object creates durable future coupling between pre-existing destination relationships and newly imported relationships.
+
+Exact equality excludes `portable_id` and excluded lifecycle timestamps and compares the complete accepted semantic tuple:
+
+- Category: `name/group/color/icon/is_default`;
+- PaymentMethod: `name/method_type/institution_name/last_four/notes/is_active`, preserving exact null semantics;
+- Tag: `name/color`.
+
+The proposed operation-scoped restoration mapping is one-to-one within each family:
+
+```text
+each imported reference object
+→ exactly one destination target
+
+distinct imported reference objects
+→ distinct destination targets
+```
+
+Two source objects may not silently collapse onto one destination object even if their semantic fields are identical. One source object with multiple eligible destination candidates remains ambiguous and requires explicit target selection or creation.
+
+Once one imported reference object is resolved, every same-document Transaction reference to that object's `portable_id` must consume the same accepted destination target. Resolution belongs at reference-entity scope rather than being repeated independently on every dependent Transaction row.
+
+Name/semantic similarity may surface review candidates but grants no match authority. A field-different destination record is not eligible for non-mutating reuse in a complete source-state restoration under this proposal.
+
+Import-driven UPDATE / OVERWRITE and field MERGE are deliberately **not admitted** by this proposed v1 gate. CREATE is the lossless fallback because it preserves imported state without mutating pre-existing destination state. A future destructive replacement/merge capability would require separate authority.
+
+Independently bootstrapped destination records receive no privileged path. Same-version seed records that are exactly semantically equal may be offered for explicit reuse; seed drift or source edits that change any admitted semantic field fall back to creation. This avoids turning current seed tables into hidden permanent cross-version identity.
+
+A prior import resolution creates no cross-document mapping. Re-import of the same or overlapping document is a new workflow unless a future separately admitted persistent identity/mapping contract establishes otherwise.
+
+The proposed round-trip source-preservation condition is:
+
+```text
+every imported ordinary reference object
+→ one distinct destination target
+→ exact admitted source semantics
+→ consistent same-document relationship reconstruction
+```
+
+This does not authorize deletion of unrelated pre-existing destination records merely to make the destination reference-set cardinality identical to the source installation.
+
+This section remains **PROPOSED FOR REVIEW**. It does not accept the component gate or authorize implementation, workspace persistence, update/merge behavior, schema changes, migrations, or UI.
+
 ---
 
 # 22. TransactionSource / Provenance Projection
@@ -2553,13 +2640,14 @@ supported canonical state
         ↓
 Portable JSON v1
         ↓
-fresh/empty store
+fresh or existing receiving store
+(may already contain independently bootstrapped reference state)
         ↓
-parse / preview / resolution
+parse / preview / reference resolution
         ↓
 Review / explicit confirmation
         ↓
-equivalent supported canonical state
+equivalent supported source-state semantics
 ```
 
 Equivalence means preservation of the semantics explicitly admitted by the final v1 field/entity contract.
@@ -2572,6 +2660,8 @@ It does not require:
 - same import workspace representation;
 - identical JSON bytes;
 - preservation of arbitrary input lexical spelling.
+
+The current ordinary-reference restoration proposal would further clarify that source-state round-trip preservation does not authorize deletion of unrelated pre-existing destination reference objects. For every imported Category / PaymentMethod / Tag, however, one distinct destination target must preserve the imported object's admitted semantics and same-document relationships if complete source-state restoration is claimed. This clarification remains **PROPOSED FOR REVIEW**.
 
 ## 28.2 CSV round trip is intentionally narrower
 
@@ -2596,8 +2686,7 @@ Residual blockers include at least:
 - exact financial-date year interval and complete lexical/parser validity;
 - the still-unaccepted parts of the PortableMoney public domain/spelling contract, including normative precision status, upper-magnitude authority resolution, leading-zero policy, and canonical decimal serialization;
 - operational recovery/user-resolution/failure behavior where an admitted financial date cannot be established from current state;
-- exact non-Transaction record schemas;
-- independent review/admission of the currently proposed exclusion of ordinary canonical-record lifecycle timestamps;
+- ordinary reference restoration / destination matching / conflict semantics — now **PROPOSED FOR REVIEW**, not accepted;
 - Source/provenance portability and its distinct temporal semantics;
 - unknown-field/evolution policy, including treatment of additional unrecognized keys beyond the required known v1 schema surface;
 - deterministic allocation/order only after the exported record/scalar model is sufficiently closed.
@@ -2858,6 +2947,8 @@ This inventory records both accepted component gates and still-open work so a st
 - exact Tag required-field/string semantics — ACCEPTED AT PROPOSED-CONTRACT LEVEL;
 - owned reference record that cannot satisfy an accepted exact schema remains owned and requires explicit compatibility/disposition; silent omission/normalization is not authorized — ACCEPTED AT PROPOSED-CONTRACT LEVEL as a consequence of the exact-schema gate plus the accepted owned-set rule;
 - operation-level disposition for complete Portable JSON ownership export when an owned Category / PaymentMethod / Tag cannot satisfy the accepted exact schema — ACCEPTED AT PROPOSED-CONTRACT LEVEL; complete-export success is blocked by any owned incompatible record, with deterministic non-mutating preflight semantics;
+- ordinary Category / PaymentMethod / Tag restoration / destination matching / conflict semantics — **PROPOSED FOR REVIEW**: no generally available cross-install identity is established; exact admitted-field equality is proposed as eligibility for explicit non-mutating reuse rather than identity proof; unresolved/no-reuse cases use explicit creation as the lossless fallback; distinct imported objects remain distinct; import-driven update/overwrite and merge remain unadmitted;
+- same-document relationship closure under an accepted operation-scoped reference resolution — **PROPOSED FOR REVIEW**; all dependent references to one imported object consume one accepted destination target, while the mapping gains no cross-document authority;
 - exact required/nullable/omitted disposition for Source fields, including `mime_type` and `file_size_bytes` — RESEARCH / ADMISSION REQUIRED;
 - normalized Portable v1 `source_type` token set — RESEARCH / ADMISSION REQUIRED.
 
@@ -2991,7 +3082,11 @@ The exact admitted financial-date year interval and complete lexical/parser vali
 
 Current production `.now` synthesis in `makeTransaction()`, `TransactionDraft.apply(to:)`, and `setStatus(.posted)` remains a downstream implementation-alignment obligation, not accepted production behavior and not implementation-authorized here.
 
-The post-financial-date read-only dependency reassessment is complete. The reference-entity ownership/export-set gate selected from that reassessment reached proposed-contract acceptance. The subsequent read-only reassessment selected ordinary canonical-record lifecycle timestamp disposition, and that gate reached **ACCEPTED AT PROPOSED-CONTRACT LEVEL**. After composition-only convergence with current canonical main, the exact Category / PaymentMethod / Tag record-schema gate reached **ACCEPTED AT PROPOSED-CONTRACT LEVEL**. The dependent reference-record compatibility/export-disposition gate has now reached **ACCEPTED AT PROPOSED-CONTRACT LEVEL**. Money/date lexical closure, Source/provenance, deterministic serialization/order, restoration/conflict, and parser evolution remain partial-order work rather than one linear queue.
+The post-financial-date read-only dependency reassessment is complete. The reference-entity ownership/export-set gate selected from that reassessment reached proposed-contract acceptance. The subsequent read-only reassessment selected ordinary canonical-record lifecycle timestamp disposition, and that gate reached **ACCEPTED AT PROPOSED-CONTRACT LEVEL**. After composition-only convergence with current canonical main, the exact Category / PaymentMethod / Tag record-schema gate reached **ACCEPTED AT PROPOSED-CONTRACT LEVEL**. The dependent reference-record compatibility/export-disposition gate has now reached **ACCEPTED AT PROPOSED-CONTRACT LEVEL**.
+
+A read-only dependency reassessment from accepted checkpoint `3982d96d5dc11a6c924d2319e93c94361be50740` found ordinary reference restoration / destination matching / conflict semantics sufficiently unblocked to become the next single gate. `LUMEN_PORTABLE_V1_REFERENCE_RESTORATION_CONFLICT_SEMANTICS_PROPOSAL.md` is now **PROPOSED FOR REVIEW** on its dedicated docs-only branch. That proposal status creates no acceptance authority.
+
+Money/date lexical closure, Source/provenance, deterministic serialization/order, reference-restoration acceptance, and parser evolution remain partial-order work rather than one linear queue.
 
 ---
 
@@ -3001,7 +3096,13 @@ The latest accepted semantic gate is:
 
 > **Reference-record compatibility / complete-export disposition — ACCEPTED AT PROPOSED-CONTRACT LEVEL**
 
+The current dependent gate under review is:
+
+> **Ordinary reference restoration / destination matching / conflict semantics — PROPOSED FOR REVIEW**
+
 Exact Category / PaymentMethod / Tag record schemas remain accepted at the proposed-contract level as the preceding semantic gate. Ordinary canonical-record lifecycle timestamp disposition remains accepted earlier in the same reference-data line.
+
+The restoration proposal is downstream of `3982d96d5dc11a6c924d2319e93c94361be50740` and does not promote itself merely by being present on the branch.
 
 Historical progression now includes both accepted gates and deliberately preserved authority uncertainty:
 
@@ -3050,6 +3151,11 @@ exact Category / PaymentMethod / Tag record schemas
         ↓ accepted at PROPOSED-contract level
 reference-record compatibility / complete-export disposition
         ↓ accepted at PROPOSED-contract level
+read-only dependency reassessment from 3982d96...
+        ↓ complete
+ordinary reference restoration / destination
+matching / conflict semantics
+        ↓ PROPOSED FOR REVIEW
 ```
 
 Future routing is explicitly iterative:
@@ -3072,7 +3178,7 @@ exact capability/persistence admission where required
 only then implementation
 ```
 
-The current inventory records **Category / PaymentMethod / Tag complete-export set semantics**, **ordinary canonical-record lifecycle timestamp disposition**, **exact Category / PaymentMethod / Tag record schemas**, and **reference-record compatibility / complete-export disposition** as ACCEPTED AT PROPOSED-CONTRACT LEVEL. `TransactionSource` remains outside the ordinary reference-data gate and retains its dedicated Source/provenance/evidence responsibilities.
+The current inventory records **Category / PaymentMethod / Tag complete-export set semantics**, **ordinary canonical-record lifecycle timestamp disposition**, **exact Category / PaymentMethod / Tag record schemas**, and **reference-record compatibility / complete-export disposition** as ACCEPTED AT PROPOSED-CONTRACT LEVEL. The ordinary reference restoration / destination conflict component is **PROPOSED FOR REVIEW** and remains non-authoritative pending independent acceptance. `TransactionSource` remains outside the ordinary reference-data gate and retains its dedicated Source/provenance/evidence responsibilities.
 
 Still open includes, among other items:
 
@@ -3080,7 +3186,7 @@ Still open includes, among other items:
 - upper-magnitude authority resolution;
 - exact money canonical lexical serialization;
 - exact admitted financial-date year interval and complete lexical/parser validity;
-- reference restoration / matching / merge / conflict semantics;
+- reference restoration / destination matching / conflict semantics — **PROPOSED FOR REVIEW**, pending independent acceptance;
 - Source/provenance portability;
 - deterministic ID allocation / ordering after lower-level record/scalar closure;
 - unknown-field/evolution policy;
