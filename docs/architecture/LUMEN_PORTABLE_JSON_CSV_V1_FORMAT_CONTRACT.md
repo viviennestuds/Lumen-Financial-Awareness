@@ -1990,11 +1990,11 @@ They do not require Lumen CSV v1 to reproduce each source shape.
 
 ---
 
-# 19. Category Portable Record — PROPOSED FOR REVIEW
+# 19. Category Portable Record — ACCEPTED AT PROPOSED-CONTRACT LEVEL
 
 The exact Category schema proposal is defined in `LUMEN_PORTABLE_V1_REFERENCE_ENTITY_SCHEMA_PROPOSAL.md`.
 
-## 19.1 Proposed exact shape
+## 19.1 Accepted proposed-contract shape
 
 ```json
 {
@@ -2011,7 +2011,7 @@ All six known v1 keys are required.
 
 This requirement defines the canonical exporter/known-schema surface only. Treatment of additional unrecognized input keys remains reserved for the downstream unknown-field/evolution gate.
 
-| Field | Proposed domain |
+| Field | Accepted proposed-contract domain |
 | --- | --- |
 | `portable_id` | accepted Portable-ID grammar |
 | `name` | exact JSON string |
@@ -2020,7 +2020,7 @@ This requirement defines the canonical exporter/known-schema surface only. Treat
 | `icon` | exact JSON string |
 | `is_default` | JSON boolean |
 
-## 19.2 Proposed group tokens
+## 19.2 Accepted group tokens
 
 - `fixed_costs`;
 - `investments`;
@@ -2056,11 +2056,11 @@ Exact reference-entity conflict behavior remains separately gated.
 
 ---
 
-# 20. PaymentMethod Portable Record — PROPOSED FOR REVIEW
+# 20. PaymentMethod Portable Record — ACCEPTED AT PROPOSED-CONTRACT LEVEL
 
 The exact PaymentMethod schema proposal is defined in `LUMEN_PORTABLE_V1_REFERENCE_ENTITY_SCHEMA_PROPOSAL.md`.
 
-## 20.1 Proposed exact shape
+## 20.1 Accepted proposed-contract shape
 
 ```json
 {
@@ -2078,7 +2078,7 @@ All seven known v1 keys are required. Canonically optional fields use explicit J
 
 These are known-key presence semantics. This gate does not decide whether additional unrecognized input keys are rejected, ignored, preserved, or handled through version/evolution negotiation.
 
-| Field | Proposed domain |
+| Field | Accepted proposed-contract domain |
 | --- | --- |
 | `portable_id` | accepted Portable-ID grammar |
 | `name` | exact JSON string |
@@ -2088,7 +2088,7 @@ These are known-key presence semantics. This gate does not decide whether additi
 | `notes` | JSON string or null |
 | `is_active` | JSON boolean |
 
-## 20.2 Proposed method-type tokens
+## 20.2 Accepted method-type tokens
 
 - `cash`;
 - `debit_card`;
@@ -2111,7 +2111,7 @@ Except for the narrower `last_four` domain, admitted strings preserve exact cano
 
 ## 20.4 last_four representability boundary
 
-Current persistence stores `last_four` as `String?` and does not enforce a decimal lexical validator. The decimal-only rule below is therefore an **explicit proposed Portable v1 product semantic**, not a claim about what SwiftData already guarantees.
+Current persistence stores `last_four` as `String?` and does not enforce a decimal lexical validator. The decimal-only rule below is therefore an **explicit Portable v1 product semantic accepted by this component gate**, not a claim about what SwiftData already guarantees.
 
 When non-null, `last_four` means:
 
@@ -2134,7 +2134,7 @@ The rule does not authorize:
 - interpreting a PIN/CVV/authentication code or other secret as `last_four`;
 - moving an incompatible value into another field.
 
-The credential boundary supports keeping the field bounded, but it does not itself prove the decimal alphabet. Decimal digits are proposed intentionally as the minimum v1 product semantic; a broader alphanumeric/arbitrary-character suffix domain is not currently admitted.
+The credential boundary supports keeping the field bounded, but it does not itself prove the decimal alphabet. Decimal digits are intentionally admitted here as the minimum v1 product semantic; a broader alphanumeric/arbitrary-character suffix domain is not admitted by this gate.
 
 An already-owned durable PaymentMethod whose non-null `last_four` falls outside this domain remains owned but becomes a reference-schema compatibility case.
 
@@ -2150,11 +2150,11 @@ The proposal does not create heuristic secret-scanning or redaction behavior.
 
 ---
 
-# 21. Tag Portable Record — PROPOSED FOR REVIEW
+# 21. Tag Portable Record — ACCEPTED AT PROPOSED-CONTRACT LEVEL
 
 The exact Tag schema proposal is defined in `LUMEN_PORTABLE_V1_REFERENCE_ENTITY_SCHEMA_PROPOSAL.md`.
 
-## 21.1 Proposed exact shape
+## 21.1 Accepted proposed-contract shape
 
 ```json
 {
@@ -2168,7 +2168,7 @@ All three known v1 keys are required.
 
 As with Category and PaymentMethod, this freezes required known-key emission/presence only. Additional unknown input-key behavior remains downstream.
 
-| Field | Proposed domain |
+| Field | Accepted proposed-contract domain |
 | --- | --- |
 | `portable_id` | accepted Portable-ID grammar |
 | `name` | exact JSON string |
@@ -2803,10 +2803,10 @@ This inventory records both accepted component gates and still-open work so a st
 
 ## Non-Transaction record schemas
 
-- exact Category required-field/token/string semantics — PROPOSED FOR REVIEW;
-- exact PaymentMethod required/nullable/token semantics, including the explicit proposed v1 meaning that non-null `last_four` is the final four ASCII decimal digits of a non-secret payment-instrument identifier — PROPOSED FOR REVIEW;
-- exact Tag required-field/string semantics — PROPOSED FOR REVIEW;
-- owned reference record that cannot satisfy an accepted exact schema remains owned and requires explicit compatibility/disposition; silent omission/normalization is not authorized — PROPOSED FOR REVIEW as a consequence of the exact-schema proposal plus the accepted owned-set rule;
+- exact Category required-field/token/string semantics — ACCEPTED AT PROPOSED-CONTRACT LEVEL;
+- exact PaymentMethod required/nullable/token semantics, including the explicit v1 meaning that non-null `last_four` is the final four ASCII decimal digits of a non-secret payment-instrument identifier — ACCEPTED AT PROPOSED-CONTRACT LEVEL;
+- exact Tag required-field/string semantics — ACCEPTED AT PROPOSED-CONTRACT LEVEL;
+- owned reference record that cannot satisfy an accepted exact schema remains owned and requires explicit compatibility/disposition; silent omission/normalization is not authorized — ACCEPTED AT PROPOSED-CONTRACT LEVEL as a consequence of the exact-schema gate plus the accepted owned-set rule;
 - exact required/nullable/omitted disposition for Source fields, including `mime_type` and `file_size_bytes` — RESEARCH / ADMISSION REQUIRED;
 - normalized Portable v1 `source_type` token set — RESEARCH / ADMISSION REQUIRED.
 
@@ -2940,7 +2940,7 @@ The exact admitted financial-date year interval and complete lexical/parser vali
 
 Current production `.now` synthesis in `makeTransaction()`, `TransactionDraft.apply(to:)`, and `setStatus(.posted)` remains a downstream implementation-alignment obligation, not accepted production behavior and not implementation-authorized here.
 
-The post-financial-date read-only dependency reassessment is complete. The reference-entity ownership/export-set gate selected from that reassessment reached proposed-contract acceptance. The subsequent read-only reassessment selected ordinary canonical-record lifecycle timestamp disposition, and that gate reached **ACCEPTED AT PROPOSED-CONTRACT LEVEL**. After composition-only convergence with current canonical main, the exact Category / PaymentMethod / Tag record-schema gate is now **PROPOSED FOR REVIEW**. Money/date lexical closure, Source/provenance, deterministic serialization/order, compatibility/restoration, and parser evolution remain partial-order work rather than one linear queue.
+The post-financial-date read-only dependency reassessment is complete. The reference-entity ownership/export-set gate selected from that reassessment reached proposed-contract acceptance. The subsequent read-only reassessment selected ordinary canonical-record lifecycle timestamp disposition, and that gate reached **ACCEPTED AT PROPOSED-CONTRACT LEVEL**. After composition-only convergence with current canonical main, the exact Category / PaymentMethod / Tag record-schema gate has now reached **ACCEPTED AT PROPOSED-CONTRACT LEVEL**. Money/date lexical closure, Source/provenance, deterministic serialization/order, compatibility/restoration, and parser evolution remain partial-order work rather than one linear queue.
 
 ---
 
@@ -2948,9 +2948,9 @@ The post-financial-date read-only dependency reassessment is complete. The refer
 
 The latest accepted semantic gate is:
 
-> **Ordinary canonical-record lifecycle timestamp disposition — ACCEPTED AT PROPOSED-CONTRACT LEVEL**
+> **Exact Category / PaymentMethod / Tag record schemas — ACCEPTED AT PROPOSED-CONTRACT LEVEL**
 
-Category / PaymentMethod / Tag complete-export set semantics remain accepted at the proposed-contract level as the preceding semantic gate.
+Ordinary canonical-record lifecycle timestamp disposition remains accepted at the proposed-contract level as the preceding semantic gate.
 
 Historical progression now includes both accepted gates and deliberately preserved authority uncertainty:
 
@@ -2996,7 +2996,7 @@ ordinary canonical-record lifecycle timestamp disposition
 composition-only current-main convergence
         ↓ complete; no semantic admission
 exact Category / PaymentMethod / Tag record schemas
-        ↓ PROPOSED FOR REVIEW
+        ↓ accepted at PROPOSED-contract level
 ```
 
 Future routing is explicitly iterative:
@@ -3019,7 +3019,7 @@ exact capability/persistence admission where required
 only then implementation
 ```
 
-The current inventory records both **Category / PaymentMethod / Tag complete-export set semantics** and **ordinary canonical-record lifecycle timestamp disposition** as ACCEPTED AT PROPOSED-CONTRACT LEVEL. Exact Category / PaymentMethod / Tag record schemas are now **PROPOSED FOR REVIEW**. `TransactionSource` remains outside the ordinary reference-data gate and retains its dedicated Source/provenance/evidence responsibilities.
+The current inventory records **Category / PaymentMethod / Tag complete-export set semantics**, **ordinary canonical-record lifecycle timestamp disposition**, and **exact Category / PaymentMethod / Tag record schemas** as ACCEPTED AT PROPOSED-CONTRACT LEVEL. `TransactionSource` remains outside the ordinary reference-data gate and retains its dedicated Source/provenance/evidence responsibilities.
 
 Still open includes, among other items:
 
@@ -3027,7 +3027,6 @@ Still open includes, among other items:
 - upper-magnitude authority resolution;
 - exact money canonical lexical serialization;
 - exact admitted financial-date year interval and complete lexical/parser validity;
-- independent review/admission of the currently proposed exact Category / PaymentMethod / Tag record schemas;
 - Source/provenance portability;
 - deterministic ID allocation / ordering after lower-level record/scalar closure;
 - unknown-field/evolution policy;
