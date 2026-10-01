@@ -2,7 +2,7 @@
 
 ## Status
 
-**PROPOSED FOR REVIEW — Phase 1C ordinary reference-record compatibility/export-disposition proposal.**
+**ACCEPTED AT PROPOSED-CONTRACT LEVEL — independently reviewed Phase 1C ordinary reference-record compatibility/export-disposition gate.**
 
 Starting accepted semantic checkpoint:
 
@@ -741,9 +741,9 @@ Future partial/compatibility modes must remain explicitly distinct.
 
 ---
 
-# 19. Exact proposed contract language
+# 19. Exact accepted proposed-contract language
 
-The following language is **PROPOSED FOR REVIEW**, not accepted:
+The following language is **ACCEPTED AT PROPOSED-CONTRACT LEVEL**.
 
 > **Reference-record complete-export compatibility.** Before claiming successful completion of a complete Portable JSON v1 ownership export, Lumen must evaluate every durably owned Category, PaymentMethod, and Tag in the selected coherent export snapshot against the accepted Portable v1 known-field schema for that entity family.
 >
@@ -763,17 +763,16 @@ The following language is **PROPOSED FOR REVIEW**, not accepted:
 
 # 20. Remaining dependencies
 
-Still open after this proposal:
+Still open after this acceptance:
 
-1. independent review/admission of this reference-record compatibility disposition;
-2. reference restoration / matching / merge / conflict semantics;
-3. Source/provenance portability;
-4. PortableMoney lexical/governance closure;
-5. exact financial-date lexical/year validity;
-6. top-level/admitted timestamp lexical rules;
-7. deterministic Portable-ID allocation and emitted ordering;
-8. unknown-field/evolution policy;
-9. full Portable JSON / CSV v1 acceptance.
+1. reference restoration / matching / merge / conflict semantics;
+2. Source/provenance portability;
+3. PortableMoney lexical/governance closure;
+4. exact financial-date lexical/year validity;
+5. top-level/admitted timestamp lexical rules;
+6. deterministic Portable-ID allocation and emitted ordering;
+7. unknown-field/evolution policy;
+8. full Portable JSON / CSV v1 acceptance.
 
 ---
 
@@ -794,10 +793,47 @@ Independent review should answer:
 
 ---
 
-# 22. Review boundary
+# 22. Independent-review acceptance and boundary
 
-This proposal remains **PROPOSED FOR REVIEW**.
+Independent review of:
 
-Do not record acceptance without independent review.
+`8b1b8cd70459ad51865f05b542f7c65c6ffff2b5`
+
+passes at the proposed-contract level.
+
+Accepted operation-level rule:
+
+```text
+durably owned Category / PaymentMethod / Tag
++
+accepted exact v1 schema cannot represent the record
+        ↓
+requested complete Portable JSON v1 ownership export
+must not claim successful completion
+```
+
+Accepted consequences:
+
+- complete-export compatibility preflight is non-mutating and evaluates every durably owned Category, PaymentMethod, and Tag in the selected coherent snapshot, including owned records with zero Transaction references;
+- an incompatible record remains owned;
+- schema incompatibility does not authorize omission, normalization, coercion, truncation, masking, null substitution, movement into another field, fabrication of a replacement object, or rewriting of Transaction references;
+- preflight must provide deterministic source-object association and stable incompatibility-reason semantics at the semantic level, while exact reason-token spelling, diagnostic wire format, persistence, ordering, UI wording, and Portable-ID use remain downstream;
+- for `PaymentMethod.last_four`, incompatibility diagnostics must not require disclosure of the raw incompatible canonical value merely to establish or report the incompatibility;
+- the concrete present compatibility case is a technically persistable non-null `last_four` outside `^[0-9]{4}$`; future CategoryGroup or PaymentMethodType expansion is forward-compatibility pressure, not evidence of current incompatible stores;
+- independent complete-export compatibility axes remain independently reportable: failure on one axis does not erase materially applicable findings on another, without freezing one aggregation architecture;
+- a future explicitly partial export or separately identified compatibility representation remains possible only through separate admission, and neither may masquerade as a complete Portable JSON v1 ownership export.
+
+This acceptance does **not** decide:
+
+- destination matching, merge, overwrite, deduplication, or conflict authority;
+- unknown-input-field evolution policy;
+- Portable-ID allocation, capacity, or emitted ordering;
+- CSV complete-export semantics;
+- Source / TransactionSource portability or provenance;
+- migrations;
+- implementation;
+- full Portable JSON / CSV v1 format acceptance.
+
+This component-gate acceptance does not authorize production code, tests, persistence/schema changes, migrations, importer/exporter implementation, serializer implementation, or UI.
 
 Do not open reference restoration/conflict, Source/provenance, deterministic-ordering, or another Phase 1C gate from this checkpoint without separate authorization.
