@@ -2348,7 +2348,141 @@ This section is **ACCEPTED AT PROPOSED-CONTRACT LEVEL**.
 
 The accepted restoration gate still does not authorize deletion, retirement, bootstrap suppression/deferment, import-driven update/overwrite, merge, persistent cross-import mapping, implementation, workspace persistence, schema changes, migrations, or UI.
 
-Fresh-install destination-only bootstrap reference-state disposition remains **OPEN** and must be separately admitted before whole-store Portable round-trip equivalence can be claimed.
+The downstream fresh-install destination-only bootstrap reference-state disposition is now addressed by Section 21.5 as **PROPOSED FOR REVIEW**. It remains unaccepted and grants no new bootstrap, persistence, or implementation authority unless separately reviewed and admitted.
+
+## 21.5 Fresh-install Portable ownership-restoration bootstrap-state disposition — PROPOSED FOR REVIEW
+
+The proposal in `LUMEN_PORTABLE_V1_FRESH_INSTALL_RESTORATION_BOOTSTRAP_STATE_PROPOSAL.md` addresses the remaining reference-data conflict between:
+
+```text
+ordinary fresh-start initialization
+→ Lumen may establish useful default reference state
+```
+
+and:
+
+```text
+fresh-install Portable ownership restoration
+→ source owned-set semantics must determine
+  the resulting supported canonical reference state
+```
+
+Current runtime evidence exposes a mechanical seam:
+
+```text
+LedgerStore.open()
+        ↓
+ModelContainer exists
+        ↓
+Seed.bootstrapIfNeeded()
+```
+
+The proposal does **not** treat that seam as proof that the store is fresh.
+
+It proposes the following minimum semantic model:
+
+```text
+authoritative fresh-restoration eligibility
++
+explicit user restore intent
+        ↓
+fresh-restoration bootstrap hold
+        ↓
+ordinary Category / PaymentMethod / Tag bootstrap yields
+        ↓
+restore / preview / confirmation
+        ↓
+successful restoration resolves initialization
+```
+
+The proposal treats ordinary reference bootstrap as **initialization authority**, not as a perpetual rule that an empty family must always be reseeded.
+
+That distinction is required by accepted empty-set semantics. For example:
+
+```text
+source tags: []
+→ successful fresh restore
+→ canonical Tag set remains empty
+→ later launch must not recreate defaults
+  merely because Tag count == 0
+```
+
+Freshness and bootstrap origin must not be inferred from:
+
+- `LedgerStore.open()` success;
+- Category / PaymentMethod / Tag counts;
+- Transaction count;
+- names;
+- exact equality with current seed definitions;
+- `Category.is_default`;
+- zero relationships;
+- current seed resemblance.
+
+The exact lifecycle/workflow fact that proves fresh-restoration eligibility remains downstream capability/persistence work.
+
+The proposal also distinguishes:
+
+```text
+fresh-restoration authority established
+!=
+fresh-restoration workflow completed
+```
+
+Once a legitimate fresh-restoration bootstrap hold has acquired authority, ordinary bootstrap must not silently regain authority merely because the process terminates or the application relaunches.
+
+If the workflow is permitted to survive interruption, the authority needed to preserve bootstrap withholding must be recoverable across that interruption.
+
+This creates a downstream exact persistence/recovery admission dependency without selecting:
+
+- SwiftData;
+- UserDefaults;
+- a file;
+- a RestoreSession model;
+- schema changes;
+- migrations;
+- a particular atomicity mechanism.
+
+Parse failure, unsupported input, validation failure, or interruption is not implicit abandonment.
+
+Explicit user abandonment before successful canonical restoration may release the hold and return the store to ordinary initialization.
+
+Successful fresh restoration resolves ordinary reference initialization; later family emptiness alone must not reauthorize defaults.
+
+The proposal applies the bootstrap/restoration authority coherently across Category, PaymentMethod, and Tag for a complete fresh ownership restoration. Current family-specific seed predicates must not allow destination-only defaults in one family to leak into a source-controlled restoration of another family.
+
+Already-created bootstrap state remains outside this narrow path. Once ordinary defaults are canonical, this proposal grants no authority to infer that records are disposable because they look seeded. Accepted existing-store restoration semantics remain controlling unless a separate destructive/reconciliation capability is admitted.
+
+The preferred semantic alternative is therefore:
+
+```text
+authority-gated pre-bootstrap restoration
+```
+
+rather than:
+
+```text
+bootstrap first
+→ infer provenance later
+→ delete/reconcile seed-looking records
+```
+
+The proposal explicitly does **not** admit:
+
+- generic Category / PaymentMethod / Tag deletion;
+- retirement of arbitrary existing reference state;
+- arbitrary existing-store reconciliation;
+- stable built-in/default identities;
+- per-record bootstrap provenance fields;
+- a specific freshness marker;
+- a specific restore-session persistence model;
+- SwiftData schema changes;
+- migrations;
+- workspace persistence implementation;
+- importer/exporter implementation;
+- UI;
+- full Portable JSON / CSV v1 acceptance.
+
+This section remains **PROPOSED FOR REVIEW**.
 
 ---
 
@@ -2716,7 +2850,7 @@ Residual blockers include at least:
 - exact financial-date year interval and complete lexical/parser validity;
 - the still-unaccepted parts of the PortableMoney public domain/spelling contract, including normative precision status, upper-magnitude authority resolution, leading-zero policy, and canonical decimal serialization;
 - operational recovery/user-resolution/failure behavior where an admitted financial date cannot be established from current state;
-- fresh-install destination-only bootstrap reference-state disposition — **OPEN**; required before whole-store Portable round-trip equivalence can be claimed;
+- fresh-install Portable ownership-restoration bootstrap-state disposition — **PROPOSED FOR REVIEW**; required before whole-store Portable round-trip equivalence can be claimed, with exact persistence/recovery capability still downstream if interruption-safe authority is accepted;
 - Source/provenance portability and its distinct temporal semantics;
 - unknown-field/evolution policy, including treatment of additional unrecognized keys beyond the required known v1 schema surface;
 - deterministic allocation/order only after the exported record/scalar model is sufficiently closed.
@@ -3117,7 +3251,9 @@ The post-financial-date read-only dependency reassessment is complete. The refer
 
 A read-only dependency reassessment from accepted checkpoint `3982d96d5dc11a6c924d2319e93c94361be50740` found ordinary reference restoration / destination matching / conflict semantics sufficiently unblocked to become the next single gate. After independent review and fresh-install round-trip hardening, `LUMEN_PORTABLE_V1_REFERENCE_RESTORATION_CONFLICT_SEMANTICS_PROPOSAL.md` has now reached **ACCEPTED AT PROPOSED-CONTRACT LEVEL**.
 
-Fresh-install destination-only bootstrap reference-state disposition remains OPEN and separately gated. Money/date lexical closure, Source/provenance, deterministic serialization/order, that fresh-install round-trip assembly, and parser evolution remain partial-order work rather than one linear queue.
+A read-only dependency reassessment from accepted checkpoint `e01f87e30beb84c16dddf8eed3a591c8b5e0a182` found fresh-install Portable ownership-restoration bootstrap-state disposition sufficiently isolated to become the next single semantic gate. `LUMEN_PORTABLE_V1_FRESH_INSTALL_RESTORATION_BOOTSTRAP_STATE_PROPOSAL.md` is now **PROPOSED FOR REVIEW** on its dedicated docs-only branch. This proposal status creates no acceptance, persistence, or implementation authority.
+
+Money/date lexical closure, Source/provenance, deterministic serialization/order, this fresh-install round-trip assembly, and parser evolution remain partial-order work rather than one linear queue.
 
 ---
 
@@ -3127,9 +3263,13 @@ The latest accepted semantic gate is:
 
 > **Ordinary reference restoration / destination matching / conflict semantics — ACCEPTED AT PROPOSED-CONTRACT LEVEL**
 
-Reference-record compatibility / complete-export disposition remains accepted as its direct semantic dependency. Exact Category / PaymentMethod / Tag record schemas and ordinary canonical-record lifecycle timestamp disposition remain accepted earlier in the same reference-data line.
+The current dependent gate under review is:
 
-The accepted restoration gate is downstream of `3982d96d5dc11a6c924d2319e93c94361be50740`. Its acceptance does not close the separately open fresh-install destination-only bootstrap reference-state disposition and does not accept the full Portable JSON / CSV v1 contract.
+> **Fresh-install Portable ownership-restoration bootstrap-state disposition — PROPOSED FOR REVIEW**
+
+Reference-record compatibility / complete-export disposition remains accepted as the restoration gate's direct semantic dependency. Exact Category / PaymentMethod / Tag record schemas and ordinary canonical-record lifecycle timestamp disposition remain accepted earlier in the same reference-data line.
+
+The fresh-install proposal is downstream of accepted checkpoint `e01f87e30beb84c16dddf8eed3a591c8b5e0a182`. It does not promote itself merely by being present on the branch and does not accept the full Portable JSON / CSV v1 contract.
 
 Historical progression now includes both accepted gates and deliberately preserved authority uncertainty:
 
@@ -3183,9 +3323,11 @@ read-only dependency reassessment from 3982d96...
 ordinary reference restoration / destination
 matching / conflict semantics
         ↓ accepted at PROPOSED-contract level
-fresh-install destination-only bootstrap
-reference-state disposition
-        ↓ OPEN; separately gated
+read-only dependency reassessment from e01f87e...
+        ↓ complete
+fresh-install Portable ownership-restoration
+bootstrap-state disposition
+        ↓ PROPOSED FOR REVIEW
 ```
 
 Future routing is explicitly iterative:
@@ -3208,7 +3350,7 @@ exact capability/persistence admission where required
 only then implementation
 ```
 
-The current inventory records **Category / PaymentMethod / Tag complete-export set semantics**, **ordinary canonical-record lifecycle timestamp disposition**, **exact Category / PaymentMethod / Tag record schemas**, **reference-record compatibility / complete-export disposition**, and **ordinary reference restoration / destination matching / conflict semantics** as ACCEPTED AT PROPOSED-CONTRACT LEVEL. Fresh-install destination-only bootstrap reference-state disposition remains OPEN and separately gated. `TransactionSource` remains outside the ordinary reference-data gate and retains its dedicated Source/provenance/evidence responsibilities.
+The current inventory records **Category / PaymentMethod / Tag complete-export set semantics**, **ordinary canonical-record lifecycle timestamp disposition**, **exact Category / PaymentMethod / Tag record schemas**, **reference-record compatibility / complete-export disposition**, and **ordinary reference restoration / destination matching / conflict semantics** as ACCEPTED AT PROPOSED-CONTRACT LEVEL. Fresh-install Portable ownership-restoration bootstrap-state disposition is **PROPOSED FOR REVIEW** and remains non-authoritative pending independent acceptance. `TransactionSource` remains outside the ordinary reference-data gate and retains its dedicated Source/provenance/evidence responsibilities.
 
 Still open includes, among other items:
 
@@ -3216,7 +3358,7 @@ Still open includes, among other items:
 - upper-magnitude authority resolution;
 - exact money canonical lexical serialization;
 - exact admitted financial-date year interval and complete lexical/parser validity;
-- fresh-install destination-only bootstrap reference-state disposition required before whole-store Portable round-trip equivalence can be claimed;
+- fresh-install Portable ownership-restoration bootstrap-state disposition — **PROPOSED FOR REVIEW**, pending independent acceptance;
 - Source/provenance portability;
 - deterministic ID allocation / ordering after lower-level record/scalar closure;
 - unknown-field/evolution policy;
