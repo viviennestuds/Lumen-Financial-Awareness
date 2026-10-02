@@ -190,6 +190,22 @@ does not itself admit arbitrary Category / PaymentMethod / Tag deletion.
 
 Ordinary reference management remains independently admissible only within exact contracts.
 
+## 2.7 Canonical confirmation boundaries may be separate
+
+The accepted Phase 1C responsibility contract permits:
+
+```text
+reference-entity canonical confirmation boundary
+!=
+Transaction canonical confirmation boundary
+```
+
+If reference-entity proposals are confirmed through a separate explicit boundary, that boundary receives its own atomicity / replay-safety evaluation.
+
+If reference-entity effects and Transactions are authorized together, they share one atomicity / replay-safety boundary.
+
+Therefore this bootstrap gate must align initialization resolution with the canonical boundary that establishes the complete imported Category / PaymentMethod / Tag owned sets, not with completion of every other part of the Portable restoration workflow.
+
 ---
 
 # 3. Repository evidence
@@ -423,16 +439,20 @@ The semantic condition under which ordinary reference bootstrap has yielded to a
 
 "Hold" describes authority, not a required implementation object.
 
-## 5.4 Initialization resolved
+## 5.4 Reference initialization resolved
 
 The point after which ordinary bootstrap may no longer treat an empty reference family as evidence that default initialization still needs to occur.
 
 Resolution may be reached through:
 
 - successful ordinary bootstrap; or
-- successful fresh-install ownership restoration.
+- successful canonical commitment of the confirmation boundary that establishes the complete imported Category / PaymentMethod / Tag owned sets.
 
-An explicitly abandoned fresh-restoration attempt may instead release the hold and return to the unresolved ordinary initialization path.
+That reference-state boundary may be separate from the Transaction confirmation boundary or combined with it.
+
+An explicitly confirmed empty family such as `tags: []` still establishes canonical reference state even though zero Tag objects are inserted.
+
+An explicitly abandoned fresh-restoration attempt may release the hold only while no canonical reference-initialization boundary has already succeeded.
 
 ---
 
@@ -524,7 +544,7 @@ The workflow must not allow one family to be silently bootstrapped while another
 
 The source document's admitted owned sets must remain authoritative for all three families in a successful fresh-install round trip.
 
-## 6.6 Source empty families remain empty after successful restoration
+## 6.6 Source empty families remain empty after canonical reference confirmation
 
 If the source artifact says:
 
@@ -532,26 +552,60 @@ If the source artifact says:
 tags: []
 ```
 
-then successful fresh-install ownership restoration must not add destination-only Tags merely to satisfy ordinary bootstrap defaults.
+then a successful canonical confirmation boundary establishing the complete imported Category / PaymentMethod / Tag owned sets must preserve the Tag owned set as empty.
+
+Zero Tag insertions do not mean that no canonical reference state was established. The confirmed absence itself is the admitted canonical meaning of that source family.
 
 Likewise for empty Category or PaymentMethod sets where the complete source artifact validly establishes them.
 
 This gate does not alter downstream Transaction readiness requirements. A restored dataset whose Transactions require a non-null Category must still satisfy accepted relationship/reference validity.
 
-## 6.7 Successful fresh restoration resolves ordinary bootstrap authority
+## 6.7 The canonical reference-initialization boundary resolves bootstrap authority
 
-After successful fresh-install ownership restoration:
+Ordinary-reference initialization becomes resolved when the canonical confirmation boundary that establishes the complete imported Category / PaymentMethod / Tag owned sets commits successfully.
+
+Two admitted shapes therefore exist.
+
+### Separate reference confirmation
 
 ```text
-restored admitted reference state
-→ initialization resolved
+fresh-restoration hold
+        ↓
+reference-state preview
+        ↓
+confirm complete Category /
+PaymentMethod / Tag source sets
+        ↓
+reference canonical boundary commits
+        ↓
+reference initialization RESOLVED
+        ↓
+Transaction Review may continue,
+succeed, fail, or later be abandoned
+        ↓
+ordinary bootstrap does not regain authority
 ```
 
-A later application launch must not reauthorize ordinary default insertion solely because one restored family is empty.
+### Combined reference + Transaction confirmation
+
+```text
+references + Transactions
+authorized together
+        ↓
+one canonical confirmation boundary
+   ├─ commits successfully
+   │      ↓
+   │  reference initialization RESOLVED
+   └─ does not commit
+          ↓
+      reference initialization remains unresolved
+```
+
+A later application launch must not reauthorize ordinary default insertion solely because one canonically confirmed reference family is empty.
 
 Therefore current count-only bootstrap behavior is not sufficient for the eventual implementation of this contract.
 
-The exact mechanism that remembers initialization resolution is not selected here.
+The exact mechanism that durably proves reference-initialization resolution is not selected here.
 
 ## 6.8 Interruption must not silently give bootstrap authority back
 
@@ -600,16 +654,30 @@ restore failed
 The workflow must distinguish:
 
 - continue/repair/select another supported artifact;
-- explicitly abandon fresh restoration and choose ordinary initialization;
-- successfully complete restoration.
+- explicitly abandon fresh restoration while reference initialization remains unresolved;
+- successful canonical commitment of the reference-initialization boundary;
+- later continuation, failure, or abandonment of a separate Transaction portion after reference initialization has already resolved.
 
 The exact UX is downstream.
 
-## 6.10 Explicit abandonment can release the hold before restoration commits
+## 6.10 Explicit abandonment can release the hold only before reference initialization resolves
 
-If the user explicitly abandons the fresh-install restoration path before successful canonical restoration, the special bootstrap hold may be released.
+If the user explicitly abandons the fresh-install restoration path while **no canonical reference-initialization boundary has succeeded**, the special bootstrap hold may be released.
 
 Then ordinary bootstrap may again become eligible under the still-unresolved initialization path.
+
+But:
+
+```text
+complete source reference state
+already canonically confirmed
+        ↓
+later Transaction import fails or is abandoned
+        ↓
+ordinary bootstrap authority does NOT return
+```
+
+A later Transaction-only outcome cannot revoke or overwrite already-confirmed reference owned-set semantics.
 
 This does not authorize deletion of any canonical state already created by another operation.
 
@@ -700,27 +768,31 @@ This proposal does not require per-record provenance.
 
 # 8. Interruption and recovery semantics
 
-## 8.1 Authority-acquired vs workflow-completed
+## 8.1 Authority acquired, reference initialization resolved, and Transaction completion are distinct
 
-The gate distinguishes:
+The gate distinguishes three moments:
 
 ```text
 fresh-restoration authority established
 ```
 
-from:
-
 ```text
-fresh-restoration workflow successfully completed
+canonical reference-initialization boundary succeeded
 ```
 
-Those are not the same event.
+```text
+any separate Transaction restoration boundary completed
+```
 
-Between them, ordinary bootstrap remains withheld.
+These are not interchangeable.
 
-## 8.2 Relaunch while unresolved
+Ordinary bootstrap remains withheld after fresh-restoration authority is established.
 
-If interruption occurs after authority is established but before a terminal outcome:
+Once the canonical boundary establishing the complete imported Category / PaymentMethod / Tag owned sets succeeds, reference initialization is resolved even if a separate Transaction Review remains active.
+
+## 8.2 Relaunch while reference initialization is unresolved
+
+If interruption occurs after fresh-restoration authority is established but before a canonical reference-initialization boundary succeeds:
 
 ```text
 relaunch
@@ -731,32 +803,65 @@ relaunch
 
 The exact persistence and recovery mechanism remains downstream.
 
-## 8.3 Successful completion
+## 8.3 Relaunch after reference initialization is resolved
 
-On successful restoration:
+If the canonical reference-initialization boundary has already succeeded:
 
 ```text
-accepted source reference owned sets
-+
-accepted same-document relationship reconstruction
-+
-successful confirmation
-        ↓
-fresh-restoration initialization resolved
+relaunch
+→ recover reference initialization RESOLVED
+→ do not treat empty confirmed families as bootstrap candidates
+→ separately recover / resume / discard any remaining Transaction workflow
 ```
 
-After resolution, later startup must respect the restored state, including deliberately empty families.
+A separate incomplete Transaction portion must not demote already-confirmed reference state back into an unresolved bootstrap hold.
 
-## 8.4 Explicit abandonment
+The exact durable proof of this resolved state remains downstream.
 
-On explicit abandonment before canonical restore completion:
+## 8.4 Separate and combined confirmation boundaries
+
+### Separate reference boundary
 
 ```text
-fresh-restoration hold released
+complete source reference owned sets
+→ reference confirmation commits
+→ reference initialization RESOLVED
+→ Transaction confirmation remains independent
+```
+
+A later Transaction failure or abandonment does not restore bootstrap authority.
+
+### Combined boundary
+
+```text
+references + Transactions
+→ one confirmation boundary
+   ├─ commit succeeds
+   │   → reference initialization RESOLVED
+   └─ commit does not succeed
+       → reference initialization remains unresolved
+```
+
+This composes directly with the accepted Phase 1C all-or-nothing rule, which applies per explicit confirmation boundary.
+
+## 8.5 Explicit abandonment
+
+Explicit abandonment releases the fresh-restoration bootstrap hold only while no canonical reference-initialization boundary has succeeded:
+
+```text
+fresh-restoration hold
++
+reference initialization unresolved
++
+explicit abandonment
+        ↓
+hold released
 → ordinary initialization path may resume
 ```
 
-This is not authority to retain partially promoted canonical state. Existing all-or-nothing promotion responsibilities remain controlling.
+Once reference initialization has resolved, later abandonment applies only to whatever separate workflow remains. It cannot return authority to ordinary reference bootstrap.
+
+This is not authority to retain partially promoted state from a failed confirmation boundary. Existing per-boundary all-or-nothing and replay-safety responsibilities remain controlling.
 
 ---
 
@@ -797,9 +902,12 @@ explicit restore intent
         ↓
 ordinary bootstrap yields before creating defaults
         ↓
-source owned sets initialize canonical reference state
+source owned sets reach their admitted
+canonical confirmation boundary
         ↓
-successful restore resolves initialization
+that boundary commits
+        ↓
+reference initialization resolves
 ```
 
 Interruption preserves the hold until explicit resolution.
@@ -1045,7 +1153,34 @@ family empty
 
 after initialization has been resolved.
 
-## 11.9 Partial-family bootstrap must not leak into fresh restore
+## 11.9 Reference state confirmed, Transactions later abandoned
+
+```text
+fresh-restoration hold
+→ source tags: []
+→ complete reference owned sets confirmed
+→ reference canonical boundary commits
+→ Tag owned set = []
+→ Transaction Review later abandoned
+```
+
+Ordinary bootstrap must not return.
+
+The successful reference boundary already established canonical reference initialization, including the empty Tag set.
+
+## 11.10 Combined boundary fails
+
+```text
+references + Transactions
+→ one combined confirmation boundary
+→ boundary fails / does not commit
+```
+
+Reference initialization remains unresolved.
+
+The bootstrap hold remains subject to resume/repair or explicit abandonment because no canonical reference-initialization boundary succeeded.
+
+## 11.11 Partial-family bootstrap must not leak into fresh restore
 
 Because current seed decisions are family-specific, a future implementation must not allow:
 
@@ -1133,9 +1268,10 @@ Only within a truthfully established fresh-install ownership-restoration lifecyc
 - allow explicit fresh-restoration intent to reserve the ordinary reference initialization path before default bootstrap commits;
 - require ordinary Category / PaymentMethod / Tag bootstrap to yield while that authority is active;
 - require unresolved bootstrap-restoration authority not to disappear silently across process interruption;
-- allow explicit pre-restore abandonment to release the hold and return to ordinary initialization;
-- treat successful fresh restoration as resolving ordinary reference initialization;
-- prevent later family emptiness alone from reauthorizing defaults after initialization has resolved.
+- allow explicit abandonment to release the hold only while no canonical reference-initialization boundary has succeeded;
+- treat successful canonical commitment of the boundary establishing the complete imported Category / PaymentMethod / Tag owned sets as resolving ordinary reference initialization;
+- preserve that resolved reference initialization even if a separate Transaction workflow later fails or is abandoned;
+- prevent later family emptiness alone from reauthorizing defaults after reference initialization has resolved.
 
 ## Authority explicitly not granted
 
@@ -1221,12 +1357,14 @@ If accepted, Portable v1 fresh-install restoration would promise:
 4. explicit user restore intent is required;
 5. record-content resemblance cannot retroactively prove bootstrap provenance;
 6. once fresh-restoration bootstrap authority is established, process interruption cannot silently return authority to ordinary bootstrap;
-7. successful restoration resolves initialization so intentionally empty restored families remain empty across later launches;
-8. cancellation before successful canonical restore may explicitly return authority to ordinary initialization;
-9. already-bootstrapped or arbitrary existing state remains non-disposable without separate authority;
-10. exact persistence/recovery mechanism remains separately admitted.
+7. successful canonical commitment of the confirmation boundary establishing the complete imported Category / PaymentMethod / Tag owned sets resolves reference initialization, including when one or more confirmed owned sets are empty;
+8. a separate later Transaction failure or abandonment cannot reauthorize bootstrap after reference initialization has resolved;
+9. cancellation may return authority to ordinary initialization only while no canonical reference-initialization boundary has succeeded;
+10. combined reference + Transaction confirmation resolves reference initialization only when that combined boundary commits;
+11. already-bootstrapped or arbitrary existing state remains non-disposable without separate authority;
+12. exact persistence/recovery mechanism remains separately admitted.
 
-A future design that wants ordinary bootstrap to reappear after successful restoration merely because a family is empty would require explicit contract revision.
+A future design that wants ordinary bootstrap to reappear after canonically confirmed reference initialization merely because a family is empty—or because a separate Transaction workflow was later abandoned—would require explicit contract revision.
 
 ---
 
@@ -1244,17 +1382,21 @@ The following language is **PROPOSED FOR REVIEW**.
 >
 > **Coherent reference-bootstrap disposition.** The fresh-restoration bootstrap decision governs the ordinary Category, PaymentMethod, and Tag initialization assembly coherently. Current family-specific emptiness checks must not cause destination-only defaults in one family to leak into a complete fresh ownership restoration while another family is controlled by the source artifact.
 >
-> **Bootstrap hold.** Once authoritative fresh-restoration eligibility and explicit restore intent have established the fresh-restoration path, ordinary reference bootstrap must yield until the workflow reaches an authoritative terminal outcome. Parse failure, unsupported input, validation failure, or process interruption does not by itself restore bootstrap authority.
+> **Bootstrap hold.** Once authoritative fresh-restoration eligibility and explicit restore intent have established the fresh-restoration path, ordinary reference bootstrap must yield while ordinary-reference initialization remains unresolved. Parse failure, unsupported input, validation failure, or process interruption does not by itself restore bootstrap authority.
 >
-> **Interruption boundary.** If fresh-restoration bootstrap authority has been established and the workflow may survive process termination, ordinary bootstrap must not silently regain authority after relaunch. The authority state necessary to preserve that behavior must be recoverable across interruption. The exact persistence/recovery mechanism is not selected by this gate and requires separate admission before implementation.
+> **Reference-initialization confirmation boundary.** Ordinary-reference initialization becomes resolved when the canonical confirmation boundary establishing the complete imported Category / PaymentMethod / Tag owned sets commits successfully. An explicitly confirmed empty family such as `tags: []` counts as established canonical reference state even though no object in that family is inserted.
 >
-> **Successful restoration.** Successful fresh-install ownership restoration resolves ordinary reference initialization. Later startup must not reinsert defaults solely because a restored Category / PaymentMethod / Tag family is empty. Accepted empty-set semantics remain authoritative.
+> **Separate versus combined boundaries.** If reference entities are confirmed through a separate explicit canonical boundary, successful reference confirmation resolves ordinary-reference initialization even while Transaction Review or a separate Transaction confirmation remains pending. Later failure or abandonment of that Transaction portion must not return authority to ordinary bootstrap. If reference effects and Transactions share one confirmation boundary, reference initialization resolves only when that combined boundary commits successfully.
 >
-> **Explicit abandonment.** Before successful canonical restoration, an explicit user decision to abandon the fresh-restoration path may release the bootstrap hold and return the store to the ordinary initialization path, subject to existing all-or-nothing import/promotion and cleanup responsibilities.
+> **Interruption boundary.** Recovery must distinguish unresolved fresh-restoration bootstrap authority from already-resolved reference initialization. If fresh-restoration bootstrap authority has been established but no canonical reference-initialization boundary has succeeded, ordinary bootstrap must not silently regain authority after relaunch. If the reference-initialization boundary already succeeded, relaunch must recover initialization as resolved even if another Transaction workflow remains incomplete. The exact persistence/recovery mechanism is not selected by this gate and requires separate admission before implementation.
+>
+> **Resolved empty sets.** After the canonical reference-initialization boundary succeeds, later startup must not reinsert defaults solely because a confirmed Category / PaymentMethod / Tag owned set is empty. Accepted empty-set semantics remain authoritative.
+>
+> **Explicit abandonment.** An explicit user decision may release the fresh-restoration bootstrap hold and return the store to the ordinary initialization path only while no canonical reference-initialization boundary has succeeded. Once complete source reference state is canonically confirmed, later abandonment of a separate Transaction portion cannot reauthorize ordinary bootstrap, subject to existing per-boundary all-or-nothing import/promotion and cleanup responsibilities.
 >
 > **No inferred provenance or destructive authority.** This gate does not make seed resemblance, exact equality, `is_default`, zero references, zero Transactions, or family emptiness into bootstrap provenance. It does not authorize generic reference deletion, retirement, overwrite, merge, arbitrary existing-store reconciliation, stable built-in identity, per-record provenance fields, schema changes, migrations, or implementation.
 >
-> **Downstream implementation dependency.** The accepted semantic behavior, if later admitted, requires an exact capability/persistence design that can truthfully establish fresh-restoration eligibility, preserve unresolved bootstrap authority across interruption where required, and remember initialization resolution so intentional empty restored families remain stable. No storage mechanism is chosen here.
+> **Downstream implementation dependency.** The accepted semantic behavior, if later admitted, requires an exact capability/persistence design that can truthfully establish fresh-restoration eligibility, preserve unresolved bootstrap authority across interruption where required, durably distinguish unresolved hold from a successfully committed reference-initialization boundary, and remember resolved initialization so intentional empty confirmed families remain stable. No storage mechanism is chosen here.
 
 ---
 
@@ -1272,16 +1414,22 @@ Independent review should answer:
 8. Does process interruption require ordinary bootstrap to remain withheld once fresh-restoration authority has been established?
 9. Does that interruption rule create a downstream exact persistence/recovery admission without requiring this proposal to choose a persistence mechanism?
 10. Is parse/validation failure correctly distinguished from explicit abandonment?
-11. Is explicit abandonment before successful canonical restoration a sufficient semantic event to release the bootstrap hold?
-12. Is successful fresh restoration correctly treated as resolving initialization so later emptiness alone cannot trigger reseeding?
-13. Is post-bootstrap deletion/reconciliation correctly excluded because current records lack authoritative bootstrap provenance and destructive authority?
-14. Are per-record bootstrap provenance and stable built-in identity correctly rejected as unnecessary initial-v1 commitments?
-15. Does the proposal preserve the accepted existing-store restoration contract without weakening it?
-16. Are money/date lexical closure, Source/provenance, unknown-field/evolution, and deterministic ordering correctly treated as sibling work rather than prerequisites?
-17. Does the proposed contract avoid selecting SwiftData/UserDefaults/files/new models while still making recovery requirements explicit?
-18. Does any accepted upstream contract require ordinary bootstrap to retain authority after successful restoration merely because a family is empty?
-19. Is the narrow scope sufficient to unblock the Roadmap's fresh-install whole-store round-trip requirement without admitting generic reference management/deletion?
-20. Are all new irreversible commitments justified by the ownership guarantee rather than implementation convenience?
+11. Is ordinary-reference initialization correctly resolved by successful canonical commitment of the confirmation boundary establishing the complete imported Category / PaymentMethod / Tag owned sets?
+12. Does a canonically confirmed empty family such as `tags: []` correctly count as established reference initialization despite inserting zero Tag objects?
+13. When reference entities have a separate confirmation boundary, should successful reference confirmation resolve initialization even while Transaction Review continues?
+14. If references and Transactions share one confirmation boundary, should initialization resolve only when that combined boundary commits?
+15. Is explicit abandonment allowed to release the bootstrap hold only while no canonical reference-initialization boundary has succeeded?
+16. After reference initialization resolves, is later failure or abandonment of a separate Transaction portion correctly prevented from reauthorizing bootstrap?
+17. Must recovery distinguish unresolved bootstrap hold from already-resolved reference initialization?
+18. Does that recovery rule create a downstream exact persistence/recovery admission without requiring this proposal to choose a persistence mechanism?
+19. Is post-bootstrap deletion/reconciliation correctly excluded because current records lack authoritative bootstrap provenance and destructive authority?
+20. Are per-record bootstrap provenance and stable built-in identity correctly rejected as unnecessary initial-v1 commitments?
+21. Does the proposal preserve the accepted existing-store restoration contract without weakening it?
+22. Are money/date lexical closure, Source/provenance, unknown-field/evolution, and deterministic ordering correctly treated as sibling work rather than prerequisites?
+23. Does the proposed contract avoid selecting SwiftData/UserDefaults/files/new models while still making recovery requirements explicit?
+24. Does any accepted upstream contract require ordinary bootstrap to retain authority after canonically confirmed reference initialization merely because a family is empty?
+25. Is the narrow scope sufficient to unblock the Roadmap's fresh-install whole-store round-trip requirement without admitting generic reference management/deletion?
+26. Are all new irreversible commitments justified by the ownership guarantee rather than implementation convenience?
 
 ---
 
