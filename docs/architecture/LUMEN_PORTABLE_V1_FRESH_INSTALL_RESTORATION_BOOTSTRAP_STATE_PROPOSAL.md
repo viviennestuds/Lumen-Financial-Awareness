@@ -2,7 +2,7 @@
 
 ## Status
 
-**PROPOSED FOR REVIEW — docs-only Phase 1C fresh-install Portable ownership-restoration bootstrap-state gate.**
+**ACCEPTED AT PROPOSED-CONTRACT LEVEL — independently reviewed Phase 1C fresh-install Portable ownership-restoration bootstrap-state gate.**
 
 Starting accepted semantic checkpoint:
 
@@ -1368,9 +1368,9 @@ A future design that wants ordinary bootstrap to reappear after canonically conf
 
 ---
 
-# 16. Proposed exact contract language
+# 16. Accepted proposed-contract language
 
-The following language is **PROPOSED FOR REVIEW**.
+The following language is **ACCEPTED AT PROPOSED-CONTRACT LEVEL**.
 
 > **Fresh-install restoration bootstrap boundary.** For complete Portable JSON v1 ownership restoration into a genuinely fresh Lumen receiving store, ordinary Category / PaymentMethod / Tag bootstrap is an initialization authority rather than a permanent rule that any empty family must be repopulated. A successful fresh ownership restoration must preserve the source artifact's admitted reference owned sets, including valid empty families, without adding destination-only defaults merely because ordinary startup would otherwise seed them.
 >
@@ -1433,26 +1433,136 @@ Independent review should answer:
 
 ---
 
-# 18. Review boundary
+# 18. Independent-review acceptance and boundary
 
-This proposal is ready for independent review.
+Independent review of:
 
-It is not accepted merely because it is checked into the repository.
+`57be5976df5799ffc3a7959c7018e0466f91dc86`
 
-Do not:
+passes at the proposed-contract level.
 
-- record proposed-contract acceptance;
-- implement bootstrap suppression/deferment;
-- add a freshness marker;
-- add a restore-session model;
-- alter SwiftData schema;
-- add migrations;
-- implement persistence/recovery;
-- change `Seed.swift`, `LumenApp.swift`, or `LedgerStore.swift`;
-- open generic reference deletion/management;
-- open Source/provenance;
-- open another Phase 1C gate
+Accepted bootstrap authority model:
 
-without separate acceptance / authorization.
+```text
+ordinary bootstrap
+= initialization authority
 
-The exact downstream persistence/recovery admission, if required after review acceptance, must be opened separately.
+ordinary bootstrap
+!= perpetual permission to repopulate an empty family
+```
+
+Accepted freshness / provenance boundary:
+
+```text
+mechanical pre-bootstrap seam
+!= freshness proof
+
+family counts
+Transaction count
+names
+exact seed equality
+Category.is_default
+zero relationships
+seed resemblance
+!= freshness or bootstrap provenance
+```
+
+Accepted fresh-install ordering:
+
+```text
+truthfully established fresh-restoration eligibility
++
+explicit restore intent
+        ↓
+fresh-restoration bootstrap hold
+        ↓
+ordinary Category / PaymentMethod / Tag bootstrap yields
+        ↓
+canonical confirmation boundary establishes
+the complete imported reference owned sets
+        ↓
+reference initialization RESOLVED
+```
+
+The complete Category / PaymentMethod / Tag owned-set state is one coherent v1 fresh-install reference-initialization assembly. This acceptance does not admit independent piecemeal family-level initialization boundaries.
+
+Accepted confirmation-boundary distinction:
+
+```text
+fresh-restoration authority established
+!=
+reference initialization resolved
+!=
+separate Transaction restoration completed
+```
+
+Ordinary-reference initialization resolves when the canonical confirmation boundary establishing the complete imported Category / PaymentMethod / Tag owned sets commits successfully.
+
+An explicitly confirmed empty family such as:
+
+```text
+tags: []
+```
+
+constitutes established canonical reference state even though zero Tag objects are inserted.
+
+For a separate reference confirmation boundary:
+
+```text
+reference boundary commits
+→ reference initialization RESOLVED
+→ Transaction Review may continue / succeed / fail / be abandoned
+→ ordinary bootstrap does not return
+```
+
+For a combined reference + Transaction confirmation boundary:
+
+```text
+combined boundary commits
+→ reference initialization RESOLVED
+
+combined boundary does not commit
+→ reference initialization remains unresolved
+```
+
+Explicit abandonment may release the fresh-restoration bootstrap hold only while no canonical reference-initialization boundary has succeeded.
+
+Recovery must preserve the distinction between:
+
+```text
+unresolved fresh-restoration bootstrap hold
+```
+
+and:
+
+```text
+already-resolved canonical reference initialization
+```
+
+A later Transaction failure or abandonment must not reauthorize ordinary bootstrap over already-confirmed reference state.
+
+This acceptance preserves a downstream **exact persistence/recovery admission dependency** sufficient to truthfully establish fresh-restoration eligibility, preserve unresolved bootstrap authority across interruption where required, distinguish unresolved hold from resolved reference initialization, and remember initialization resolution across later launches.
+
+That downstream admission is **not opened here** and no durable proof/storage mechanism is selected.
+
+This acceptance does **not** authorize:
+
+- generic Category / PaymentMethod / Tag deletion or retirement;
+- post-bootstrap destructive reconciliation;
+- inferred seed provenance;
+- stable built-in/default identities;
+- per-record bootstrap provenance fields;
+- a specific freshness marker;
+- a specific restore-session model;
+- SwiftData schema changes;
+- migrations;
+- a persistence/recovery mechanism;
+- importer/exporter implementation;
+- UI;
+- Source/provenance behavior;
+- production changes to `Seed.swift`, `LumenApp.swift`, or `LedgerStore.swift`;
+- full Portable JSON / CSV v1 contract acceptance.
+
+This component-gate acceptance does not authorize implementation or another Phase 1C gate.
+
+Do not open the downstream persistence/recovery admission or another Phase 1C gate without separate authorization.

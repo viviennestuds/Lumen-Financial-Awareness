@@ -2348,11 +2348,11 @@ This section is **ACCEPTED AT PROPOSED-CONTRACT LEVEL**.
 
 The accepted restoration gate still does not authorize deletion, retirement, bootstrap suppression/deferment, import-driven update/overwrite, merge, persistent cross-import mapping, implementation, workspace persistence, schema changes, migrations, or UI.
 
-The downstream fresh-install destination-only bootstrap reference-state disposition is now addressed by Section 21.5 as **PROPOSED FOR REVIEW**. It remains unaccepted and grants no new bootstrap, persistence, or implementation authority unless separately reviewed and admitted.
+The downstream fresh-install destination-only bootstrap reference-state disposition is now addressed by Section 21.5 and is **ACCEPTED AT PROPOSED-CONTRACT LEVEL**. That acceptance grants the semantic bootstrap/restoration authority defined there, but no persistence mechanism or implementation authority. The required exact persistence/recovery capability remains separately gated and unopened.
 
-## 21.5 Fresh-install Portable ownership-restoration bootstrap-state disposition — PROPOSED FOR REVIEW
+## 21.5 Fresh-install Portable ownership-restoration bootstrap-state disposition — ACCEPTED AT PROPOSED-CONTRACT LEVEL
 
-The proposal in `LUMEN_PORTABLE_V1_FRESH_INSTALL_RESTORATION_BOOTSTRAP_STATE_PROPOSAL.md` addresses the remaining reference-data conflict between:
+The accepted proposed-contract gate in `LUMEN_PORTABLE_V1_FRESH_INSTALL_RESTORATION_BOOTSTRAP_STATE_PROPOSAL.md` addresses the reference-data conflict between:
 
 ```text
 ordinary fresh-start initialization
@@ -2377,9 +2377,9 @@ ModelContainer exists
 Seed.bootstrapIfNeeded()
 ```
 
-The proposal does **not** treat that seam as proof that the store is fresh.
+The accepted gate does **not** treat that seam as proof that the store is fresh.
 
-It proposes the following minimum semantic model:
+The accepted minimum semantic model is:
 
 ```text
 authoritative fresh-restoration eligibility
@@ -2398,7 +2398,7 @@ reference owned sets commits
 reference initialization resolves
 ```
 
-The proposal treats ordinary reference bootstrap as **initialization authority**, not as a perpetual rule that an empty family must always be reseeded.
+The accepted gate treats ordinary reference bootstrap as **initialization authority**, not as a perpetual rule that an empty family must always be reseeded.
 
 That distinction is required by accepted empty-set semantics. For example:
 
@@ -2423,7 +2423,7 @@ Freshness and bootstrap origin must not be inferred from:
 
 The exact lifecycle/workflow fact that proves fresh-restoration eligibility remains downstream capability/persistence work.
 
-The proposal distinguishes:
+The accepted gate distinguishes:
 
 ```text
 fresh-restoration authority established
@@ -2498,7 +2498,7 @@ Once complete source reference state has been canonically confirmed, later failu
 
 Later family emptiness alone must not reauthorize defaults after reference initialization has resolved.
 
-The proposal applies the bootstrap/restoration authority coherently across Category, PaymentMethod, and Tag for a complete fresh ownership restoration. Current family-specific seed predicates must not allow destination-only defaults in one family to leak into a source-controlled restoration of another family.
+The accepted gate applies the bootstrap/restoration authority coherently across Category, PaymentMethod, and Tag as one complete v1 fresh-install reference-initialization assembly. Current family-specific seed predicates must not allow destination-only defaults in one family to leak into a source-controlled restoration of another family.
 
 Already-created bootstrap state remains outside this narrow path. Once ordinary defaults are canonical, this proposal grants no authority to infer that records are disposable because they look seeded. Accepted existing-store restoration semantics remain controlling unless a separate destructive/reconciliation capability is admitted.
 
@@ -2516,7 +2516,7 @@ bootstrap first
 → delete/reconcile seed-looking records
 ```
 
-The proposal explicitly does **not** admit:
+The accepted gate explicitly does **not** admit:
 
 - generic Category / PaymentMethod / Tag deletion;
 - retirement of arbitrary existing reference state;
@@ -2532,7 +2532,9 @@ The proposal explicitly does **not** admit:
 - UI;
 - full Portable JSON / CSV v1 acceptance.
 
-This section remains **PROPOSED FOR REVIEW**.
+This section is **ACCEPTED AT PROPOSED-CONTRACT LEVEL**.
+
+The exact durable proof/storage mechanism required to preserve unresolved bootstrap authority and resolved reference initialization across interruption remains a downstream **exact persistence/recovery admission dependency**. That capability is not opened or selected by this acceptance.
 
 ---
 
@@ -2891,7 +2893,8 @@ Several compatibility questions previously listed here have since reached **ACCE
 - financial-date conversion / compatibility / restoration semantics;
 - canonical monetary compatibility/export disposition for out-of-domain amount/currency state;
 - document-local Portable identity semantics sufficient for relationship reconstruction;
-- ordinary Category / PaymentMethod / Tag restoration / destination matching / conflict semantics.
+- ordinary Category / PaymentMethod / Tag restoration / destination matching / conflict semantics;
+- fresh-install Portable ownership-restoration bootstrap-state disposition.
 
 Those accepted component gates do **not** by themselves accept the full round-trip contract.
 
@@ -2900,7 +2903,7 @@ Residual blockers include at least:
 - exact financial-date year interval and complete lexical/parser validity;
 - the still-unaccepted parts of the PortableMoney public domain/spelling contract, including normative precision status, upper-magnitude authority resolution, leading-zero policy, and canonical decimal serialization;
 - operational recovery/user-resolution/failure behavior where an admitted financial date cannot be established from current state;
-- fresh-install Portable ownership-restoration bootstrap-state disposition — **PROPOSED FOR REVIEW**; required before whole-store Portable round-trip equivalence can be claimed, with exact persistence/recovery capability still downstream if interruption-safe authority is accepted;
+- exact fresh-restoration bootstrap-state persistence/recovery capability required to preserve unresolved bootstrap authority and already-resolved reference initialization across interruption — **OPEN / NOT YET GATED**; the semantic bootstrap-state disposition is accepted, but no durable proof/storage mechanism is selected;
 - Source/provenance portability and its distinct temporal semantics;
 - unknown-field/evolution policy, including treatment of additional unrecognized keys beyond the required known v1 schema surface;
 - deterministic allocation/order only after the exported record/scalar model is sufficiently closed.
@@ -3163,7 +3166,7 @@ This inventory records both accepted component gates and still-open work so a st
 - operation-level disposition for complete Portable JSON ownership export when an owned Category / PaymentMethod / Tag cannot satisfy the accepted exact schema — ACCEPTED AT PROPOSED-CONTRACT LEVEL; complete-export success is blocked by any owned incompatible record, with deterministic non-mutating preflight semantics;
 - ordinary Category / PaymentMethod / Tag restoration / destination matching / conflict semantics — **ACCEPTED AT PROPOSED-CONTRACT LEVEL**: no generally available cross-install identity is established; exact admitted-field equality is eligibility for explicit non-mutating reuse rather than identity proof; unresolved/no-reuse cases use explicit creation as the lossless fallback; distinct imported objects remain distinct; import-driven update/overwrite and merge remain unadmitted;
 - same-document relationship closure under an accepted operation-scoped reference resolution — **ACCEPTED AT PROPOSED-CONTRACT LEVEL**; all dependent references to one imported object consume one accepted destination target, while the mapping gains no cross-document authority;
-- fresh-install destination-only bootstrap reference-state disposition — **OPEN / NOT DECIDED BY THE RESTORATION PROPOSAL**; imported-source preservation in an existing destination must not be treated as sufficient proof of whole-store `Equivalent supported canonical state`, and accepted empty-set semantics remain meaningful;
+- fresh-install Portable ownership-restoration bootstrap-state disposition — **ACCEPTED AT PROPOSED-CONTRACT LEVEL**; ordinary bootstrap is initialization authority rather than perpetual empty-family repair, fresh restoration must acquire the coherent Category / PaymentMethod / Tag initialization path before defaults become canonical, canonical confirmation of the complete imported reference owned sets resolves initialization including empty families, and later separate Transaction failure/abandonment cannot reauthorize bootstrap; exact durable persistence/recovery proof remains separately gated;
 - exact required/nullable/omitted disposition for Source fields, including `mime_type` and `file_size_bytes` — RESEARCH / ADMISSION REQUIRED;
 - normalized Portable v1 `source_type` token set — RESEARCH / ADMISSION REQUIRED.
 
@@ -3301,9 +3304,11 @@ The post-financial-date read-only dependency reassessment is complete. The refer
 
 A read-only dependency reassessment from accepted checkpoint `3982d96d5dc11a6c924d2319e93c94361be50740` found ordinary reference restoration / destination matching / conflict semantics sufficiently unblocked to become the next single gate. After independent review and fresh-install round-trip hardening, `LUMEN_PORTABLE_V1_REFERENCE_RESTORATION_CONFLICT_SEMANTICS_PROPOSAL.md` has now reached **ACCEPTED AT PROPOSED-CONTRACT LEVEL**.
 
-A read-only dependency reassessment from accepted checkpoint `e01f87e30beb84c16dddf8eed3a591c8b5e0a182` found fresh-install Portable ownership-restoration bootstrap-state disposition sufficiently isolated to become the next single semantic gate. `LUMEN_PORTABLE_V1_FRESH_INSTALL_RESTORATION_BOOTSTRAP_STATE_PROPOSAL.md` is now **PROPOSED FOR REVIEW** on its dedicated docs-only branch. This proposal status creates no acceptance, persistence, or implementation authority.
+A read-only dependency reassessment from accepted checkpoint `e01f87e30beb84c16dddf8eed3a591c8b5e0a182` found fresh-install Portable ownership-restoration bootstrap-state disposition sufficiently isolated to become the next single semantic gate. After independent review and confirmation-boundary hardening, `LUMEN_PORTABLE_V1_FRESH_INSTALL_RESTORATION_BOOTSTRAP_STATE_PROPOSAL.md` has now reached **ACCEPTED AT PROPOSED-CONTRACT LEVEL**.
 
-Money/date lexical closure, Source/provenance, deterministic serialization/order, this fresh-install round-trip assembly, and parser evolution remain partial-order work rather than one linear queue.
+The accepted bootstrap-state gate leaves an exact persistence/recovery capability dependency open for durable proof of unresolved bootstrap hold versus resolved reference initialization. That downstream capability is not opened by this acceptance.
+
+Money/date lexical closure, Source/provenance, deterministic serialization/order, bootstrap persistence/recovery capability, and parser evolution remain partial-order work rather than one linear queue.
 
 ---
 
@@ -3311,15 +3316,13 @@ Money/date lexical closure, Source/provenance, deterministic serialization/order
 
 The latest accepted semantic gate is:
 
-> **Ordinary reference restoration / destination matching / conflict semantics — ACCEPTED AT PROPOSED-CONTRACT LEVEL**
+> **Fresh-install Portable ownership-restoration bootstrap-state disposition — ACCEPTED AT PROPOSED-CONTRACT LEVEL**
 
-The current dependent gate under review is:
+Ordinary reference restoration / destination matching / conflict semantics remains accepted as its direct semantic dependency. Reference-record compatibility / complete-export disposition, exact Category / PaymentMethod / Tag record schemas, and ordinary canonical-record lifecycle timestamp disposition remain accepted earlier in the same reference-data line.
 
-> **Fresh-install Portable ownership-restoration bootstrap-state disposition — PROPOSED FOR REVIEW**
+The accepted fresh-install bootstrap-state gate is downstream of accepted checkpoint `e01f87e30beb84c16dddf8eed3a591c8b5e0a182`.
 
-Reference-record compatibility / complete-export disposition remains accepted as the restoration gate's direct semantic dependency. Exact Category / PaymentMethod / Tag record schemas and ordinary canonical-record lifecycle timestamp disposition remain accepted earlier in the same reference-data line.
-
-The fresh-install proposal is downstream of accepted checkpoint `e01f87e30beb84c16dddf8eed3a591c8b5e0a182`. It does not promote itself merely by being present on the branch and does not accept the full Portable JSON / CSV v1 contract.
+No next Phase 1C semantic or persistence gate is opened by this acceptance. The exact persistence/recovery capability needed to durably distinguish unresolved bootstrap hold from resolved reference initialization remains an explicit downstream dependency requiring separate authorization.
 
 Historical progression now includes both accepted gates and deliberately preserved authority uncertainty:
 
@@ -3377,7 +3380,9 @@ read-only dependency reassessment from e01f87e...
         ↓ complete
 fresh-install Portable ownership-restoration
 bootstrap-state disposition
-        ↓ PROPOSED FOR REVIEW
+        ↓ accepted at PROPOSED-contract level
+exact bootstrap-state persistence / recovery capability
+        ↓ OPEN; not yet gated
 ```
 
 Future routing is explicitly iterative:
@@ -3400,7 +3405,7 @@ exact capability/persistence admission where required
 only then implementation
 ```
 
-The current inventory records **Category / PaymentMethod / Tag complete-export set semantics**, **ordinary canonical-record lifecycle timestamp disposition**, **exact Category / PaymentMethod / Tag record schemas**, **reference-record compatibility / complete-export disposition**, and **ordinary reference restoration / destination matching / conflict semantics** as ACCEPTED AT PROPOSED-CONTRACT LEVEL. Fresh-install Portable ownership-restoration bootstrap-state disposition is **PROPOSED FOR REVIEW** and remains non-authoritative pending independent acceptance. `TransactionSource` remains outside the ordinary reference-data gate and retains its dedicated Source/provenance/evidence responsibilities.
+The current inventory records **Category / PaymentMethod / Tag complete-export set semantics**, **ordinary canonical-record lifecycle timestamp disposition**, **exact Category / PaymentMethod / Tag record schemas**, **reference-record compatibility / complete-export disposition**, **ordinary reference restoration / destination matching / conflict semantics**, and **fresh-install Portable ownership-restoration bootstrap-state disposition** as ACCEPTED AT PROPOSED-CONTRACT LEVEL. The exact bootstrap-state persistence/recovery capability remains open and separately gated. `TransactionSource` remains outside the ordinary reference-data gate and retains its dedicated Source/provenance/evidence responsibilities.
 
 Still open includes, among other items:
 
@@ -3408,7 +3413,7 @@ Still open includes, among other items:
 - upper-magnitude authority resolution;
 - exact money canonical lexical serialization;
 - exact admitted financial-date year interval and complete lexical/parser validity;
-- fresh-install Portable ownership-restoration bootstrap-state disposition — **PROPOSED FOR REVIEW**, pending independent acceptance;
+- exact bootstrap-state persistence/recovery capability required to preserve unresolved hold versus resolved reference initialization across interruption — **OPEN / NOT YET GATED**;
 - Source/provenance portability;
 - deterministic ID allocation / ordering after lower-level record/scalar closure;
 - unknown-field/evolution policy;
