@@ -2706,7 +2706,8 @@ Several compatibility questions previously listed here have since reached **ACCE
 - exact-null categoryless canonical Transaction compatibility;
 - financial-date conversion / compatibility / restoration semantics;
 - canonical monetary compatibility/export disposition for out-of-domain amount/currency state;
-- document-local Portable identity semantics sufficient for relationship reconstruction.
+- document-local Portable identity semantics sufficient for relationship reconstruction;
+- ordinary Category / PaymentMethod / Tag restoration / destination matching / conflict semantics.
 
 Those accepted component gates do **not** by themselves accept the full round-trip contract.
 
@@ -2715,7 +2716,7 @@ Residual blockers include at least:
 - exact financial-date year interval and complete lexical/parser validity;
 - the still-unaccepted parts of the PortableMoney public domain/spelling contract, including normative precision status, upper-magnitude authority resolution, leading-zero policy, and canonical decimal serialization;
 - operational recovery/user-resolution/failure behavior where an admitted financial date cannot be established from current state;
-- ordinary reference restoration / destination matching / conflict semantics — now **PROPOSED FOR REVIEW**, not accepted;
+- fresh-install destination-only bootstrap reference-state disposition — **OPEN**; required before whole-store Portable round-trip equivalence can be claimed;
 - Source/provenance portability and its distinct temporal semantics;
 - unknown-field/evolution policy, including treatment of additional unrecognized keys beyond the required known v1 schema surface;
 - deterministic allocation/order only after the exported record/scalar model is sufficiently closed.
