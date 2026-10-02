@@ -2312,7 +2312,7 @@ Independently bootstrapped destination records receive no privileged path. Same-
 
 A prior import resolution creates no cross-document mapping. Re-import of the same or overlapping document is a new workflow unless a future separately admitted persistent identity/mapping contract establishes otherwise.
 
-The proposed round-trip source-preservation condition is:
+For an **existing destination**, the proposed imported-source preservation condition is:
 
 ```text
 every imported ordinary reference object
@@ -2321,9 +2321,30 @@ every imported ordinary reference object
 → consistent same-document relationship reconstruction
 ```
 
-This does not authorize deletion of unrelated pre-existing destination records merely to make the destination reference-set cardinality identical to the source installation.
+Unrelated destination reference objects may remain under that existing-store import guarantee. This gate grants no deletion, retirement, overwrite, merge, or bootstrap-suppression authority over destination-only state.
 
-This section remains **PROPOSED FOR REVIEW**. It does not accept the component gate or authorize implementation, workspace persistence, update/merge behavior, schema changes, migrations, or UI.
+However:
+
+```text
+existing-store imported-source preservation
+!=
+fresh-install whole-store round-trip equivalence
+```
+
+The Phase 1C Roadmap's stronger ownership target remains:
+
+```text
+source supported canonical state
+→ Fresh Lumen installation/store
+→ import
+→ Equivalent supported canonical state
+```
+
+Accepted owned-set semantics make absence meaningful. If a source artifact has `tags: []` but a normal fresh destination independently bootstraps `recurring`, `treat`, `essential`, and `reimbursable`, preserving every imported source object does not by itself establish equivalent supported canonical state: the source supported Tag set is empty while the destination supported Tag set contains destination-only records.
+
+This proposal deliberately leaves the disposition of destination-only bootstrap reference state unresolved. A later admission may evaluate reconciliation, bootstrap suppression/deferment, explicit retirement/deletion under appropriate authority, or another mechanism. None of those mechanisms is authorized here.
+
+This section remains **PROPOSED FOR REVIEW**. It does not accept the component gate or authorize deletion, retirement, bootstrap suppression/deferment, implementation, workspace persistence, update/merge behavior, schema changes, migrations, or UI.
 
 ---
 
@@ -2640,14 +2661,14 @@ supported canonical state
         ↓
 Portable JSON v1
         ↓
-fresh or existing receiving store
-(may already contain independently bootstrapped reference state)
+Fresh Lumen installation/store
+(normal startup may independently bootstrap reference state)
         ↓
 parse / preview / reference resolution
         ↓
 Review / explicit confirmation
         ↓
-equivalent supported source-state semantics
+Equivalent supported canonical state
 ```
 
 Equivalence means preservation of the semantics explicitly admitted by the final v1 field/entity contract.
@@ -2661,7 +2682,11 @@ It does not require:
 - identical JSON bytes;
 - preservation of arbitrary input lexical spelling.
 
-The current ordinary-reference restoration proposal would further clarify that source-state round-trip preservation does not authorize deletion of unrelated pre-existing destination reference objects. For every imported Category / PaymentMethod / Tag, however, one distinct destination target must preserve the imported object's admitted semantics and same-document relationships if complete source-state restoration is claimed. This clarification remains **PROPOSED FOR REVIEW**.
+The current ordinary-reference restoration proposal distinguishes two guarantees.
+
+For an **existing destination**, imported-source semantic preservation requires every imported Category / PaymentMethod / Tag to resolve to one distinct destination target carrying the imported object's admitted semantics, with all same-document relationships reconstructed consistently. That guarantee grants no authority to delete unrelated destination state.
+
+The stronger Phase 1C **fresh-install ownership round trip** still requires `Equivalent supported canonical state`. Imported-source preservation alone is insufficient when a fresh destination contains destination-only supported reference records created by bootstrap. Accepted empty-set semantics remain meaningful; for example, source `tags: []` is not automatically equivalent to a freshly bootstrapped destination containing Tags absent from the source. The destination-only bootstrap-state disposition remains unresolved and no deletion, retirement, bootstrap-suppression, overwrite, or merge mechanism is authorized by this proposal. This clarification remains **PROPOSED FOR REVIEW**.
 
 ## 28.2 CSV round trip is intentionally narrower
 
@@ -2949,6 +2974,7 @@ This inventory records both accepted component gates and still-open work so a st
 - operation-level disposition for complete Portable JSON ownership export when an owned Category / PaymentMethod / Tag cannot satisfy the accepted exact schema — ACCEPTED AT PROPOSED-CONTRACT LEVEL; complete-export success is blocked by any owned incompatible record, with deterministic non-mutating preflight semantics;
 - ordinary Category / PaymentMethod / Tag restoration / destination matching / conflict semantics — **PROPOSED FOR REVIEW**: no generally available cross-install identity is established; exact admitted-field equality is proposed as eligibility for explicit non-mutating reuse rather than identity proof; unresolved/no-reuse cases use explicit creation as the lossless fallback; distinct imported objects remain distinct; import-driven update/overwrite and merge remain unadmitted;
 - same-document relationship closure under an accepted operation-scoped reference resolution — **PROPOSED FOR REVIEW**; all dependent references to one imported object consume one accepted destination target, while the mapping gains no cross-document authority;
+- fresh-install destination-only bootstrap reference-state disposition — **OPEN / NOT DECIDED BY THE RESTORATION PROPOSAL**; imported-source preservation in an existing destination must not be treated as sufficient proof of whole-store `Equivalent supported canonical state`, and accepted empty-set semantics remain meaningful;
 - exact required/nullable/omitted disposition for Source fields, including `mime_type` and `file_size_bytes` — RESEARCH / ADMISSION REQUIRED;
 - normalized Portable v1 `source_type` token set — RESEARCH / ADMISSION REQUIRED.
 
@@ -3187,6 +3213,7 @@ Still open includes, among other items:
 - exact money canonical lexical serialization;
 - exact admitted financial-date year interval and complete lexical/parser validity;
 - reference restoration / destination matching / conflict semantics — **PROPOSED FOR REVIEW**, pending independent acceptance;
+- fresh-install destination-only bootstrap reference-state disposition required before whole-store Portable round-trip equivalence can be claimed;
 - Source/provenance portability;
 - deterministic ID allocation / ordering after lower-level record/scalar closure;
 - unknown-field/evolution policy;

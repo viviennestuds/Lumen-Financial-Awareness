@@ -756,13 +756,13 @@ This proposal does not admit persistent cross-import reference mappings.
 
 ---
 
-# 18. Round-trip equivalence with pre-existing destination state
+# 18. Existing-store imported-source preservation vs fresh-install round-trip equivalence
 
-Portable round-trip equivalence is preservation of the admitted source state and relationships through the required confirmation workflow.
+This gate must distinguish two valid but different guarantees.
 
-It is not authority to erase unrelated receiving-store state.
+## 18.1 Existing-store imported-source semantic preservation
 
-For ordinary reference restoration, the proposed source-preservation condition is:
+When importing into an already-existing destination, the proposed non-destructive preservation condition is:
 
 ```text
 for every imported source Category / PaymentMethod / Tag
@@ -775,13 +775,112 @@ every imported same-document reference resolves consistently
 to that target
 ```
 
-The destination may contain additional pre-existing reference objects outside the imported source set.
+Under this guarantee, unrelated destination reference objects may remain.
 
-This gate does not authorize deleting them merely to make the destination object's complete set byte-for-byte or cardinality-identical to the source installation.
+This gate grants no authority to delete, retire, overwrite, merge, or otherwise mutate destination-only reference state merely because it is absent from the imported source set.
 
-That distinction is necessary for normal bootstrapped receiving stores and existing non-empty stores.
+Therefore:
 
-It does not permit omission of any imported source object.
+```text
+imported-source semantic preservation
+!=
+whole-store equivalence
+```
+
+The distinction is especially important for existing non-empty stores, where additional destination state may be legitimate and intentionally unrelated to the imported artifact.
+
+## 18.2 Fresh-install ownership round trip is stronger
+
+The Phase 1C Roadmap separately requires:
+
+```text
+Lumen durable data
+        ↓
+versioned export
+        ↓
+Fresh Lumen installation/store
+        ↓
+import
+        ↓
+preview / Review / confirmation
+        ↓
+Equivalent supported canonical state
+```
+
+That stronger guarantee is not satisfied merely by proving that every imported source object survived.
+
+Accepted reference owned-set semantics make absence meaningful too.
+
+For example:
+
+```text
+source Portable JSON
+tags: []
+        ↓
+source supported Tag set is empty
+```
+
+A normal fresh destination currently opens and may independently bootstrap:
+
+```text
+recurring
+treat
+essential
+reimbursable
+```
+
+If import preserves the empty source set but leaves all four destination-only bootstrap Tags untouched, then:
+
+```text
+source supported Tag set = 0
+destination supported Tag set = 4
+```
+
+No imported source object was lost, because there were none.
+
+But imported-source preservation alone does **not** establish that the fresh destination has reached the Roadmap's stronger `Equivalent supported canonical state`.
+
+The same issue can arise for destination-only bootstrapped Categories or PaymentMethods absent from the source owned set.
+
+## 18.3 This gate does not choose the destination-only bootstrap strategy
+
+Resolving the fresh-install whole-store equivalence problem may eventually require a separately admitted strategy such as:
+
+- reconciliation of destination-only bootstrap state;
+- suppression or deferral of bootstrap before restoration;
+- explicit retirement/deletion under appropriate authority;
+- another mechanism that preserves accepted ownership and round-trip semantics.
+
+This proposal does **not** select among those possibilities.
+
+It grants no:
+
+- deletion authority;
+- bootstrap suppression/deferment authority;
+- retirement authority;
+- overwrite/update authority;
+- merge authority;
+- implementation mechanism.
+
+The current gate establishes only the ordinary source-object restoration/matching/conflict rules.
+
+Fresh-install destination-only supported reference state remains an unresolved round-trip assembly that must close before Phase 1C can claim whole-store Portable ownership equivalence.
+
+Preserve:
+
+```text
+existing-store import
+→ imported-source semantic preservation
+
+fresh-install ownership round trip
+→ equivalent supported canonical state
+
+the first
+!=
+automatic proof of the second
+```
+
+This distinction does not permit omission of any imported source object and does not weaken the accepted meaning of an empty owned reference set.
 
 ---
 
@@ -1029,7 +1128,8 @@ This does not justify a generic entity-merging framework.
 - exact seed resemblance: does not prove provenance;
 - exact equality with existing referenced destination record: still requires confirmation because future edits become coupled;
 - repeated file import: prior `portable_id` resolution has no cross-document authority;
-- optional PaymentMethod field: a non-null imported reference cannot silently disappear because the destination field is optional.
+- optional PaymentMethod field: a non-null imported reference cannot silently disappear because the destination field is optional;
+- source `tags: []` imported into a freshly bootstrapped store with four destination-only Tags: imported-source preservation may hold while fresh-install whole-store equivalence remains unresolved.
 
 ## Irreversible Commitments
 
@@ -1039,9 +1139,11 @@ If accepted, v1 would promise:
 - exact-semantics-only eligibility for non-mutating reuse;
 - one-to-one operation-scoped resolution;
 - source-preserving CREATE fallback;
-- no import-driven update/merge authority.
+- no import-driven update/merge authority;
+- imported-source preservation is not by itself a definition of fresh-install whole-store round-trip equivalence;
+- destination-only bootstrap state remains relevant to the Roadmap's stronger equivalence requirement.
 
-A future overwrite, merge, or persistent identity system would therefore require explicit additional admission.
+A future overwrite, merge, persistent identity system, or fresh-install bootstrap-state disposition would therefore require explicit additional admission.
 
 ---
 
@@ -1067,7 +1169,9 @@ The following language is **PROPOSED FOR REVIEW**.
 >
 > **Resolution scope.** Repeated dependent Transaction references must consume one accepted reference-entity resolution rather than requiring duplicate row-level decisions. Where a set of imported reference records each has one unambiguous exact-equality candidate with no target collisions, explicit confirmation may occur at the broadest valid group/file scope. Exact UX remains downstream.
 >
-> **Round-trip source preservation.** Complete source-state restoration requires every imported ordinary reference object to have one distinct destination target carrying its exact admitted v1 semantics and every imported same-document reference to resolve consistently to that target. This does not authorize deletion of unrelated pre-existing destination records merely to make the receiving store cardinality-identical to the source installation.
+> **Existing-store imported-source preservation.** For an import into an already-existing destination, preservation of imported ordinary reference state requires every imported Category / PaymentMethod / Tag to have one distinct destination target carrying its exact admitted v1 semantics and every imported same-document reference to resolve consistently to that target. Unrelated destination reference objects may remain. This gate grants no deletion, retirement, overwrite, merge, or bootstrap-suppression authority over destination-only state.
+>
+> **Fresh-install round-trip boundary.** Existing-store imported-source preservation does not by itself establish the Phase 1C Roadmap's stronger fresh-install guarantee of `Equivalent supported canonical state`. Accepted owned-set and empty-set semantics remain meaningful: a source family with an empty owned set is not automatically equivalent to a freshly bootstrapped destination family containing destination-only records. The disposition of destination-only bootstrap state remains unresolved by this gate and must be separately admitted before whole-store fresh-install Portable round-trip equivalence is claimed.
 >
 > **Repeated-import boundary.** A reference resolution accepted in one import does not by itself create a durable mapping for later imports. Re-import of the same or overlapping Portable document is a new workflow unless a future separately admitted persistent identity/mapping contract states otherwise.
 
@@ -1083,10 +1187,11 @@ Even if this proposal is later accepted, still open include:
 4. top-level/admitted timestamp lexical rules;
 5. deterministic Portable-ID allocation and emitted ordering;
 6. unknown-field/evolution policy;
-7. full Portable JSON / CSV v1 acceptance;
-8. exact implementation capability selection;
-9. persistence/recovery admission where required;
-10. implementation and validation.
+7. fresh-install destination-only bootstrap reference-state disposition required for whole-store round-trip equivalence;
+8. full Portable JSON / CSV v1 acceptance;
+9. exact implementation capability selection;
+10. persistence/recovery admission where required;
+11. implementation and validation.
 
 This proposal deliberately does not preselect those later gates.
 
@@ -1107,9 +1212,12 @@ Independent review should answer:
 9. Does the bootstrap rule avoid accidentally turning current seed definitions into stable cross-version identity?
 10. Does entity-scope resolution correctly preserve same-document relationship closure without repeating decisions per Transaction row?
 11. Is the repeated-import boundary consistent with document-local Portable identity?
-12. Is source-state round-trip preservation correctly distinguished from deletion of unrelated pre-existing destination state?
-13. Are Source/provenance, parser evolution, money/date lexical closure, deterministic ordering, workspace persistence, and implementation kept outside this gate?
-14. Does the proposed contract preserve all accepted upstream reference ownership/schema/compatibility semantics without reopening them?
+12. Is existing-store imported-source semantic preservation correctly distinguished from whole-store fresh-install round-trip equivalence?
+13. Does the `tags: []` fresh-bootstrap counterexample correctly demonstrate why source-object preservation alone is insufficient for the stronger Roadmap guarantee?
+14. Does the proposal preserve accepted empty-set semantics without inventing deletion, retirement, bootstrap-suppression, overwrite, or merge authority?
+15. Is destination-only bootstrap reference-state disposition correctly left unresolved as a later round-trip dependency?
+16. Are Source/provenance, parser evolution, money/date lexical closure, deterministic ordering, workspace persistence, and implementation kept outside this gate?
+17. Does the proposed contract preserve all accepted upstream reference ownership/schema/compatibility semantics without reopening them?
 
 ---
 
