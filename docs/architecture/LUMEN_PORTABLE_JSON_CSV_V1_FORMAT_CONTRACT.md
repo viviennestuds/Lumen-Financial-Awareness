@@ -2238,13 +2238,13 @@ This disposition governs complete Portable JSON v1 ownership export. It does not
 
 Portable-ID allocation/capacity remains outside this field-domain compatibility gate and stays with the identity / deterministic-serialization line.
 
-## 21.4 Ordinary reference restoration / destination conflict semantics — PROPOSED FOR REVIEW
+## 21.4 Ordinary reference restoration / destination conflict semantics — ACCEPTED AT PROPOSED-CONTRACT LEVEL
 
 The proposal in `LUMEN_PORTABLE_V1_REFERENCE_RESTORATION_CONFLICT_SEMANTICS_PROPOSAL.md` addresses what happens after a valid admitted Category, PaymentMethod, or Tag record reaches a receiving store that may already contain independently created reference state.
 
 Current repository evidence makes this an immediate round-trip question: `LumenApp.openLedger()` opens the ledger and calls `Seed.bootstrapIfNeeded()` before exposing the container to the UI. A normal fresh receiving installation may therefore already contain independently seeded Categories, PaymentMethods, and Tags with fresh installation-local UUIDs before import begins.
 
-The proposed identity boundary is:
+The accepted proposed-contract identity boundary is:
 
 ```text
 portable_id
@@ -2265,7 +2265,7 @@ is_default / seed resemblance
 
 The current v1 repository establishes no generally available stable cross-install identity mechanism for ordinary Category / PaymentMethod / Tag records.
 
-The proposed minimum restoration rule is:
+The accepted proposed-contract minimum restoration rule is:
 
 ```text
 exact admitted semantic equality
@@ -2290,7 +2290,7 @@ Exact equality excludes `portable_id` and excluded lifecycle timestamps and comp
 - PaymentMethod: `name/method_type/institution_name/last_four/notes/is_active`, preserving exact null semantics;
 - Tag: `name/color`.
 
-The proposed operation-scoped restoration mapping is one-to-one within each family:
+The accepted proposed-contract operation-scoped restoration mapping is one-to-one within each family:
 
 ```text
 each imported reference object
@@ -2312,7 +2312,7 @@ Independently bootstrapped destination records receive no privileged path. Same-
 
 A prior import resolution creates no cross-document mapping. Re-import of the same or overlapping document is a new workflow unless a future separately admitted persistent identity/mapping contract establishes otherwise.
 
-For an **existing destination**, the proposed imported-source preservation condition is:
+For an **existing destination**, the accepted proposed-contract imported-source preservation condition is:
 
 ```text
 every imported ordinary reference object
@@ -2344,7 +2344,11 @@ Accepted owned-set semantics make absence meaningful. If a source artifact has `
 
 This proposal deliberately leaves the disposition of destination-only bootstrap reference state unresolved. A later admission may evaluate reconciliation, bootstrap suppression/deferment, explicit retirement/deletion under appropriate authority, or another mechanism. None of those mechanisms is authorized here.
 
-This section remains **PROPOSED FOR REVIEW**. It does not accept the component gate or authorize deletion, retirement, bootstrap suppression/deferment, implementation, workspace persistence, update/merge behavior, schema changes, migrations, or UI.
+This section is **ACCEPTED AT PROPOSED-CONTRACT LEVEL**.
+
+The accepted restoration gate still does not authorize deletion, retirement, bootstrap suppression/deferment, import-driven update/overwrite, merge, persistent cross-import mapping, implementation, workspace persistence, schema changes, migrations, or UI.
+
+Fresh-install destination-only bootstrap reference-state disposition remains **OPEN** and must be separately admitted before whole-store Portable round-trip equivalence can be claimed.
 
 ---
 
@@ -2682,11 +2686,11 @@ It does not require:
 - identical JSON bytes;
 - preservation of arbitrary input lexical spelling.
 
-The current ordinary-reference restoration proposal distinguishes two guarantees.
+The accepted-at-proposed-contract-level ordinary-reference restoration gate distinguishes two guarantees.
 
 For an **existing destination**, imported-source semantic preservation requires every imported Category / PaymentMethod / Tag to resolve to one distinct destination target carrying the imported object's admitted semantics, with all same-document relationships reconstructed consistently. That guarantee grants no authority to delete unrelated destination state.
 
-The stronger Phase 1C **fresh-install ownership round trip** still requires `Equivalent supported canonical state`. Imported-source preservation alone is insufficient when a fresh destination contains destination-only supported reference records created by bootstrap. Accepted empty-set semantics remain meaningful; for example, source `tags: []` is not automatically equivalent to a freshly bootstrapped destination containing Tags absent from the source. The destination-only bootstrap-state disposition remains unresolved and no deletion, retirement, bootstrap-suppression, overwrite, or merge mechanism is authorized by this proposal. This clarification remains **PROPOSED FOR REVIEW**.
+The stronger Phase 1C **fresh-install ownership round trip** still requires `Equivalent supported canonical state`. Imported-source preservation alone is insufficient when a fresh destination contains destination-only supported reference records created by bootstrap. Accepted empty-set semantics remain meaningful; for example, source `tags: []` is not automatically equivalent to a freshly bootstrapped destination containing Tags absent from the source. The destination-only bootstrap-state disposition remains unresolved and no deletion, retirement, bootstrap-suppression, overwrite, or merge mechanism is authorized by the accepted restoration gate. This clarification is **ACCEPTED AT PROPOSED-CONTRACT LEVEL** as part of that component gate.
 
 ## 28.2 CSV round trip is intentionally narrower
 
@@ -2972,8 +2976,8 @@ This inventory records both accepted component gates and still-open work so a st
 - exact Tag required-field/string semantics — ACCEPTED AT PROPOSED-CONTRACT LEVEL;
 - owned reference record that cannot satisfy an accepted exact schema remains owned and requires explicit compatibility/disposition; silent omission/normalization is not authorized — ACCEPTED AT PROPOSED-CONTRACT LEVEL as a consequence of the exact-schema gate plus the accepted owned-set rule;
 - operation-level disposition for complete Portable JSON ownership export when an owned Category / PaymentMethod / Tag cannot satisfy the accepted exact schema — ACCEPTED AT PROPOSED-CONTRACT LEVEL; complete-export success is blocked by any owned incompatible record, with deterministic non-mutating preflight semantics;
-- ordinary Category / PaymentMethod / Tag restoration / destination matching / conflict semantics — **PROPOSED FOR REVIEW**: no generally available cross-install identity is established; exact admitted-field equality is proposed as eligibility for explicit non-mutating reuse rather than identity proof; unresolved/no-reuse cases use explicit creation as the lossless fallback; distinct imported objects remain distinct; import-driven update/overwrite and merge remain unadmitted;
-- same-document relationship closure under an accepted operation-scoped reference resolution — **PROPOSED FOR REVIEW**; all dependent references to one imported object consume one accepted destination target, while the mapping gains no cross-document authority;
+- ordinary Category / PaymentMethod / Tag restoration / destination matching / conflict semantics — **ACCEPTED AT PROPOSED-CONTRACT LEVEL**: no generally available cross-install identity is established; exact admitted-field equality is eligibility for explicit non-mutating reuse rather than identity proof; unresolved/no-reuse cases use explicit creation as the lossless fallback; distinct imported objects remain distinct; import-driven update/overwrite and merge remain unadmitted;
+- same-document relationship closure under an accepted operation-scoped reference resolution — **ACCEPTED AT PROPOSED-CONTRACT LEVEL**; all dependent references to one imported object consume one accepted destination target, while the mapping gains no cross-document authority;
 - fresh-install destination-only bootstrap reference-state disposition — **OPEN / NOT DECIDED BY THE RESTORATION PROPOSAL**; imported-source preservation in an existing destination must not be treated as sufficient proof of whole-store `Equivalent supported canonical state`, and accepted empty-set semantics remain meaningful;
 - exact required/nullable/omitted disposition for Source fields, including `mime_type` and `file_size_bytes` — RESEARCH / ADMISSION REQUIRED;
 - normalized Portable v1 `source_type` token set — RESEARCH / ADMISSION REQUIRED.
@@ -3110,9 +3114,9 @@ Current production `.now` synthesis in `makeTransaction()`, `TransactionDraft.ap
 
 The post-financial-date read-only dependency reassessment is complete. The reference-entity ownership/export-set gate selected from that reassessment reached proposed-contract acceptance. The subsequent read-only reassessment selected ordinary canonical-record lifecycle timestamp disposition, and that gate reached **ACCEPTED AT PROPOSED-CONTRACT LEVEL**. After composition-only convergence with current canonical main, the exact Category / PaymentMethod / Tag record-schema gate reached **ACCEPTED AT PROPOSED-CONTRACT LEVEL**. The dependent reference-record compatibility/export-disposition gate has now reached **ACCEPTED AT PROPOSED-CONTRACT LEVEL**.
 
-A read-only dependency reassessment from accepted checkpoint `3982d96d5dc11a6c924d2319e93c94361be50740` found ordinary reference restoration / destination matching / conflict semantics sufficiently unblocked to become the next single gate. `LUMEN_PORTABLE_V1_REFERENCE_RESTORATION_CONFLICT_SEMANTICS_PROPOSAL.md` is now **PROPOSED FOR REVIEW** on its dedicated docs-only branch. That proposal status creates no acceptance authority.
+A read-only dependency reassessment from accepted checkpoint `3982d96d5dc11a6c924d2319e93c94361be50740` found ordinary reference restoration / destination matching / conflict semantics sufficiently unblocked to become the next single gate. After independent review and fresh-install round-trip hardening, `LUMEN_PORTABLE_V1_REFERENCE_RESTORATION_CONFLICT_SEMANTICS_PROPOSAL.md` has now reached **ACCEPTED AT PROPOSED-CONTRACT LEVEL**.
 
-Money/date lexical closure, Source/provenance, deterministic serialization/order, reference-restoration acceptance, and parser evolution remain partial-order work rather than one linear queue.
+Fresh-install destination-only bootstrap reference-state disposition remains OPEN and separately gated. Money/date lexical closure, Source/provenance, deterministic serialization/order, that fresh-install round-trip assembly, and parser evolution remain partial-order work rather than one linear queue.
 
 ---
 
@@ -3120,15 +3124,11 @@ Money/date lexical closure, Source/provenance, deterministic serialization/order
 
 The latest accepted semantic gate is:
 
-> **Reference-record compatibility / complete-export disposition — ACCEPTED AT PROPOSED-CONTRACT LEVEL**
+> **Ordinary reference restoration / destination matching / conflict semantics — ACCEPTED AT PROPOSED-CONTRACT LEVEL**
 
-The current dependent gate under review is:
+Reference-record compatibility / complete-export disposition remains accepted as its direct semantic dependency. Exact Category / PaymentMethod / Tag record schemas and ordinary canonical-record lifecycle timestamp disposition remain accepted earlier in the same reference-data line.
 
-> **Ordinary reference restoration / destination matching / conflict semantics — PROPOSED FOR REVIEW**
-
-Exact Category / PaymentMethod / Tag record schemas remain accepted at the proposed-contract level as the preceding semantic gate. Ordinary canonical-record lifecycle timestamp disposition remains accepted earlier in the same reference-data line.
-
-The restoration proposal is downstream of `3982d96d5dc11a6c924d2319e93c94361be50740` and does not promote itself merely by being present on the branch.
+The accepted restoration gate is downstream of `3982d96d5dc11a6c924d2319e93c94361be50740`. Its acceptance does not close the separately open fresh-install destination-only bootstrap reference-state disposition and does not accept the full Portable JSON / CSV v1 contract.
 
 Historical progression now includes both accepted gates and deliberately preserved authority uncertainty:
 
@@ -3181,7 +3181,10 @@ read-only dependency reassessment from 3982d96...
         ↓ complete
 ordinary reference restoration / destination
 matching / conflict semantics
-        ↓ PROPOSED FOR REVIEW
+        ↓ accepted at PROPOSED-contract level
+fresh-install destination-only bootstrap
+reference-state disposition
+        ↓ OPEN; separately gated
 ```
 
 Future routing is explicitly iterative:
@@ -3204,7 +3207,7 @@ exact capability/persistence admission where required
 only then implementation
 ```
 
-The current inventory records **Category / PaymentMethod / Tag complete-export set semantics**, **ordinary canonical-record lifecycle timestamp disposition**, **exact Category / PaymentMethod / Tag record schemas**, and **reference-record compatibility / complete-export disposition** as ACCEPTED AT PROPOSED-CONTRACT LEVEL. The ordinary reference restoration / destination conflict component is **PROPOSED FOR REVIEW** and remains non-authoritative pending independent acceptance. `TransactionSource` remains outside the ordinary reference-data gate and retains its dedicated Source/provenance/evidence responsibilities.
+The current inventory records **Category / PaymentMethod / Tag complete-export set semantics**, **ordinary canonical-record lifecycle timestamp disposition**, **exact Category / PaymentMethod / Tag record schemas**, **reference-record compatibility / complete-export disposition**, and **ordinary reference restoration / destination matching / conflict semantics** as ACCEPTED AT PROPOSED-CONTRACT LEVEL. Fresh-install destination-only bootstrap reference-state disposition remains OPEN and separately gated. `TransactionSource` remains outside the ordinary reference-data gate and retains its dedicated Source/provenance/evidence responsibilities.
 
 Still open includes, among other items:
 
@@ -3212,7 +3215,6 @@ Still open includes, among other items:
 - upper-magnitude authority resolution;
 - exact money canonical lexical serialization;
 - exact admitted financial-date year interval and complete lexical/parser validity;
-- reference restoration / destination matching / conflict semantics — **PROPOSED FOR REVIEW**, pending independent acceptance;
 - fresh-install destination-only bootstrap reference-state disposition required before whole-store Portable round-trip equivalence can be claimed;
 - Source/provenance portability;
 - deterministic ID allocation / ordering after lower-level record/scalar closure;

@@ -2,7 +2,7 @@
 
 ## Status
 
-**PROPOSED FOR REVIEW — docs-only Phase 1C ordinary reference restoration / destination matching / conflict gate.**
+**ACCEPTED AT PROPOSED-CONTRACT LEVEL — independently reviewed Phase 1C ordinary reference restoration / destination matching / conflict gate.**
 
 Starting accepted semantic checkpoint:
 
@@ -1147,9 +1147,9 @@ A future overwrite, merge, persistent identity system, or fresh-install bootstra
 
 ---
 
-# 22. Proposed exact contract language
+# 22. Accepted proposed-contract language
 
-The following language is **PROPOSED FOR REVIEW**.
+The following language is **ACCEPTED AT PROPOSED-CONTRACT LEVEL**.
 
 > **Ordinary reference restoration identity boundary.** Portable JSON v1 does not currently establish a generally available cross-install identity mechanism for Category, PaymentMethod, or Tag. Document-local `portable_id` values and installation-local native model IDs do not establish destination identity; exact name or exact admitted-field equality does not by itself prove historical identity; `Category.is_default` and resemblance to current seed data do not prove bootstrap provenance.
 >
@@ -1179,7 +1179,7 @@ The following language is **PROPOSED FOR REVIEW**.
 
 # 23. Remaining dependencies after this proposal
 
-Even if this proposal is later accepted, still open include:
+Still open after this acceptance:
 
 1. Source/provenance portability;
 2. PortableMoney lexical/governance closure, including unresolved precision/upper-magnitude authority items and canonical decimal serialization;
@@ -1221,10 +1221,83 @@ Independent review should answer:
 
 ---
 
-# 25. Review boundary
+# 25. Independent-review acceptance and boundary
 
-This proposal is ready for independent review.
+Independent review of:
 
-It is not accepted merely because it is checked into the repository.
+`bc8da1101cebfc2acdd7d646e48a171977959761`
 
-Do not promote the aggregate contract, open Source/provenance, introduce merge/update authority, or begin implementation from this proposal without separate acceptance / authorization.
+passes at the proposed-contract level.
+
+Accepted ordinary-reference restoration semantics:
+
+```text
+exact admitted semantic equality
+        ↓
+eligible for explicit non-mutating REUSE
+        ↓
+not historical identity proof
+
+no accepted reuse
+        ↓
+CREATE one distinct destination object
+carrying exact source semantics
+
+field difference
+        ↓
+no v1 REUSE
+no UPDATE / OVERWRITE
+no MERGE
+```
+
+Accepted identity and mapping boundaries:
+
+- Portable `portable_id` remains document-local relationship identity only;
+- native model UUIDs remain installation-local and are not Portable identity;
+- same name, exact admitted-field equality, `Category.is_default`, and current seed resemblance do not establish cross-install historical identity;
+- REUSE requires explicit confirmation because it creates durable future coupling between pre-existing and imported relationships;
+- the operation-scoped mapping is injective: distinct imported source objects resolve to distinct destination objects;
+- every same-document reference to one imported object's `portable_id` resolves through the same accepted destination target;
+- a resolution accepted in one import creates no durable cross-import identity or mapping.
+
+Accepted bootstrap / round-trip boundary:
+
+```text
+existing-store imported-source preservation
+!=
+fresh-install whole-store round-trip equivalence
+```
+
+For an existing destination, unrelated destination reference records may remain while every imported reference object and relationship is preserved exactly under the accepted restoration mapping.
+
+That non-destructive existing-store rule grants no deletion, retirement, bootstrap suppression/deferment, overwrite/update, or merge authority.
+
+The stronger Phase 1C Roadmap requirement for `Equivalent supported canonical state` on a fresh Lumen installation/store remains intact. Accepted owned-set and empty-set semantics remain meaningful. Destination-only supported reference records created by fresh-install bootstrap remain a separately unresolved round-trip assembly.
+
+Therefore:
+
+```text
+fresh-install destination-only bootstrap reference-state disposition
+→ OPEN
+→ required before whole-store Portable round-trip equivalence can be claimed
+```
+
+This acceptance does **not** decide or authorize:
+
+- deletion or retirement of destination-only reference state;
+- bootstrap suppression or deferment;
+- import-driven UPDATE / OVERWRITE;
+- field MERGE;
+- persistent cross-import mapping;
+- Source / TransactionSource portability or provenance;
+- unknown-field/evolution policy;
+- PortableMoney or date/timestamp lexical closure;
+- deterministic Portable-ID allocation or emitted ordering;
+- workspace persistence or promotion-control persistence;
+- migrations;
+- implementation;
+- full Portable JSON / CSV v1 format acceptance.
+
+This component-gate acceptance does not authorize production code, tests, persistence/schema changes, migrations, importer implementation, UI, or another Phase 1C gate.
+
+Do not open the fresh-install bootstrap-state disposition, Source/provenance, deterministic-ordering, or another Phase 1C gate from this checkpoint without separate authorization.
