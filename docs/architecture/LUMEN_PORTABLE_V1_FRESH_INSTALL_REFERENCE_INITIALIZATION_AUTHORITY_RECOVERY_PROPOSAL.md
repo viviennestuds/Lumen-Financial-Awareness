@@ -360,6 +360,93 @@ Restore intent is an authorization choice inside an already truthful eligibility
 
 It is not evidence that the receiving ledger is fresh.
 
+## 6.4 Positive origin of initialization eligibility
+
+Initialization eligibility must originate from an authoritative lifecycle establishment, not from absence of authority state.
+
+Proposed provenance rule:
+
+```text
+authoritative new-initialization-lifecycle establishment
+OR
+separately admitted compatibility transition
+        ↓
+may establish initialization eligibility
+```
+
+Preserve:
+
+```text
+absence of prior authority proof
+!= new-lifecycle establishment
+!= initialization eligibility
+```
+
+This applies even to a genuinely new physical store whose future authority representation has not yet been written. A future mechanism must positively establish the initialization lifecycle rather than infer it from missing state.
+
+This gate does not decide which concrete event performs that establishment. It does not select store-file creation, SwiftData container creation, a control record, platform/store metadata, a store identifier, an epoch field, filesystem state, or another representation.
+
+## 6.5 Single-winner initialization-authority acquisition
+
+Ordinary-initialization eligibility and fresh-restoration eligibility may coexist as candidate paths before an initialization choice becomes authoritative.
+
+Eligibility is not acquisition.
+
+Within one initialization epoch:
+
+```text
+ordinary-bootstrap authority acquisition
+XOR
+fresh-restoration bootstrap-hold acquisition
+```
+
+Both initialization authorities must never successfully acquire authority for the same epoch.
+
+Once fresh-restoration hold acquisition crosses its authority boundary:
+
+```text
+ordinary bootstrap
+→ cannot subsequently cross
+  its authority-acquisition boundary
+```
+
+Conversely, once ordinary bootstrap crosses its authority-acquisition boundary:
+
+```text
+fresh-install restoration hold
+→ cannot subsequently acquire authority
+  for that same initialization attempt
+```
+
+unless crash-safe recovery establishes all of the following:
+
+```text
+ordinary-bootstrap attempt
+→ produced no canonical reference effects
+→ produced no initialization-resolution effects
+→ retains no initialization authority in flight
+→ initialization epoch is truthfully returned
+  to an eligible pre-initialization state
+```
+
+A stale observation that a path was eligible does not reserve authority after another path has acquired it.
+
+This is a mechanism-neutral single-winner property. It does not require a persisted enum, mutex, actor, database transaction, uniqueness constraint, store identifier, or another particular implementation mechanism.
+
+## 6.6 Resolution exhausts fresh-install initialization authority for the epoch
+
+Once reference initialization resolves:
+
+```text
+reference initialization RESOLVED
+→ fresh-install initialization authority
+  for that epoch is exhausted
+```
+
+A later restore may still use the accepted existing-store restoration path.
+
+It is no longer a fresh-install initialization operation for that resolved epoch.
+
 ---
 
 # 7. Bootstrap hold is independent of workspace existence
@@ -609,7 +696,9 @@ The gate uses "initialization epoch" only as a conceptual boundary:
 
 > the lifecycle interval over which one coherent reference-initialization authority decision remains valid.
 
-This gate does not decide what operation creates a new epoch.
+The start of a new initialization epoch must be positively established through an authoritative new-initialization-lifecycle event or a separately admitted compatibility transition.
+
+This gate does not decide what concrete operation or representation establishes that event.
 
 Potential future interactions include:
 
@@ -619,7 +708,9 @@ Potential future interactions include:
 
 Family emptiness does not create a new epoch.
 
-The exact lifecycle trigger remains downstream admission work.
+Absence of prior authority proof does not create a new epoch.
+
+The exact lifecycle trigger and proof mechanism remain downstream admission work.
 
 ---
 
@@ -909,6 +1000,56 @@ A future management action that removes all Tags does not create a new initializ
 
 A new ledger must not inherit the previous ledger's resolved/held initialization authority.
 
+## 19.14 Simultaneous eligibility observations
+
+```text
+ordinary initialization eligible
++
+fresh-restoration eligible
+```
+
+Two activities may observe those candidate facts concurrently.
+
+They must not both successfully acquire initialization authority.
+
+## 19.15 Stale eligibility after competing acquisition
+
+```text
+ordinary path observes eligibility
+→ fresh-restoration hold acquires authority
+→ ordinary path continues from stale observation
+```
+
+The stale observation grants no right to cross the ordinary-bootstrap authority-acquisition boundary.
+
+The converse applies when ordinary bootstrap acquires first.
+
+## 19.16 Interruption during authority acquisition
+
+Process termination while either path is acquiring authority must recover to a state in which:
+
+```text
+ordinary-bootstrap authority
++
+fresh-restoration hold authority
+```
+
+are never both authoritative for the same epoch.
+
+Recovery may return the epoch to pre-initialization eligibility only if it can truthfully establish that the failed acquisition produced no canonical reference effects, no initialization-resolution effects, and no surviving initialization authority.
+
+## 19.17 Missing authority state on a brand-new store
+
+```text
+new physical store
++
+no authority proof exists yet
+```
+
+must not be interpreted as initialization eligibility merely because state is absent.
+
+Eligibility requires positive authoritative lifecycle establishment.
+
 ---
 
 # 20. Assembly Map
@@ -929,30 +1070,39 @@ A new ledger must not inherit the previous ledger's resolved/held initialization
 
 Only the mechanism-neutral authority/recovery capability for:
 
+- positive authoritative origin of initialization eligibility;
 - fresh-restoration eligibility;
 - explicit-intent composition;
+- single-winner ordinary-bootstrap versus fresh-restoration authority acquisition;
 - bootstrap hold;
 - uncertainty posture;
 - ordinary-bootstrap crash consistency;
 - reference-initialization resolution retention;
+- fresh-install authority exhaustion after resolution;
 - store-lifecycle coupling;
 - new-lifecycle noninheritance;
 - abandonment/workspace ordering;
 - recovery precedence.
 
-## 20.3 Downstream dependencies this gate may produce
+## 20.3 Required downstream mechanism admission and possible additional dependencies
 
-If the capability cannot be implemented truthfully using already-admitted state, later exact admissions may be required for:
+If this capability is accepted, an **exact authority persistence/recovery mechanism admission is required before implementation**.
 
-- canonical-control persistence;
-- legacy-store compatibility;
-- schema/version state;
+That downstream gate must select or admit the concrete mechanism by which these authority facts and transitions survive interruption and are lifecycle-coupled correctly.
+
+What remains unresolved is whether satisfying that exact mechanism admission requires any of the following:
+
+- new canonical-control persistence;
+- legacy-store compatibility handling;
+- SwiftData or other schema/version state;
 - migration;
 - store-lifecycle identity;
+- filesystem/platform metadata;
+- another persistence substrate or mechanism;
 - implementation sequencing;
 - tests.
 
-Those are not admitted here.
+Those concrete mechanisms and compatibility consequences are not admitted here.
 
 ## 20.4 Independent sibling work
 
@@ -974,12 +1124,15 @@ This gate does not require closure of:
 
 This gate proposes only these capability requirements:
 
+- positive authoritative new-lifecycle or separately admitted compatibility provenance for initialization eligibility;
 - a truthfully established fresh-restoration eligibility fact;
 - explicit restore intent as a separate required authority input;
+- single-winner initialization-authority acquisition within one initialization epoch;
 - a recoverable fresh-restoration bootstrap hold;
 - a non-authorizing unknown/unproven posture;
 - a crash-safe coherent ordinary-bootstrap completion/resolution contract;
 - durable recognition that successful canonical reference confirmation resolved initialization;
+- exhaustion of fresh-install initialization authority once the epoch resolves;
 - store-lifecycle coupling of initialization authority;
 - no inheritance of stale authority by a genuinely new ledger lifecycle;
 - crash-safe ordering between abandonment and associated workspace promotion authority;
@@ -1040,15 +1193,18 @@ The proposal deliberately stops before choosing persistence.
 If accepted, the capability contract would freeze:
 
 1. eligibility and restore intent as separate authority inputs;
-2. uncertainty as non-authorizing;
-3. bootstrap hold authority independent from workspace/file existence;
-4. workspace promotion authority as a blocker to reactivating ordinary bootstrap;
-5. ordinary bootstrap as one coherent three-family crash-consistent initialization assembly;
-6. resolved initialization as a store-lifecycle fact rather than session state;
-7. later family emptiness as non-authorizing;
-8. new ledger lifecycle as unable to inherit stale prior-lifecycle initialization authority;
-9. legacy/unproven stores as requiring explicit compatibility treatment rather than inferred freshness;
-10. mechanism-neutral downstream admission for any persistence/schema/migration needed to satisfy these properties.
+2. initialization eligibility as requiring positive authoritative lifecycle provenance rather than missing-state inference;
+3. single-winner acquisition between ordinary-bootstrap authority and fresh-restoration hold authority within one initialization epoch;
+4. uncertainty as non-authorizing;
+5. bootstrap hold authority independent from workspace/file existence;
+6. workspace promotion authority as a blocker to reactivating ordinary bootstrap;
+7. ordinary bootstrap as one coherent three-family crash-consistent initialization assembly;
+8. resolved initialization as a store-lifecycle fact rather than session state;
+9. fresh-install initialization authority as exhausted for an epoch once reference initialization resolves;
+10. later family emptiness as non-authorizing;
+11. new ledger lifecycle as unable to inherit stale prior-lifecycle initialization authority;
+12. legacy/unproven stores as requiring explicit compatibility treatment rather than inferred freshness;
+13. a required downstream exact authority persistence/recovery mechanism admission before implementation, while its storage/schema/migration consequences remain unresolved.
 
 No public file grammar or storage representation is frozen by this gate.
 
@@ -1058,7 +1214,13 @@ No public file grammar or storage representation is frozen by this gate.
 
 The following is **PROPOSED FOR REVIEW**.
 
+> **Initialization-eligibility provenance.** Ordinary/fresh initialization eligibility must originate from an authoritative new-initialization-lifecycle establishment or a separately admitted compatibility transition. Absence of prior authority proof is not itself lifecycle establishment and does not establish eligibility. The exact establishment event and representation remain downstream.
+>
 > **Fresh-restoration eligibility and intent.** Fresh-install reference restoration requires both truthfully established fresh-restoration eligibility and explicit user restore intent. Eligibility alone does not establish a bootstrap hold. Restore intent alone does not establish freshness or fresh-restoration authority.
+>
+> **Single-winner authority acquisition.** Ordinary-bootstrap authority and fresh-restoration bootstrap-hold authority may be candidate paths within one initialization epoch, but both must never successfully acquire authority for that epoch. Once one path crosses its authority-acquisition boundary, a stale eligibility observation cannot authorize the other path to cross. A failed ordinary-bootstrap acquisition may return the epoch to pre-initialization eligibility only when crash-safe recovery truthfully establishes that no canonical reference effects, initialization-resolution effects, or surviving initialization authority remain.
+>
+> **Resolution exhausts fresh-install authority.** Once reference initialization resolves, fresh-install initialization authority for that epoch is exhausted. Any later restoration is governed by the accepted existing-store restoration path unless a later separately admitted lifecycle creates a genuinely new initialization epoch.
 >
 > **Non-authorizing uncertainty.** Absence, corruption, incompatibility, or inability to recover an admitted initialization-authority proof must not be interpreted as freshness, unresolved initialization, or ordinary-bootstrap authority. Initialization-authority uncertainty does not grant mutation authority.
 >
@@ -1080,7 +1242,9 @@ The following is **PROPOSED FOR REVIEW**.
 >
 > **Recovery precedence.** Lumen must recover initialization authority before using reference-family contents as an ordinary-bootstrap trigger. A resolved initialization forbids reseeding solely from emptiness; an active hold withholds bootstrap; truthfully eligible ordinary initialization may bootstrap under its admitted crash-consistency contract; unknown/unproven authority grants no bootstrap mutation authority.
 >
-> **Mechanism neutrality.** This capability contract selects no persistence substrate, persisted model, store identifier, epoch field, schema change, migration, importer implementation, UI, or production bootstrap change. Any concrete durable state required to satisfy this contract requires a later exact admission.
+> **Required downstream mechanism admission.** Acceptance of this capability requires a later exact authority persistence/recovery mechanism admission before implementation. Whether that mechanism requires new SwiftData state, schema changes, migration, UserDefaults, filesystem/platform metadata, store identity, or another substrate remains unresolved and is not admitted here.
+>
+> **Mechanism neutrality.** This capability contract selects no persistence substrate, persisted model, store identifier, epoch field, schema change, migration, importer implementation, UI, or production bootstrap change.
 
 ---
 
@@ -1109,6 +1273,13 @@ The following is **PROPOSED FOR REVIEW**.
 21. Are Source/provenance, money/date closure, parser evolution, deterministic ordering, deletion, and implementation correctly excluded?
 22. Does any requirement accidentally authorize production mutation or schema change?
 23. Is every newly proposed authority necessary to satisfy an already-accepted fresh-install ownership semantic rather than implementation convenience?
+24. Are ordinary-bootstrap and fresh-restoration hold acquisition explicitly single-winner within one initialization epoch?
+25. Can stale eligibility observations ever incorrectly survive a competing authority acquisition?
+26. Does recovery from interrupted acquisition forbid both authorities from becoming simultaneously authoritative?
+27. Is return to pre-initialization eligibility allowed only when no canonical reference effects, resolution effects, or surviving initialization authority remain?
+28. Is initialization eligibility positively established by an authoritative new-lifecycle event or separately admitted compatibility transition rather than inferred from missing state?
+29. Is fresh-install authority correctly exhausted once reference initialization resolves?
+30. Is the downstream exact authority persistence/recovery mechanism admission correctly required while its concrete storage/schema/migration consequences remain unresolved?
 
 ---
 
@@ -1135,4 +1306,8 @@ Do not:
 
 without separate review and authorization.
 
-If independent review concludes that satisfying this capability necessarily requires new canonical-control persistence, compatibility handling, schema state, or migration, record that as a downstream exact admission dependency rather than solving it inside this gate.
+If this capability is accepted, a downstream **exact authority persistence/recovery mechanism admission is required before implementation**.
+
+That downstream mechanism gate must remain separately authorized.
+
+Whether the required mechanism also needs new canonical-control persistence, legacy compatibility handling, schema/version state, migration, store identity, filesystem/platform metadata, or another substrate remains unresolved and must not be solved inside this capability gate.
