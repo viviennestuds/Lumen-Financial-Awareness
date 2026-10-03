@@ -2568,6 +2568,48 @@ restore intent without eligibility
 != fresh-restoration authority
 ```
 
+Initialization eligibility must have positive authority provenance:
+
+```text
+authoritative new-initialization-lifecycle establishment
+OR
+separately admitted compatibility transition
+        ↓
+may establish initialization eligibility
+```
+
+Preserve:
+
+```text
+absence of prior authority proof
+!= new-lifecycle establishment
+!= initialization eligibility
+```
+
+The exact lifecycle-establishment event and representation remain downstream.
+
+Before either path acquires authority, ordinary-initialization eligibility and fresh-restoration eligibility may coexist as candidate paths. They do not create dual authority.
+
+Within one initialization epoch:
+
+```text
+ordinary-bootstrap authority acquisition
+XOR
+fresh-restoration bootstrap-hold acquisition
+```
+
+Once either path crosses its authority-acquisition boundary, a stale eligibility observation cannot authorize the other path to cross.
+
+If ordinary-bootstrap acquisition fails or is interrupted, the epoch may return to pre-initialization eligibility only when crash-safe recovery truthfully establishes:
+
+```text
+no canonical reference effects
++
+no initialization-resolution effects
++
+no surviving initialization authority
+```
+
 The proposal also freezes a conservative uncertainty posture:
 
 ```text
@@ -2632,6 +2674,16 @@ The v1 ordinary-reference initialization assembly remains coherent across Catego
 
 Resolved reference initialization is proposed as a ledger/store-lifecycle authority fact rather than temporary workspace state. Later family emptiness does not reauthorize bootstrap, and a genuinely new ledger/store lifecycle must not inherit stale authority from the prior lifecycle.
 
+Once reference initialization resolves:
+
+```text
+fresh-install initialization authority
+for that initialization epoch
+→ exhausted
+```
+
+A later restore remains possible only through the accepted existing-store restoration path unless a separately admitted lifecycle event establishes a genuinely new initialization epoch.
+
 "Store-scoped" and "initialization epoch" remain semantic lifecycle concepts only. This section does **not** authorize a durable store ID, epoch field, persisted enum, schema version, migration, or another representation.
 
 The proposal consumes the accepted reference-confirmation recovery contract rather than replacing it. Successful canonical confirmation of the complete imported Category / PaymentMethod / Tag owned sets—including confirmed empty families—still resolves reference initialization under the accepted per-confirmation-boundary atomicity/replay-safety rules.
@@ -2665,7 +2717,11 @@ This capability gate explicitly does **not** select:
 - reference deletion/retirement;
 - Source/provenance behavior.
 
-If independent review concludes that these capability properties necessarily require new canonical-control persistence, compatibility handling, schema state, or migration, that becomes a separately authorized downstream exact admission.
+If this capability is accepted, a downstream **exact authority persistence/recovery mechanism admission is required before implementation**.
+
+That exact mechanism admission remains separately gated and unopened here.
+
+Whether the required mechanism needs new canonical-control persistence, legacy compatibility handling, SwiftData or other schema/version state, migration, store identity, filesystem/platform metadata, UserDefaults, or another substrate remains unresolved.
 
 This section is **PROPOSED FOR REVIEW**.
 
@@ -3038,7 +3094,7 @@ Residual blockers include at least:
 - exact financial-date year interval and complete lexical/parser validity;
 - the still-unaccepted parts of the PortableMoney public domain/spelling contract, including normative precision status, upper-magnitude authority resolution, leading-zero policy, and canonical decimal serialization;
 - operational recovery/user-resolution/failure behavior where an admitted financial date cannot be established from current state;
-- fresh-install reference-initialization authority persistence/recovery capability — **PROPOSED FOR REVIEW**; it must cover truthful fresh-restoration eligibility, non-authorizing uncertainty/legacy state, hold recovery, coherent ordinary-bootstrap crash consistency, store-lifecycle resolution, and abandonment/workspace ordering without selecting a durable proof/storage mechanism;
+- fresh-install reference-initialization authority persistence/recovery capability — **PROPOSED FOR REVIEW**; it must cover positive authoritative origin of initialization eligibility, single-winner ordinary-bootstrap versus fresh-restoration authority acquisition, non-authorizing uncertainty/legacy state, hold recovery, coherent ordinary-bootstrap crash consistency, store-lifecycle resolution/exhaustion, and abandonment/workspace ordering without selecting a persistence mechanism; if accepted, an exact authority persistence/recovery mechanism admission is required downstream before implementation, while whether that mechanism requires new schema/storage/migration remains unresolved;
 - Source/provenance portability and its distinct temporal semantics;
 - unknown-field/evolution policy, including treatment of additional unrecognized keys beyond the required known v1 schema surface;
 - deterministic allocation/order only after the exported record/scalar model is sufficiently closed.
@@ -3465,7 +3521,7 @@ The current dependent gate under review is:
 
 It is downstream of accepted bootstrap-state semantics and starts from accepted checkpoint `d785d7d3981779317f2badc1e87be4e13a4e86ff`.
 
-The proposal defines mechanism-neutral authority/recovery requirements only. It does not open an exact persistence/schema/migration admission and does not authorize implementation.
+The proposal defines mechanism-neutral authority/recovery requirements only. It does not open the downstream exact authority persistence/recovery mechanism admission and does not authorize implementation. If this capability is later accepted, that exact mechanism admission is required before implementation; whether the mechanism requires new persistence, schema state, migration, store identity, filesystem/platform metadata, UserDefaults, or another substrate remains unresolved.
 
 Historical progression now includes both accepted gates and deliberately preserved authority uncertainty:
 
@@ -3559,7 +3615,7 @@ Still open includes, among other items:
 - upper-magnitude authority resolution;
 - exact money canonical lexical serialization;
 - exact admitted financial-date year interval and complete lexical/parser validity;
-- fresh-install reference-initialization authority persistence/recovery capability — **PROPOSED FOR REVIEW**, pending independent acceptance; any concrete canonical-control persistence/schema/migration dependency remains downstream and unopened;
+- fresh-install reference-initialization authority persistence/recovery capability — **PROPOSED FOR REVIEW**, pending independent acceptance; if accepted, a separate exact authority persistence/recovery mechanism admission is **REQUIRED** before implementation, while any need for new canonical-control persistence/schema/migration or a particular substrate remains downstream and unresolved;
 - Source/provenance portability;
 - deterministic ID allocation / ordering after lower-level record/scalar closure;
 - unknown-field/evolution policy;
