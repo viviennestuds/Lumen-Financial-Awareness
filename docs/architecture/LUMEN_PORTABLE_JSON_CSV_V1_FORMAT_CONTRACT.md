@@ -2590,25 +2590,48 @@ The exact lifecycle-establishment event and representation remain downstream.
 
 Before either path acquires authority, ordinary-initialization eligibility and fresh-restoration eligibility may coexist as candidate paths. They do not create dual authority.
 
-Within one initialization epoch:
+The proposed mutual-exclusion invariant is:
 
 ```text
-ordinary-bootstrap authority acquisition
-XOR
-fresh-restoration bootstrap-hold acquisition
+ordinary-bootstrap authority ACTIVE
++
+fresh-restoration bootstrap-hold authority ACTIVE
+→ FORBIDDEN
 ```
 
-Once either path crosses its authority-acquisition boundary, a stale eligibility observation cannot authorize the other path to cross.
+At most one initialization authority may be active / authoritative at a time within one initialization epoch.
 
-If ordinary-bootstrap acquisition fails or is interrupted, the epoch may return to pre-initialization eligibility only when crash-safe recovery truthfully establishes:
+Once one path is active, a stale eligibility observation cannot authorize the competing path while that authority remains active.
+
+This does not prohibit a later admitted authority handoff before reference initialization resolves.
+
+Accepted fresh-restoration abandonment remains valid:
+
+```text
+fresh-restoration hold ACTIVE
+→ explicit abandonment permitted
+→ associated workspace promotion authority,
+  if any, durably removed
+→ hold terminally released
+→ no surviving fresh-restoration
+  initialization authority
+→ ordinary initialization may become eligible
+→ ordinary bootstrap may later acquire
+```
+
+Likewise, if ordinary-bootstrap acquisition fails or is interrupted, the epoch may return to pre-initialization eligibility only when crash-safe recovery truthfully establishes:
 
 ```text
 no canonical reference effects
 +
 no initialization-resolution effects
 +
-no surviving initialization authority
+no surviving ordinary-bootstrap authority
 ```
+
+After that terminal release, a fresh-restoration hold may later acquire under the ordinary eligibility/intent rules.
+
+A stale eligibility observation never survives a competing **active** authority; a new eligibility decision after terminal release is a new authoritative lifecycle decision.
 
 The proposal also freezes a conservative uncertainty posture:
 
@@ -3094,7 +3117,7 @@ Residual blockers include at least:
 - exact financial-date year interval and complete lexical/parser validity;
 - the still-unaccepted parts of the PortableMoney public domain/spelling contract, including normative precision status, upper-magnitude authority resolution, leading-zero policy, and canonical decimal serialization;
 - operational recovery/user-resolution/failure behavior where an admitted financial date cannot be established from current state;
-- fresh-install reference-initialization authority persistence/recovery capability — **PROPOSED FOR REVIEW**; it must cover positive authoritative origin of initialization eligibility, single-winner ordinary-bootstrap versus fresh-restoration authority acquisition, non-authorizing uncertainty/legacy state, hold recovery, coherent ordinary-bootstrap crash consistency, store-lifecycle resolution/exhaustion, and abandonment/workspace ordering without selecting a persistence mechanism; if accepted, an exact authority persistence/recovery mechanism admission is required downstream before implementation, while whether that mechanism requires new schema/storage/migration remains unresolved;
+- fresh-install reference-initialization authority persistence/recovery capability — **PROPOSED FOR REVIEW**; it must cover positive authoritative origin of initialization eligibility, mutual exclusion of active ordinary-bootstrap versus fresh-restoration authority, admitted crash-safe authority handoff before resolution, non-authorizing uncertainty/legacy state, hold recovery, coherent ordinary-bootstrap crash consistency, store-lifecycle resolution/exhaustion, and abandonment/workspace ordering without selecting a persistence mechanism; if accepted, an exact authority persistence/recovery mechanism admission is required downstream before implementation, while whether that mechanism requires new schema/storage/migration remains unresolved;
 - Source/provenance portability and its distinct temporal semantics;
 - unknown-field/evolution policy, including treatment of additional unrecognized keys beyond the required known v1 schema surface;
 - deterministic allocation/order only after the exported record/scalar model is sufficiently closed.
