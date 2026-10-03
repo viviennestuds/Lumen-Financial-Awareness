@@ -2348,7 +2348,7 @@ This section is **ACCEPTED AT PROPOSED-CONTRACT LEVEL**.
 
 The accepted restoration gate still does not authorize deletion, retirement, bootstrap suppression/deferment, import-driven update/overwrite, merge, persistent cross-import mapping, implementation, workspace persistence, schema changes, migrations, or UI.
 
-The downstream fresh-install destination-only bootstrap reference-state disposition is now addressed by Section 21.5 and is **ACCEPTED AT PROPOSED-CONTRACT LEVEL**. That acceptance grants the semantic bootstrap/restoration authority defined there, but no persistence mechanism or implementation authority. The required exact persistence/recovery capability remains separately gated and unopened.
+The downstream fresh-install destination-only bootstrap reference-state disposition is now addressed by Section 21.5 and is **ACCEPTED AT PROPOSED-CONTRACT LEVEL**. That acceptance grants the semantic bootstrap/restoration authority defined there, but no persistence mechanism or implementation authority. The required exact authority persistence/recovery mechanism admission remains separately gated, **OPEN / NOT YET GATED**, and unopened.
 
 ## 21.5 Fresh-install Portable ownership-restoration bootstrap-state disposition — ACCEPTED AT PROPOSED-CONTRACT LEVEL
 
