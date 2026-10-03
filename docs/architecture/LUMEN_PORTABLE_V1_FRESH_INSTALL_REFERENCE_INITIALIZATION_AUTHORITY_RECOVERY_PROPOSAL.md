@@ -386,52 +386,90 @@ This applies even to a genuinely new physical store whose future authority repre
 
 This gate does not decide which concrete event performs that establishment. It does not select store-file creation, SwiftData container creation, a control record, platform/store metadata, a store identifier, an epoch field, filesystem state, or another representation.
 
-## 6.5 Single-winner initialization-authority acquisition
+## 6.5 Mutual exclusion and crash-safe initialization-authority transfer
 
 Ordinary-initialization eligibility and fresh-restoration eligibility may coexist as candidate paths before an initialization choice becomes authoritative.
 
-Eligibility is not acquisition.
+Eligibility is not active authority.
 
 Within one initialization epoch:
 
 ```text
-ordinary-bootstrap authority acquisition
-XOR
-fresh-restoration bootstrap-hold acquisition
+ordinary-bootstrap authority ACTIVE
++
+fresh-restoration bootstrap-hold authority ACTIVE
+→ FORBIDDEN
 ```
 
-Both initialization authorities must never successfully acquire authority for the same epoch.
+At any point in the epoch, at most one initialization authority may be active / authoritative.
 
-Once fresh-restoration hold acquisition crosses its authority boundary:
+Acquisition by one path invalidates stale eligibility observations of the competing path while the acquired authority remains active.
+
+Therefore:
 
 ```text
-ordinary bootstrap
-→ cannot subsequently cross
-  its authority-acquisition boundary
+fresh-restoration hold ACTIVE
+→ ordinary bootstrap cannot acquire authority
+  from a prior/stale eligibility observation
 ```
 
-Conversely, once ordinary bootstrap crosses its authority-acquisition boundary:
+and:
 
 ```text
-fresh-install restoration hold
-→ cannot subsequently acquire authority
-  for that same initialization attempt
+ordinary-bootstrap authority ACTIVE
+→ fresh-restoration hold cannot acquire authority
+  from a prior/stale eligibility observation
 ```
 
-unless crash-safe recovery establishes all of the following:
+This mutual exclusion does **not** mean only one path may ever acquire authority during the entire unresolved epoch.
+
+A later competing acquisition is permitted only after the previously active authority reaches an admitted terminal/release transition that durably and recoverably removes that authority.
+
+### Fresh-restoration → ordinary-bootstrap handoff
+
+The already-accepted explicit-abandonment path remains valid while reference initialization is unresolved:
+
+```text
+fresh-restoration hold ACTIVE
+        ↓
+explicit abandonment permitted
+        ↓
+associated workspace promotion authority,
+if any, durably removed
+        ↓
+fresh-restoration hold
+terminally released
+        ↓
+recovery proves no surviving
+fresh-restoration initialization authority
+        ↓
+ordinary initialization may
+become eligible again
+        ↓
+ordinary bootstrap may acquire authority
+```
+
+The ordinary path acquires only after the fresh-restoration authority has been terminally released.
+
+### Ordinary-bootstrap → fresh-restoration handoff after failed attempt
+
+If ordinary bootstrap had acquired authority but its attempt fails or is interrupted, fresh restoration may later acquire only when crash-safe recovery truthfully establishes:
 
 ```text
 ordinary-bootstrap attempt
 → produced no canonical reference effects
 → produced no initialization-resolution effects
-→ retains no initialization authority in flight
-→ initialization epoch is truthfully returned
+→ retains no surviving ordinary-bootstrap authority
+→ ordinary authority terminally released
+→ initialization epoch truthfully returned
   to an eligible pre-initialization state
 ```
 
-A stale observation that a path was eligible does not reserve authority after another path has acquired it.
+Only then may the fresh-restoration path later acquire authority.
 
-This is a mechanism-neutral single-winner property. It does not require a persisted enum, mutex, actor, database transaction, uniqueness constraint, store identifier, or another particular implementation mechanism.
+A stale eligibility observation never survives a competing **active** authority. A new eligibility decision after admitted terminal release is a new authoritative lifecycle decision, not continuation of the stale observation.
+
+This is a mechanism-neutral mutual-exclusion and authority-transfer property. It does not require a persisted enum, mutex, actor, database transaction, uniqueness constraint, store identifier, or another particular implementation mechanism.
 
 ## 6.6 Resolution exhausts fresh-install initialization authority for the epoch
 
@@ -1010,35 +1048,80 @@ fresh-restoration eligible
 
 Two activities may observe those candidate facts concurrently.
 
-They must not both successfully acquire initialization authority.
+That coexistence is permitted.
 
-## 19.15 Stale eligibility after competing acquisition
+They must never recover or progress into:
+
+```text
+ordinary-bootstrap authority ACTIVE
++
+fresh-restoration hold authority ACTIVE
+```
+
+for the same epoch.
+
+## 19.15 Stale eligibility while competing authority is active
 
 ```text
 ordinary path observes eligibility
-→ fresh-restoration hold acquires authority
+→ fresh-restoration hold becomes ACTIVE
 → ordinary path continues from stale observation
 ```
 
-The stale observation grants no right to cross the ordinary-bootstrap authority-acquisition boundary.
+The stale observation grants no right to acquire ordinary-bootstrap authority while the fresh-restoration hold remains active.
 
-The converse applies when ordinary bootstrap acquires first.
+The converse applies while ordinary-bootstrap authority remains active.
 
 ## 19.16 Interruption during authority acquisition
 
-Process termination while either path is acquiring authority must recover to a state in which:
+Process termination while either path is acquiring authority must recover to a state in which both initialization authorities are never simultaneously active for the same epoch.
+
+Recovery may return the epoch to pre-initialization eligibility only after the prior authority is truthfully absent under the applicable terminal/release rule.
+
+## 19.17 Fresh hold abandoned before resolution
 
 ```text
-ordinary-bootstrap authority
-+
-fresh-restoration hold authority
+fresh-restoration hold ACTIVE
+→ explicit abandonment permitted
+→ associated workspace promotion authority durably gone
+→ hold terminally released
+→ no surviving fresh-restoration authority
+→ ordinary initialization may become eligible
+→ ordinary bootstrap may later acquire
 ```
 
-are never both authoritative for the same epoch.
+This is a valid authority transfer within the same unresolved initialization epoch.
 
-Recovery may return the epoch to pre-initialization eligibility only if it can truthfully establish that the failed acquisition produced no canonical reference effects, no initialization-resolution effects, and no surviving initialization authority.
+It does not violate mutual exclusion because the two authorities are not active simultaneously.
 
-## 19.17 Missing authority state on a brand-new store
+## 19.18 Ordinary-bootstrap attempt fails before effects
+
+```text
+ordinary-bootstrap authority ACTIVE
+→ attempt fails / process terminates
+→ recovery proves:
+   no canonical reference effects
+   no initialization-resolution effects
+   no surviving ordinary-bootstrap authority
+→ ordinary authority terminally released
+→ epoch returns to eligible pre-initialization state
+→ fresh-restoration hold may later acquire
+```
+
+Again, the later acquisition is valid because the prior authority is no longer active.
+
+## 19.19 Successful resolution is not a transferable release
+
+```text
+reference initialization RESOLVED
+→ fresh-install authority for the epoch exhausted
+```
+
+Resolution is terminal for fresh-install initialization.
+
+It must not be treated like abandonment or a failed pre-effect acquisition.
+
+## 19.20 Missing authority state on a brand-new store
 
 ```text
 new physical store
@@ -1073,7 +1156,7 @@ Only the mechanism-neutral authority/recovery capability for:
 - positive authoritative origin of initialization eligibility;
 - fresh-restoration eligibility;
 - explicit-intent composition;
-- single-winner ordinary-bootstrap versus fresh-restoration authority acquisition;
+- mutual exclusion of active ordinary-bootstrap versus fresh-restoration authority plus admitted crash-safe authority transfer;
 - bootstrap hold;
 - uncertainty posture;
 - ordinary-bootstrap crash consistency;
@@ -1127,7 +1210,7 @@ This gate proposes only these capability requirements:
 - positive authoritative new-lifecycle or separately admitted compatibility provenance for initialization eligibility;
 - a truthfully established fresh-restoration eligibility fact;
 - explicit restore intent as a separate required authority input;
-- single-winner initialization-authority acquisition within one initialization epoch;
+- mutual exclusion of simultaneously active initialization authorities within one initialization epoch, with only admitted crash-safe terminal/release handoff;
 - a recoverable fresh-restoration bootstrap hold;
 - a non-authorizing unknown/unproven posture;
 - a crash-safe coherent ordinary-bootstrap completion/resolution contract;
@@ -1194,7 +1277,7 @@ If accepted, the capability contract would freeze:
 
 1. eligibility and restore intent as separate authority inputs;
 2. initialization eligibility as requiring positive authoritative lifecycle provenance rather than missing-state inference;
-3. single-winner acquisition between ordinary-bootstrap authority and fresh-restoration hold authority within one initialization epoch;
+3. mutual exclusion of live ordinary-bootstrap and fresh-restoration hold authority within one initialization epoch, while permitting only admitted crash-safe authority transfer after the prior authority is terminally released;
 4. uncertainty as non-authorizing;
 5. bootstrap hold authority independent from workspace/file existence;
 6. workspace promotion authority as a blocker to reactivating ordinary bootstrap;
@@ -1218,7 +1301,11 @@ The following is **PROPOSED FOR REVIEW**.
 >
 > **Fresh-restoration eligibility and intent.** Fresh-install reference restoration requires both truthfully established fresh-restoration eligibility and explicit user restore intent. Eligibility alone does not establish a bootstrap hold. Restore intent alone does not establish freshness or fresh-restoration authority.
 >
-> **Single-winner authority acquisition.** Ordinary-bootstrap authority and fresh-restoration bootstrap-hold authority may be candidate paths within one initialization epoch, but both must never successfully acquire authority for that epoch. Once one path crosses its authority-acquisition boundary, a stale eligibility observation cannot authorize the other path to cross. A failed ordinary-bootstrap acquisition may return the epoch to pre-initialization eligibility only when crash-safe recovery truthfully establishes that no canonical reference effects, initialization-resolution effects, or surviving initialization authority remain.
+> **Mutual exclusion and authority transfer.** Ordinary-bootstrap eligibility and fresh-restoration eligibility may coexist as candidate paths, but ordinary-bootstrap authority and fresh-restoration bootstrap-hold authority must never be simultaneously active for the same initialization epoch. While one authority remains active, stale eligibility observations cannot authorize the competing path to acquire. A competing path may acquire later only after an admitted terminal/release transition has durably and recoverably removed the prior authority.
+>
+> **Fresh-restoration abandonment handoff.** While reference initialization remains unresolved, permitted explicit abandonment may release an active fresh-restoration hold only after any associated workspace promotion authority is durably removed and recovery can establish that no fresh-restoration initialization authority survives. Ordinary initialization may then become eligible again and ordinary bootstrap may later acquire authority.
+>
+> **Failed ordinary-bootstrap handoff.** If ordinary bootstrap acquired authority but fails or is interrupted before successful initialization, the epoch may return to pre-initialization eligibility only when crash-safe recovery truthfully establishes no canonical reference effects, no initialization-resolution effects, and no surviving ordinary-bootstrap authority. Only then may a fresh-restoration hold later acquire.
 >
 > **Resolution exhausts fresh-install authority.** Once reference initialization resolves, fresh-install initialization authority for that epoch is exhausted. Any later restoration is governed by the accepted existing-store restoration path unless a later separately admitted lifecycle creates a genuinely new initialization epoch.
 >
@@ -1273,13 +1360,16 @@ The following is **PROPOSED FOR REVIEW**.
 21. Are Source/provenance, money/date closure, parser evolution, deterministic ordering, deletion, and implementation correctly excluded?
 22. Does any requirement accidentally authorize production mutation or schema change?
 23. Is every newly proposed authority necessary to satisfy an already-accepted fresh-install ownership semantic rather than implementation convenience?
-24. Are ordinary-bootstrap and fresh-restoration hold acquisition explicitly single-winner within one initialization epoch?
-25. Can stale eligibility observations ever incorrectly survive a competing authority acquisition?
-26. Does recovery from interrupted acquisition forbid both authorities from becoming simultaneously authoritative?
-27. Is return to pre-initialization eligibility allowed only when no canonical reference effects, resolution effects, or surviving initialization authority remain?
-28. Is initialization eligibility positively established by an authoritative new-lifecycle event or separately admitted compatibility transition rather than inferred from missing state?
-29. Is fresh-install authority correctly exhausted once reference initialization resolves?
-30. Is the downstream exact authority persistence/recovery mechanism admission correctly required while its concrete storage/schema/migration consequences remain unresolved?
+24. Are ordinary-bootstrap authority and fresh-restoration hold authority explicitly mutually exclusive while active within one initialization epoch?
+25. Can candidate eligibility coexist without creating simultaneous live authority?
+26. Do stale eligibility observations correctly lose force while a competing authority remains active?
+27. Does the proposal preserve the accepted fresh-restoration abandonment path as a valid crash-safe handoff to ordinary initialization before resolution?
+28. Must associated workspace promotion authority be durably gone before a fresh-restoration hold can terminally release into ordinary-bootstrap eligibility?
+29. Does a failed/interrupted ordinary-bootstrap attempt permit later fresh-restoration acquisition only after recovery proves no canonical reference effects, no resolution effects, and no surviving ordinary-bootstrap authority?
+30. Does recovery from interrupted acquisition forbid both authorities from becoming simultaneously active?
+31. Is successful reference initialization correctly distinguished from abandonment/failed acquisition as a terminal exhaustion of fresh-install authority for that epoch?
+32. Is initialization eligibility positively established by an authoritative new-lifecycle event or separately admitted compatibility transition rather than inferred from missing state?
+33. Is the downstream exact authority persistence/recovery mechanism admission correctly required while its concrete storage/schema/migration consequences remain unresolved?
 
 ---
 
