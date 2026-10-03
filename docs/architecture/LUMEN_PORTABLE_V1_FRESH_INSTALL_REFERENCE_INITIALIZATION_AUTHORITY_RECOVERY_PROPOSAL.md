@@ -2,7 +2,7 @@
 
 ## Status
 
-**PROPOSED FOR REVIEW — docs-only Phase 1C capability gate.**
+**ACCEPTED AT PROPOSED-CONTRACT LEVEL — docs-only Phase 1C capability gate.**
 
 Starting accepted semantic checkpoint:
 
@@ -1373,15 +1373,16 @@ The following is **PROPOSED FOR REVIEW**.
 
 ---
 
-# 26. Review boundary
+# 26. Acceptance boundary
 
-This proposal is ready for independent review.
+Independent review is complete.
 
-It is not accepted merely because it is present in the repository.
+Proposed-contract acceptance is recorded in Section 27.
+
+That acceptance does not authorize implementation or open the required downstream exact authority persistence/recovery mechanism admission.
 
 Do not:
 
-- record proposed-contract acceptance;
 - select a persistence substrate;
 - add a freshness/store/epoch identifier;
 - add persisted enums or control records;
@@ -1401,3 +1402,168 @@ If this capability is accepted, a downstream **exact authority persistence/recov
 That downstream mechanism gate must remain separately authorized.
 
 Whether the required mechanism also needs new canonical-control persistence, legacy compatibility handling, schema/version state, migration, store identity, filesystem/platform metadata, or another substrate remains unresolved and must not be solved inside this capability gate.
+
+
+---
+
+# 27. Independent-review acceptance and boundary
+
+Independent review of:
+
+`6f4de115b693452b4be221352f4d26c608bac721`
+
+passes at the proposed-contract level.
+
+This capability is therefore **ACCEPTED AT PROPOSED-CONTRACT LEVEL**.
+
+Accepted initialization-eligibility provenance:
+
+```text
+authoritative new-initialization-lifecycle establishment
+OR
+separately admitted compatibility transition
+        ↓
+may establish initialization eligibility
+
+absence of prior authority proof
+!= lifecycle establishment
+!= initialization eligibility
+```
+
+Accepted eligibility / restore-intent composition:
+
+```text
+authoritative fresh-restoration eligibility
++
+explicit restore intent
+→ fresh-restoration bootstrap hold
+```
+
+Neither eligibility nor restore intent alone grants the other's authority.
+
+Accepted uncertainty posture:
+
+```text
+authority unknown / unproven
+!= fresh
+!= unresolved initialization
+!= ordinary-bootstrap authority
+```
+
+Missing, corrupt, incompatible, unsupported, or unrecoverable authority proof does not itself authorize reference initialization from ledger contents.
+
+Accepted live-authority mutual exclusion:
+
+```text
+ordinary-bootstrap authority ACTIVE
++
+fresh-restoration bootstrap-hold authority ACTIVE
+→ FORBIDDEN
+```
+
+Candidate eligibility may coexist. At most one initialization authority may be active / authoritative at a time within one initialization epoch.
+
+A stale eligibility observation cannot authorize a competing acquisition while another initialization authority remains active.
+
+Accepted crash-safe authority handoff before resolution:
+
+```text
+fresh-restoration hold ACTIVE
+→ explicit abandonment permitted
+→ associated workspace promotion authority,
+  if any, durably removed
+→ hold terminally released
+→ no surviving fresh-restoration authority
+→ ordinary initialization may become eligible
+→ ordinary bootstrap may later acquire
+```
+
+and:
+
+```text
+ordinary-bootstrap authority ACTIVE
+→ attempt fails / is interrupted
+→ crash-safe recovery proves:
+   no canonical reference effects
+   no initialization-resolution effects
+   no surviving ordinary-bootstrap authority
+→ ordinary authority terminally released
+→ epoch truthfully returns to eligible
+  pre-initialization state
+→ fresh-restoration hold may later acquire
+```
+
+Those handoffs do not violate mutual exclusion because the prior authority must be durably and recoverably absent before the competing path acquires.
+
+Accepted resolution boundary:
+
+```text
+reference initialization RESOLVED
+→ fresh-install initialization authority
+  for that epoch exhausted
+```
+
+Successful resolution is terminal for fresh-install initialization and is distinct from abandonment or a failed pre-effect attempt. Later restoration is governed by the accepted existing-store restoration path unless a separately admitted lifecycle establishes a genuinely new initialization epoch.
+
+Accepted ordinary-bootstrap crash-consistency requirement:
+
+- ordinary bootstrap does not automatically inherit import-confirmation Section 24 authority;
+- the complete authorized Category / PaymentMethod / Tag ordinary-reference initialization assembly and initialization-resolution authority must satisfy an admitted crash-safe correctness property;
+- family-level completion does not independently resolve v1 reference initialization;
+- recovery must not reconstruct success from seed resemblance or other ledger contents.
+
+Accepted lifecycle coupling:
+
+- resolved reference initialization is a ledger/store-lifecycle authority fact, not merely workspace/session state;
+- later family emptiness does not reauthorize bootstrap;
+- a genuinely new ledger/store lifecycle must not inherit stale prior-lifecycle initialization authority;
+- "store-scoped" and "initialization epoch" remain semantic lifecycle requirements only and do not authorize a persisted store ID or epoch field.
+
+Accepted workspace/hold boundary:
+
+- a legitimate fresh-restoration hold may exist before a valid resumable workspace exists;
+- file or workspace existence does not create bootstrap authority;
+- while an associated workspace retains canonical promotion authority, ordinary bootstrap cannot regain authority;
+- abandonment/discard recovery must preserve that invariant across interruption.
+
+Required downstream admission:
+
+> **An exact authority persistence/recovery mechanism admission is required before implementation.**
+
+That downstream gate remains **OPEN / NOT YET GATED** by this acceptance.
+
+This acceptance does not decide whether satisfying the required mechanism needs:
+
+- SwiftData;
+- UserDefaults;
+- filesystem or platform/store metadata;
+- new canonical-control persistence;
+- schema/version state;
+- a store identifier;
+- an epoch field;
+- migration;
+- legacy-store compatibility handling;
+- another substrate or mechanism.
+
+Those choices require separate exact admission.
+
+This acceptance does **not** authorize:
+
+- production changes;
+- importer/exporter implementation;
+- workspace persistence implementation;
+- bootstrap suppression/recovery implementation;
+- a RestoreSession;
+- persisted authority enums;
+- store or epoch identifiers;
+- SwiftData schema changes;
+- migrations;
+- legacy-store migration behavior;
+- UI;
+- reference deletion/retirement;
+- arbitrary existing-store reconciliation;
+- Source/provenance behavior;
+- a specific atomicity/locking/concurrency mechanism;
+- full Portable JSON / CSV v1 acceptance.
+
+No downstream Phase 1C gate is opened by this acceptance.

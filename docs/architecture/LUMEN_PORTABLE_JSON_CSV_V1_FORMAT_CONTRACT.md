@@ -2534,13 +2534,13 @@ The accepted gate explicitly does **not** admit:
 
 This section is **ACCEPTED AT PROPOSED-CONTRACT LEVEL**.
 
-The exact durable proof/storage mechanism required to preserve unresolved bootstrap authority and resolved reference initialization across interruption remains downstream. Section 21.6 now opens the mechanism-neutral authority persistence/recovery capability as **PROPOSED FOR REVIEW**; no storage mechanism, schema state, migration, or implementation authority is selected.
+The exact durable proof/storage mechanism required to preserve unresolved bootstrap authority and resolved reference initialization across interruption remains downstream. Section 21.6 now records the mechanism-neutral authority persistence/recovery capability as **ACCEPTED AT PROPOSED-CONTRACT LEVEL**. Its required downstream exact authority persistence/recovery mechanism admission remains **OPEN / NOT YET GATED**; no storage mechanism, schema state, migration, or implementation authority is selected.
 
-## 21.6 Fresh-install reference-initialization authority persistence/recovery capability — PROPOSED FOR REVIEW
+## 21.6 Fresh-install reference-initialization authority persistence/recovery capability — ACCEPTED AT PROPOSED-CONTRACT LEVEL
 
-The proposal in `LUMEN_PORTABLE_V1_FRESH_INSTALL_REFERENCE_INITIALIZATION_AUTHORITY_RECOVERY_PROPOSAL.md` consumes the accepted Section 21.5 bootstrap semantics and defines the authority/recovery properties required before storage implementation can be admitted.
+The accepted proposed-contract capability in `LUMEN_PORTABLE_V1_FRESH_INSTALL_REFERENCE_INITIALIZATION_AUTHORITY_RECOVERY_PROPOSAL.md` consumes the accepted Section 21.5 bootstrap semantics and defines the authority/recovery properties required before storage implementation can be admitted.
 
-The proposed capability begins before persistence of a bootstrap hold. It must truthfully establish the authority facts that make the following states warrantable:
+The accepted capability begins before persistence of a bootstrap hold. It must truthfully establish the authority facts that make the following states warrantable:
 
 ```text
 fresh-restoration eligibility
@@ -2590,7 +2590,7 @@ The exact lifecycle-establishment event and representation remain downstream.
 
 Before either path acquires authority, ordinary-initialization eligibility and fresh-restoration eligibility may coexist as candidate paths. They do not create dual authority.
 
-The proposed mutual-exclusion invariant is:
+The accepted mutual-exclusion invariant is:
 
 ```text
 ordinary-bootstrap authority ACTIVE
@@ -2695,7 +2695,7 @@ without selecting whether the eventual mechanism uses atomic persistence, replay
 
 The v1 ordinary-reference initialization assembly remains coherent across Category, PaymentMethod, and Tag. Family-level completion must not independently resolve initialization.
 
-Resolved reference initialization is proposed as a ledger/store-lifecycle authority fact rather than temporary workspace state. Later family emptiness does not reauthorize bootstrap, and a genuinely new ledger/store lifecycle must not inherit stale authority from the prior lifecycle.
+Resolved reference initialization is accepted as a ledger/store-lifecycle authority fact rather than temporary workspace state. Later family emptiness does not reauthorize bootstrap, and a genuinely new ledger/store lifecycle must not inherit stale authority from the prior lifecycle.
 
 Once reference initialization resolves:
 
@@ -2711,7 +2711,7 @@ A later restore remains possible only through the accepted existing-store restor
 
 The proposal consumes the accepted reference-confirmation recovery contract rather than replacing it. Successful canonical confirmation of the complete imported Category / PaymentMethod / Tag owned sets—including confirmed empty families—still resolves reference initialization under the accepted per-confirmation-boundary atomicity/replay-safety rules.
 
-The proposed recovery precedence is:
+The accepted recovery precedence is:
 
 ```text
 recover ledger/store initialization authority
@@ -2722,7 +2722,7 @@ only then determine whether
 ordinary bootstrap has mutation authority
 ```
 
-This capability gate explicitly does **not** select:
+This accepted capability explicitly does **not** select:
 
 - SwiftData;
 - UserDefaults;
@@ -2740,13 +2740,13 @@ This capability gate explicitly does **not** select:
 - reference deletion/retirement;
 - Source/provenance behavior.
 
-If this capability is accepted, a downstream **exact authority persistence/recovery mechanism admission is required before implementation**.
+A downstream **exact authority persistence/recovery mechanism admission is required before implementation**.
 
-That exact mechanism admission remains separately gated and unopened here.
+That exact mechanism admission remains separately gated, **OPEN / NOT YET GATED**, and unopened here.
 
 Whether the required mechanism needs new canonical-control persistence, legacy compatibility handling, SwiftData or other schema/version state, migration, store identity, filesystem/platform metadata, UserDefaults, or another substrate remains unresolved.
 
-This section is **PROPOSED FOR REVIEW**.
+This section is **ACCEPTED AT PROPOSED-CONTRACT LEVEL**.
 
 ---
 
@@ -3117,7 +3117,7 @@ Residual blockers include at least:
 - exact financial-date year interval and complete lexical/parser validity;
 - the still-unaccepted parts of the PortableMoney public domain/spelling contract, including normative precision status, upper-magnitude authority resolution, leading-zero policy, and canonical decimal serialization;
 - operational recovery/user-resolution/failure behavior where an admitted financial date cannot be established from current state;
-- fresh-install reference-initialization authority persistence/recovery capability — **PROPOSED FOR REVIEW**; it must cover positive authoritative origin of initialization eligibility, mutual exclusion of active ordinary-bootstrap versus fresh-restoration authority, admitted crash-safe authority handoff before resolution, non-authorizing uncertainty/legacy state, hold recovery, coherent ordinary-bootstrap crash consistency, store-lifecycle resolution/exhaustion, and abandonment/workspace ordering without selecting a persistence mechanism; if accepted, an exact authority persistence/recovery mechanism admission is required downstream before implementation, while whether that mechanism requires new schema/storage/migration remains unresolved;
+- exact authority persistence/recovery mechanism admission required by accepted Section 21.6 — **OPEN / NOT YET GATED**; the accepted capability fixes eligibility provenance, active-authority mutual exclusion, crash-safe pre-resolution handoff, uncertainty posture, coherent ordinary-bootstrap crash consistency, lifecycle resolution/exhaustion, and workspace/abandonment invariants, but selects no persistence substrate, schema state, migration, store identity, or implementation mechanism;
 - Source/provenance portability and its distinct temporal semantics;
 - unknown-field/evolution policy, including treatment of additional unrecognized keys beyond the required known v1 schema surface;
 - deterministic allocation/order only after the exported record/scalar model is sufficiently closed.
@@ -3522,29 +3522,25 @@ A read-only dependency reassessment from accepted checkpoint `e01f87e30beb84c16d
 
 The accepted bootstrap-state gate left an exact authority persistence/recovery capability dependency for truthful fresh-restoration eligibility, unresolved bootstrap hold, resolved reference initialization, legacy/unproven authority, and crash-safe lifecycle transitions.
 
-A read-only dependency reassessment from accepted checkpoint `d785d7d3981779317f2badc1e87be4e13a4e86ff` selected that assembly as the next warranted single gate. `LUMEN_PORTABLE_V1_FRESH_INSTALL_REFERENCE_INITIALIZATION_AUTHORITY_RECOVERY_PROPOSAL.md` is now **PROPOSED FOR REVIEW**.
+A read-only dependency reassessment from accepted checkpoint `d785d7d3981779317f2badc1e87be4e13a4e86ff` selected that assembly as the next warranted single gate. After independent review and authority-acquisition/transfer hardening, `LUMEN_PORTABLE_V1_FRESH_INSTALL_REFERENCE_INITIALIZATION_AUTHORITY_RECOVERY_PROPOSAL.md` has now reached **ACCEPTED AT PROPOSED-CONTRACT LEVEL**.
 
-Money/date lexical closure, Source/provenance, deterministic serialization/order, this authority persistence/recovery capability, and parser evolution remain partial-order work rather than one linear queue.
+Money/date lexical closure, Source/provenance, deterministic serialization/order, the required exact authority persistence/recovery mechanism admission, and parser evolution remain partial-order work rather than one linear queue.
 
 ---
 
 # 34. Next Design Step After This Proposal
 
-The latest accepted semantic gate is:
+The latest accepted semantic/capability gate is:
 
-> **Fresh-install Portable ownership-restoration bootstrap-state disposition — ACCEPTED AT PROPOSED-CONTRACT LEVEL**
+> **Fresh-install reference-initialization authority persistence/recovery capability — ACCEPTED AT PROPOSED-CONTRACT LEVEL**
 
-Ordinary reference restoration / destination matching / conflict semantics remains accepted as its direct semantic dependency. Reference-record compatibility / complete-export disposition, exact Category / PaymentMethod / Tag record schemas, and ordinary canonical-record lifecycle timestamp disposition remain accepted earlier in the same reference-data line.
+It is downstream of accepted fresh-install bootstrap-state semantics and starts from accepted checkpoint `d785d7d3981779317f2badc1e87be4e13a4e86ff`.
 
-The accepted fresh-install bootstrap-state gate is downstream of accepted checkpoint `e01f87e30beb84c16dddf8eed3a591c8b5e0a182`.
+Ordinary reference restoration / destination matching / conflict semantics, reference-record compatibility / complete-export disposition, exact Category / PaymentMethod / Tag record schemas, ordinary canonical-record lifecycle timestamp disposition, and fresh-install bootstrap-state disposition remain accepted earlier in the same reference-data line.
 
-The current dependent gate under review is:
+This acceptance does not open the required downstream exact authority persistence/recovery mechanism admission.
 
-> **Fresh-install reference-initialization authority persistence/recovery capability — PROPOSED FOR REVIEW**
-
-It is downstream of accepted bootstrap-state semantics and starts from accepted checkpoint `d785d7d3981779317f2badc1e87be4e13a4e86ff`.
-
-The proposal defines mechanism-neutral authority/recovery requirements only. It does not open the downstream exact authority persistence/recovery mechanism admission and does not authorize implementation. If this capability is later accepted, that exact mechanism admission is required before implementation; whether the mechanism requires new persistence, schema state, migration, store identity, filesystem/platform metadata, UserDefaults, or another substrate remains unresolved.
+That mechanism admission is **REQUIRED before implementation** but remains **OPEN / NOT YET GATED**. Whether it requires new persistence, schema state, migration, store identity, filesystem/platform metadata, UserDefaults, or another substrate remains unresolved.
 
 Historical progression now includes both accepted gates and deliberately preserved authority uncertainty:
 
@@ -3607,7 +3603,10 @@ read-only dependency reassessment from d785d7d...
         ↓ complete
 fresh-install reference-initialization
 authority persistence/recovery capability
-        ↓ PROPOSED FOR REVIEW
+        ↓ accepted at PROPOSED-contract level
+exact authority persistence/recovery
+mechanism admission
+        ↓ OPEN; not yet gated
 ```
 
 Future routing is explicitly iterative:
@@ -3625,12 +3624,13 @@ unresolved acceptance gates remain?
         ↓
 accept/canonicalize Portable JSON / CSV v1 contract
         ↓
-exact capability/persistence admission where required
+exact authority persistence/recovery mechanism admission
+(required by accepted Section 21.6)
         ↓
 only then implementation
 ```
 
-The current inventory records **Category / PaymentMethod / Tag complete-export set semantics**, **ordinary canonical-record lifecycle timestamp disposition**, **exact Category / PaymentMethod / Tag record schemas**, **reference-record compatibility / complete-export disposition**, **ordinary reference restoration / destination matching / conflict semantics**, and **fresh-install Portable ownership-restoration bootstrap-state disposition** as ACCEPTED AT PROPOSED-CONTRACT LEVEL. The dependent **fresh-install reference-initialization authority persistence/recovery capability** is now **PROPOSED FOR REVIEW** and remains non-authoritative pending independent acceptance. `TransactionSource` remains outside the ordinary reference-data gate and retains its dedicated Source/provenance/evidence responsibilities.
+The current inventory records **Category / PaymentMethod / Tag complete-export set semantics**, **ordinary canonical-record lifecycle timestamp disposition**, **exact Category / PaymentMethod / Tag record schemas**, **reference-record compatibility / complete-export disposition**, **ordinary reference restoration / destination matching / conflict semantics**, **fresh-install Portable ownership-restoration bootstrap-state disposition**, and **fresh-install reference-initialization authority persistence/recovery capability** as ACCEPTED AT PROPOSED-CONTRACT LEVEL. The required **exact authority persistence/recovery mechanism admission** remains OPEN / NOT YET GATED. `TransactionSource` remains outside the ordinary reference-data gate and retains its dedicated Source/provenance/evidence responsibilities.
 
 Still open includes, among other items:
 
@@ -3638,7 +3638,7 @@ Still open includes, among other items:
 - upper-magnitude authority resolution;
 - exact money canonical lexical serialization;
 - exact admitted financial-date year interval and complete lexical/parser validity;
-- fresh-install reference-initialization authority persistence/recovery capability — **PROPOSED FOR REVIEW**, pending independent acceptance; if accepted, a separate exact authority persistence/recovery mechanism admission is **REQUIRED** before implementation, while any need for new canonical-control persistence/schema/migration or a particular substrate remains downstream and unresolved;
+- exact authority persistence/recovery mechanism admission required by accepted Section 21.6 — **OPEN / NOT YET GATED** and **REQUIRED before implementation**; any need for new canonical-control persistence/schema/migration or a particular substrate remains downstream and unresolved;
 - Source/provenance portability;
 - deterministic ID allocation / ordering after lower-level record/scalar closure;
 - unknown-field/evolution policy;
