@@ -2,7 +2,7 @@
 
 ## Status
 
-**PROPOSED FOR REVIEW — docs-only Phase 1C exact mechanism admission gate.**
+**ACCEPTED AT PROPOSED-CONTRACT LEVEL — docs-only Phase 1C exact mechanism gate.**
 
 Clean starting checkpoint:
 
@@ -20,7 +20,7 @@ Branch:
 
 `docs/phase1c-reference-initialization-authority-mechanism-proposal`
 
-This gate proposes an exact persistence/recovery mechanism for the already-accepted reference-initialization authority capability.
+This gate records an independently reviewed proposed-contract mechanism for the already-accepted reference-initialization authority capability. Its behavioral guarantees are accepted at the proposed-contract level; implementation and platform feasibility remain separately gated.
 
 It is **not implementation authority**.
 
@@ -1602,7 +1602,7 @@ Inject faults before/during/after whole-record witness creation and `establishin
 
 # 24. Proposed exact contract language
 
-The following is **PROPOSED FOR REVIEW**.
+The following mechanism contract is **ACCEPTED AT PROPOSED-CONTRACT LEVEL** through §27. Its implementation, platform feasibility, and any separately required schema/migration/legacy compatibility decisions remain gated.
 
 > **Two-layer mechanism.** Reference-initialization authority persistence/recovery uses two distinct internal authority layers: a pre-store `LedgerLifecycleWitnessV1` that establishes positive new-ledger lifecycle origin, and a ledger-resident `ReferenceInitializationAuthorityControlV1` that owns ongoing eligible / fresh-restoration-hold / resolved state. Neither layer may silently assume the other's authority.
 >
@@ -1690,13 +1690,10 @@ The following is **PROPOSED FOR REVIEW**.
 
 # 26. Review boundary
 
-This proposal is ready for independent review as an exact mechanism **proposal**.
-
-It is not accepted merely because it exists.
+This section records the original proposal-stage boundary. A proposal's presence in the repository alone never granted acceptance. Independent review and the limited proposed-contract acceptance are recorded separately in §27.
 
 Do not:
 
-- record mechanism acceptance;
 - add `LedgerLifecycleWitnessV1` to production;
 - add `ReferenceInitializationAuthorityControlV1` to SwiftData;
 - adopt a versioned schema;
@@ -1713,6 +1710,35 @@ Do not:
 
 without independent review and separate authorization.
 
-If the mechanism is accepted, the next work must be derived from the accepted mechanism's actual consequences.
+The separately recorded acceptance in §27 does not authorize downstream work. Any next work must be derived from the accepted mechanism's actual consequences.
 
 If those consequences include a SwiftData schema/version change or historical-store conversion, exact schema/migration/compatibility admission remains separately required before implementation.
+
+
+---
+
+# 27. Independent-review acceptance and retained evidence boundary
+
+Independent review of final hardening checkpoint:
+
+`8929fa7e04c0c41971c5430e64cb0d09fde06487`
+
+passes at the **proposed-contract level**. The independently reviewed mechanism is therefore **ACCEPTED AT PROPOSED-CONTRACT LEVEL**.
+
+This admission consumes and does **not** reopen the accepted §21.6 mechanism-neutral capability. Accepted here are the minimum two-layer reference-initialization authority architecture and its required behavioral guarantees:
+
+- a pre-store, durable `LedgerLifecycleWitnessV1` for positive lifecycle origin and binding;
+- a ledger-resident `ReferenceInitializationAuthorityControlV1` for ongoing `eligible`, `fresh_restoration_hold`, and `resolved` states;
+- positive store correspondence for interrupted first establishment, rather than inferred authority from a witness plus a path or missing control;
+- an independently predeclared, non-vacuous ordinary-interruption recovery envelope and a finite, non-destructive continuation for legitimate recoverable establishment states;
+- fail-closed behavior for unsupported, substituted, incompatible, or unproven store correspondence;
+- one enforceable acquisition/effect order among admitted asynchronous and `ModelContext` writers, rejecting competing and stale initialization work;
+- coherent Category / PaymentMethod / Tag ordinary initialization and same-ledger effect/proof resolution, including the accepted reference-confirmation boundary;
+- durable fresh-restoration hold/release ordering, terminal resolution, legacy uncertainty and new-lifecycle noninheritance;
+- falsifiable positive and negative characterization requirements for store creation/recovery, substitution, witness integrity, guarded acquisition, and interruption durability.
+
+The lifecycle-specific, exclusively controlled store-creation namespace in §10.4 is **one conditional constructive mechanism family**, not a selected, proven, or separately admitted concrete implementation. Its SwiftData store-location suitability, actual exclusion/detection of competing histories, supported-failure-model feasibility, interrupted store-creation behavior, and durability of witness and ledger control operations remain **UNPROVEN / EXECUTABLE-EVIDENCE-GATED**. An ordinarily supported crash may not be excluded after failing characterization merely because recovery is difficult. If the accepted guarantees cannot be realized, return to the appropriate design/review boundary; do not silently weaken them.
+
+**Acceptance does not authorize** Swift production changes, creation of either control record, SwiftData schema/version changes, `SchemaMigrationPlan`, migration or historical-store conversion, bootstrap or reference-confirmation refactoring, import workspace persistence, Portable importer/exporter implementation, reset/destructive recovery, or UI. Exact schema and legacy compatibility, concrete store correspondence/acquisition primitives, and implementation admission require their own properly scoped evidence, reviews and authorizations.
+
+This is a **documentation-only acceptance checkpoint**, not validation that the required mechanism works on supported iOS platforms, and not acceptance of the full Portable JSON / CSV v1 contract.
