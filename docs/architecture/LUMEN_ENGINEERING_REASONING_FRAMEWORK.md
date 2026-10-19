@@ -751,6 +751,14 @@ Keep the parts that improve decisions.
 Simplify the parts that become ritual.
 
 
+## 19.1 Optional Decision-Frontier Interview Experiment — PROPOSED / UNEVALUATED
+
+**Status: proposed methodological experiment only. No formal Lumen trial, measured evaluation, or mandatory-workflow adoption has occurred.**
+
+Lumen may trial a structured, dependency-aware design interview inspired by Matt Pocock's **Grill-Me / Grilling** approach. For a genuinely branching product or architecture decision, identify unresolved decisions and their prerequisites; present only the current *decision frontier* whose dependencies have been settled, with reasoned recommended answers and visible assumptions/tradeoffs. Ask the project owner to resolve product or normative choices, but investigate repository-, tool-, and platform-answerable facts rather than needlessly returning those factual questions to the owner. Subsequent questions may be considered when their prerequisites are resolved. This is a candidate technique for applying, not replacing, Lumen's existing first-principles, evidence, Assembly Map, and independent-review disciplines.
+
+Use a **bounded trial** only when significant dependencies or hidden choices make an ordinary focused review insufficient; do not retroactively describe prior Phase 1C work as a formal trial. Possible future opportunities include a genuinely branching SwiftData characterization design or historical-store compatibility/migration decision, but neither is initiated or authorized by this note. Evaluate whether an actual trial exposes hidden assumptions, improves sequencing, reduces backtracking, or simply adds ceremony. Any useful findings should be recorded through existing repository governance. The method creates no new product authority, required gate, agent instructions, standalone governance file, `SKILL.md`, `AGENTS.md`, or CI requirement; adoption beyond experimentation needs evidence and appropriate review.
+
 ---
 
 # 20. Adoption Status
