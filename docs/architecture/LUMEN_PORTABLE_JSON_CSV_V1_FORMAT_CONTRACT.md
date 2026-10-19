@@ -2803,6 +2803,8 @@ The proposed lifecycle witness is an internal Lumen-controlled Application Suppo
 
 The exact mechanism must separately warrant **store correspondence during interrupted first establishment**. An `establishing` witness proves that lifecycle establishment began; it does not prove that an unrelated/replaced store at the expected path belongs to it. Recovery of a control-less store may create its first authority control only when a testable, exclusive creation/recovery protocol positively establishes correspondence within an explicit supported failure model. Exclusivity alone does not authenticate against unexpected substitution. Unknown or unproven correspondence remains non-authorizing, without preemptively mandating a new persisted store identity.
 
+The supported ordinary first-establishment interruption envelope must be predeclared independently of characterization results and must non-vacuously include process termination after durable witness creation through initial control binding, including interruption during SwiftData store creation. Legitimate recoverable states require a finite, non-destructive continuation for the same lifecycle; unrelated stores must never obtain initial control authority. A lifecycle-specific, exclusively controlled store-creation namespace is identified as a **conditional constructive candidate**, not an admitted path or platform guarantee. Its correspondence sufficiency, store configuration and replacement exclusion/detection remain evidence-gated. Ordinary process interruption cannot be reclassified as exceptional solely because the candidate cannot recover it.
+
 The proposed ledger-resident control carries one internal lifecycle UUID and exactly one ongoing reference-initialization state:
 
 ```text
