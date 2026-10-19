@@ -286,6 +286,8 @@ Add tool-specific integration files only when an actual tool or workflow demonst
 
 If such a file is added later, it should normally route back to repository governance rather than duplicate project truth.
 
+The optional **Grill-Me-inspired decision-frontier interview experiment** is recorded in `docs/architecture/LUMEN_ENGINEERING_REASONING_FRAMEWORK.md` §19.1 as **PROPOSED / UNEVALUATED**. It is not a required agent workflow, new authority gate, or instruction to add tool-specific files.
+
 ---
 
 # Stateless Development Principle
