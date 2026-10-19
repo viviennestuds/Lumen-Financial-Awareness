@@ -797,6 +797,15 @@ If store correspondence is positively established, initial control binding may c
 
 This rule does not require a new persisted identifier, fingerprint or private SQLite inspection in advance. The eventual characterized mechanism must either supply sufficient correspondence evidence for supported recovery or fail closed; merely having witness `T` plus a store at the configured path is not a successful proof.
 
+
+**Predeclared supported failure model.** Before judging characterization results, define the supported execution and failure assumptions and the ordinary first-establishment interruption windows covered. At minimum, ordinary process termination/relaunch after durable `establishing` witness creation must be included at each point through initial control commit and durable witness binding, including during SwiftData store creation/open. The model may limit admitted writers to one app process, but must still govern its asynchronous operations and ModelContext writers. SwiftData store-creation atomicity, uninterrupted companion-file creation, and post-crash store readability are not assumptions: their actual behavior requires evidence. A first reopening failure is not by itself evidence of exceptional damage.
+
+Genuine storage corruption, independently established loss, and out-of-model external tampering may remain non-authorizing. Ordinary process interruption may **not** be declared unsupported merely because the selected mechanism cannot recover its resulting state. The recoverable class and any genuine exceptions must be specified and justified before tests, not defined retroactively as only those outcomes that pass.
+
+**Constructive correspondence candidate (not selected).** A dedicated lifecycle-specific Lumen-controlled store namespace, durably associated with witness `T` before the configured store can be created, combined with enforceable exclusive creation/recovery ownership and supported SwiftData store configuration, is one plausible mechanism family. It is sufficient only if the admitted model and actual enforcement preserve the association across process termination, exclude competing creators, and prevent or detect every store substitution *permitted by that model*. A path name derived from `T`, directory presence, sandbox containment, or a single-writer assertion alone is not provenance evidence. Namespace reservation, store-associated files, store URL support, durability, and substitution controls remain unverified. If legitimate and unrelated-store histories permitted by the model remain indistinguishable, independent correspondence evidence or redesign is required. No exact path, identifier, field, lock, filesystem API, schema or migration is admitted here.
+
+**Positive recovery sufficiency.** The model must guarantee a non-vacuous, finite, non-destructive continuation under the same witnessed lifecycle for ordinary, legitimately recoverable interruption states. It must cover interruption before store creation, after controlled store creation but before control commit, and after a matching control commit but before witness binding, and give interrupted creation states a predeclared evidence-based disposition. Permanently classifying every difficult ordinary first-establishment state as unknown/unproven does not satisfy the recovery requirement. Truly unsupported corruption or unproven substitution must remain fail-closed. A defensible constructive argument is required for proposed-contract acceptance; executable platform proof remains separately gated before implementation admission.
+
 ## 10.5 Bound witness + expected store present
 
 Open the store.
@@ -956,7 +965,7 @@ store exists
 control absent
 ```
 
-Recovery may finish creating control(T, eligible).
+Recovery may finish creating control(T, eligible) only if §10.4 positively establishes correspondence to witness T within the predeclared supported failure model. Control absence alone never authorizes creation.
 
 ### After control commit, before witness becomes bound
 
@@ -968,7 +977,7 @@ store exists
 control(T, eligible)
 ```
 
-Recovery validates the match and completes witness binding.
+Recovery validates both the matching control and §10.4 store correspondence before completing witness binding.
 
 ### After bound witness commit
 
@@ -984,7 +993,7 @@ exactly one valid control with lifecycle_id T
 
 Any conflicting assembly fails closed.
 
-The `10.4 correspondence conditions apply to **every** interruption window involving an `establishing` witness. A valid witness with an existing control-less store is not an unconditional control-creation capability. When the supported execution/failure model cannot establish that the store came from the exclusive creation operation, recovery stops before creating the initial control and cannot grant reference mutation. The same observable witness/store/control triplet must be tested under legitimate interruption and unexpected store substitution, including the limits of what the mechanism can actually distinguish.
+The §10.4 correspondence conditions apply to **every** interruption window involving an `establishing` witness. A valid witness with an existing control-less store is not an unconditional control-creation capability. When the supported execution/failure model cannot establish that the store came from the exclusive creation operation, recovery stops before creating the initial control and cannot grant reference mutation. The same observable witness/store/control triplet must be tested under legitimate interruption and unexpected store substitution, including the limits of what the mechanism can actually distinguish.
 
 ---
 
@@ -1451,7 +1460,7 @@ store present
 control absent
 ```
 
-The positive witness, not control absence, authorizes completion of control creation.
+The witness authorizes continuation of its lifecycle, not unconditional creation of a control in whichever store occupies the path. Control creation requires §10.4 correspondence proof. A legitimate ordinary interruption needs a positive recovery path; unrelated or unproven stores remain non-authorizing.
 
 ## 22.4 Legacy store
 
@@ -1575,6 +1584,10 @@ No test may depend on private SwiftData/Core Data table names as the product con
 
 Exercise an `establishing` witness with: (a) no store, (b) its own interrupted newly created store with no control, (c) an unrelated store substituted at the same path with no control, and (d) a competing creator/open operation. Repeat with mismatched, duplicate and malformed authority controls and interruption during witness binding. State which replacements are excluded by an enforceable supported failure model, which are detected, and which force unknown/unproven. A supported trace that adopts an unrelated store fails the mechanism. The tests must not infer correspondence from path or absence alone.
 
+**Positive recovery and predeclaration test.** Before executable tests, declare the supported process/writer model, enforceably excluded versus detectable substitutions, ordinary termination windows, recoverable outcomes, and independently justified exceptional conditions. Inject termination after durable witness creation at every subsequent first-establishment step through binding, including during SwiftData store creation/open and with interrupted store-associated files. Legitimate recoverable states (no store, own control-less store, own matching-control store) must have a finite non-destructive continuation under T; partially created stores require a predeclared, evidence-backed disposition. The ordinary recovery class cannot be empty or defined after the fact by implementation success. A failed reopen alone does not convert ordinary termination into unsupported corruption.
+
+**Negative correspondence test.** Challenge the same witness/store/control observations with unrelated substituted stores and competing creators. State whether each case is enforceably prevented, detected or explicitly excluded under an independently justified failure model; do not claim to distinguish histories that yield identical observations. No admitted trace may grant initial control authority to an unrelated store. If legitimate and unrelated histories are both permitted and indistinguishable, the mechanism fails and needs independently admitted correspondence evidence or redesign.
+
 ### 23.8 Guarded-acquisition interleavings
 
 Force ordinary bootstrap and fresh-restoration hold contenders to observe `eligible` before either attempts to commit; cover two ordinary contenders, competing contexts/asynchronous operations, and stale work resuming after hold acquisition. Interleave before guarded validation, after validation but before commit, during save, after one operation commits, and after process termination/reopen. Require exactly one effective acquired authority, with no late ordinary reference effects after a hold wins and no hold becoming authoritative while an ordinary effect/proof operation retains commit authority. Include release/handoff only after the previous authority's admitted terminal conditions. Tests must be able to falsify a mechanism that merely rechecks eligibility before independent writes.
@@ -1583,7 +1596,7 @@ Force ordinary bootstrap and fresh-restoration hold contenders to observe `eligi
 
 Inject faults before/during/after whole-record witness creation and `establishing → bound` replacement; reopen with valid states, no completed record, truncated/malformed content, unsafe node kinds, unsupported versions, and missing/replaced expected store. Validate that no uncertain observation grants fresh creation or bootstrap and that every claimed successful establishment recovers to an admitted whole-record authority state.
 
-**Falsification criterion:** A supported failure trace that grants authority to an unrelated store, admits competing or stale-writing initialization, repairs an invalid witness into freshness, or produces a split ledger effect/control result requires mechanism redesign or an independently justified narrower supported failure model **before implementation admission**. Happy-path success and use of nominally atomic APIs are not evidence sufficient to close these tests.
+**Falsification criterion:** A supported failure trace that grants authority to an unrelated store, admits competing or stale-writing initialization, repairs an invalid witness into freshness, produces a split ledger effect/control result, or permanently strands an ordinarily recoverable witnessed establishment without a justified continuation path requires mechanism redesign or an independently justified narrower supported failure model **before implementation admission**. Reclassifying failed ordinary interruption tests as exceptional after observing outcomes is not valid. Happy-path success and nominally atomic APIs are not sufficient evidence to close these tests.
 
 ---
 
@@ -1595,10 +1608,12 @@ The following is **PROPOSED FOR REVIEW**.
 >
 > **Positive establishment.** When the configured ledger store and lifecycle witness are both absent, Lumen may establish a genuinely new ledger lifecycle only by durably creating a valid `LedgerLifecycleWitnessV1` before opening/creating the SwiftData store. Store absence alone is not lifecycle authority.
 >
-> **First-write recovery.** A valid witness in `establishing` phase authorizes continuation of that same lifecycle establishment after interruption. It may authorize creation/recovery of the matching initial ledger authority control even when the store now exists, because the witness was established before store creation. Control absence alone never grants that authority.
+> **First-write recovery.** A valid witness in `establishing` phase authorizes continuation of that lifecycle establishment after interruption. Creation/recovery of an initial authority control in an existing store is **conditional** on positive store correspondence under §10.4's admitted protocol and predeclared supported failure model. A witness establishes origin, not authority over an arbitrary store at the expected path; control absence alone never grants that authority.
 
 >
 > **Recovered-store correspondence.** A valid `establishing` witness and a store found at the expected path do not independently prove that the store belongs to the witnessed lifecycle. Resuming binding and creating the initial control require positive store correspondence under an admitted exclusive creation/recovery protocol and explicit supported failure model. Single-writer exclusivity does not itself authenticate the store against unexpected substitution. Undetectable/unexcluded replacement or otherwise unproven correspondence is `unknown / unproven` and grants no control creation or canonical reference mutation. The correspondence primitive or new persisted identity, if needed, remains separately gated.
+>
+> **Non-vacuous ordinary recovery.** The supported failure model must be fixed independently of test results and include ordinary termination after durable witness creation through store creation and initial binding, including during store creation. Legitimate recoverable outcomes require a finite, non-destructive path for the same lifecycle, and ordinary interruption may not be reclassified exceptional merely because recovery fails. The proposed mechanism must identify a defensible enforceable correspondence family; implementation feasibility remains evidence-gated. Exceptional damage and unproven substitution remain non-authorizing.
 >
 > **Legacy disposition.** Existing store + no admitted lifecycle witness is unknown/unproven. It grants neither ordinary-bootstrap authority nor fresh-restoration eligibility. Exact legacy conversion/migration remains separately gated.
 >
