@@ -355,6 +355,8 @@ The app can recover the first-write lifecycle state **before blindly opening/cre
 - a legacy store;
 - a missing/replaced expected store.
 
+**Pre-open store correspondence is separate from exclusive creation.** Recovery that encounters a store during an `establishing` witness epoch must positively establish that the encountered store belongs to that lifecycle's controlled creation/recovery operation under an explicit supported failure model. A witness, expected path, and store presence do not independently establish correspondence. If unexpected replacement or substitution cannot be excluded or detected under that model, and correspondence cannot otherwise be established, recovery must fail closed rather than fabricate initial control authority.
+
 ## 6.3 Ledger coupling
 
 Ongoing initialization authority is durably coupled to the same ledger lifecycle whose references it governs.
@@ -370,6 +372,8 @@ Fresh-restoration hold authority must be durably representable before a valid re
 ## 6.6 Mutual exclusion
 
 No recoverable state may make both ordinary-bootstrap authority and fresh-restoration hold authority active for the same initialization lifecycle.
+
+Competing acquisitions and their governed canonical effects must have **one enforceable authoritative ordering**. Validation against `eligible` must be protected through the acquisition/commit boundary against intervening competing transitions; two separately performed rechecks followed by independent writes are insufficient. The supported in-process execution model must explicitly encompass asynchronous operations and multiple `ModelContext` instances or demonstrably exclude them from writing. Exact locking, isolation, transaction or fencing primitives remain downstream.
 
 ## 6.7 Safe handoff
 
@@ -706,6 +710,8 @@ The implementation must use a whole-record replacement/creation discipline whose
 
 Existing Phase 1B filesystem helpers are reusable implementation evidence, not automatically admitted authority.
 
+A successful filesystem API call or nominal atomic rename alone is not evidence of all required interruption outcomes. Witness-specific characterization must distinguish no completed witness, a wholly valid `establishing` witness, a wholly valid `bound` witness, and incomplete/malformed/unsafe observations. Uncertain observations are non-authorizing; repairing a damaged witness into presumed freshness is forbidden. The durability guarantees and supported failure model remain falsifiable requirements before implementation admission.
+
 ---
 
 # 10. Pre-open lifecycle establishment protocol
@@ -780,6 +786,16 @@ Before any reference bootstrap:
 A missing control record in this exact state does **not** mean freshness by absence.
 
 The establishing witness is the positive origin that permits creation of the initial control record.
+
+### Establishment-correspondence and exclusive-creation conditions
+
+That permission is conditional. Witness `T` proves that Lumen **began** creating lifecycle `T`; it does not prove that *every* control-less store later encountered at the configured path belongs to `T`. The mechanism must establish store correspondence using an admitted, enforceable exclusive creation/recovery protocol and positive observations sufficient for its explicitly stated supported failure model.
+
+Exclusivity among Lumen's participating writers and proof against **unexpected store substitution** are distinct obligations. The supported model must say which store replacement/competing-creation cases are excluded through enforceable controls, which cases can be detected, and when recovery cannot distinguish an interrupted legitimate store from a substituted unrelated store. A single-writer claim, same path, mere presence, age, seed resemblance, and absence of an authority control are not individually or collectively automatic provenance proof.
+
+If store correspondence is positively established, initial control binding may continue under the existing protocol. If correspondence is unproven, a conflicting creator/replacement is possible within the admitted model without detection, or conflicting/unreadable control state is observed, classify the lifecycle as `unknown / unproven` and grant **no** initial control creation, ordinary bootstrap, fresh-restoration hold or canonical reference mutation. Do not overwrite or adopt the store.
+
+This rule does not require a new persisted identifier, fingerprint or private SQLite inspection in advance. The eventual characterized mechanism must either supply sufficient correspondence evidence for supported recovery or fail closed; merely having witness `T` plus a store at the configured path is not a successful proof.
 
 ## 10.5 Bound witness + expected store present
 
@@ -968,6 +984,8 @@ exactly one valid control with lifecycle_id T
 
 Any conflicting assembly fails closed.
 
+The `10.4 correspondence conditions apply to **every** interruption window involving an `establishing` witness. A valid witness with an existing control-less store is not an unconditional control-creation capability. When the supported execution/failure model cannot establish that the store came from the exclusive creation operation, recovery stops before creating the initial control and cannot grant reference mutation. The same observable witness/store/control triplet must be tested under legitimate interruption and unexpected store substitution, including the limits of what the mechanism can actually distinguish.
+
 ---
 
 # 13. Ongoing authority-state transitions
@@ -977,6 +995,16 @@ Once the witness is bound, ongoing initialization authority belongs to the ledge
 The witness must not mirror mutable hold/resolved state.
 
 That prevents two independent stores from both claiming current authority.
+
+### Authoritative acquisition and effect ordering
+
+One ledger control with mutually exclusive persisted states is necessary, but **does not automatically serialize operations** that previously observed `eligible`. Every authority acquisition, release and resolution for the same lifecycle must pass through one enforceable ordering boundary. The authoritative eligibility check and acquisition/commit (including all canonical effects governed by that authority) must be protected against an intervening competing transition. A preflight read or revalidation outside that protected boundary is not enough.
+
+Ordinary bootstrap may construct and commit the complete three-family reference assembly only while it exclusively holds authority through its admitted same-ledger effect/proof commit to `resolved`. A competing fresh-restoration hold cannot acquire during that interval. Conversely, once a fresh hold wins its guarded and durable `eligible → fresh_restoration_hold` transition, a previously prepared ordinary-bootstrap operation must not subsequently commit reference effects on the basis of stale eligibility. Guarded release must likewise reject leftover work from the prior authority interval.
+
+The supported single-process execution model must explicitly cover every admitted asynchronous entry point and `ModelContext` writer; excluding multi-process writers does not establish single ordering among in-process contexts. If an admitted writer can bypass the guard, the mechanism is insufficient and must fail closed. Naming `@MainActor`, a mutex, transaction, compare-and-swap, lock or persisted in-flight marker does not itself prove the property or admit that implementation choice.
+
+On recovery, the durable ledger authority/effects decide which path, if any, prevailed, not stale in-memory tasks or prior UI intent. Neither an `establishing` witness without proven store correspondence nor an observed `eligible` value without completed exclusive acquisition independently authorizes canonical reference mutation.
 
 ## 13.1 Eligible → fresh-restoration hold
 
@@ -1543,6 +1571,20 @@ Using the authentic Phase 1A historical producer:
 
 No test may depend on private SwiftData/Core Data table names as the product contract.
 
+### 23.7 Establishing-witness store-correspondence challenges
+
+Exercise an `establishing` witness with: (a) no store, (b) its own interrupted newly created store with no control, (c) an unrelated store substituted at the same path with no control, and (d) a competing creator/open operation. Repeat with mismatched, duplicate and malformed authority controls and interruption during witness binding. State which replacements are excluded by an enforceable supported failure model, which are detected, and which force unknown/unproven. A supported trace that adopts an unrelated store fails the mechanism. The tests must not infer correspondence from path or absence alone.
+
+### 23.8 Guarded-acquisition interleavings
+
+Force ordinary bootstrap and fresh-restoration hold contenders to observe `eligible` before either attempts to commit; cover two ordinary contenders, competing contexts/asynchronous operations, and stale work resuming after hold acquisition. Interleave before guarded validation, after validation but before commit, during save, after one operation commits, and after process termination/reopen. Require exactly one effective acquired authority, with no late ordinary reference effects after a hold wins and no hold becoming authoritative while an ordinary effect/proof operation retains commit authority. Include release/handoff only after the previous authority's admitted terminal conditions. Tests must be able to falsify a mechanism that merely rechecks eligibility before independent writes.
+
+### 23.9 Witness durability and binding interruption
+
+Inject faults before/during/after whole-record witness creation and `establishing → bound` replacement; reopen with valid states, no completed record, truncated/malformed content, unsafe node kinds, unsupported versions, and missing/replaced expected store. Validate that no uncertain observation grants fresh creation or bootstrap and that every claimed successful establishment recovers to an admitted whole-record authority state.
+
+**Falsification criterion:** A supported failure trace that grants authority to an unrelated store, admits competing or stale-writing initialization, repairs an invalid witness into freshness, or produces a split ledger effect/control result requires mechanism redesign or an independently justified narrower supported failure model **before implementation admission**. Happy-path success and use of nominally atomic APIs are not evidence sufficient to close these tests.
+
 ---
 
 # 24. Proposed exact contract language
@@ -1554,6 +1596,9 @@ The following is **PROPOSED FOR REVIEW**.
 > **Positive establishment.** When the configured ledger store and lifecycle witness are both absent, Lumen may establish a genuinely new ledger lifecycle only by durably creating a valid `LedgerLifecycleWitnessV1` before opening/creating the SwiftData store. Store absence alone is not lifecycle authority.
 >
 > **First-write recovery.** A valid witness in `establishing` phase authorizes continuation of that same lifecycle establishment after interruption. It may authorize creation/recovery of the matching initial ledger authority control even when the store now exists, because the witness was established before store creation. Control absence alone never grants that authority.
+
+>
+> **Recovered-store correspondence.** A valid `establishing` witness and a store found at the expected path do not independently prove that the store belongs to the witnessed lifecycle. Resuming binding and creating the initial control require positive store correspondence under an admitted exclusive creation/recovery protocol and explicit supported failure model. Single-writer exclusivity does not itself authenticate the store against unexpected substitution. Undetectable/unexcluded replacement or otherwise unproven correspondence is `unknown / unproven` and grants no control creation or canonical reference mutation. The correspondence primitive or new persisted identity, if needed, remains separately gated.
 >
 > **Legacy disposition.** Existing store + no admitted lifecycle witness is unknown/unproven. It grants neither ordinary-bootstrap authority nor fresh-restoration eligibility. Exact legacy conversion/migration remains separately gated.
 >
@@ -1562,6 +1607,9 @@ The following is **PROPOSED FOR REVIEW**.
 > **Witness scope.** The lifecycle witness owns positive lifecycle origin/binding only. It must not mirror ongoing eligible/hold/resolved reference-initialization state.
 >
 > **Ledger control states.** Ongoing reference-initialization state is exactly `eligible`, `fresh_restoration_hold`, or `resolved`. Unknown/unproven is a recovery classification, not inferred eligible state.
+
+>
+> **Exclusive acquisition and stale-work rejection.** Competing ordinary bootstrap and fresh-restoration operations for one lifecycle must share a protected, authoritative order of eligibility validation, acquisition, governed canonical effects, release and resolution. The guard must prevent intervening authority changes before commit: a stale `eligible` observation never independently grants mutation authority, ordinary reference effects cannot commit after a fresh hold has won, and fresh hold cannot acquire while ordinary initialization retains authority to commit. The admitted single-writer/concurrency model must cover all permitted asynchronous activities and model contexts; exact serialization primitives remain downstream, but the enforceable mutual-exclusion guarantee does not.
 >
 > **Ordinary initialization boundary.** Ordinary reference initialization resolves only through one admitted ledger transaction that establishes the complete authorized Category / PaymentMethod / Tag initialization assembly and changes the ledger authority control to `resolved`. Current family-by-family emptiness repair is not the future resolution contract.
 >
@@ -1615,6 +1663,13 @@ The following is **PROPOSED FOR REVIEW**.
 28. Are schema/version/migration consequences clearly routed to separate admission?
 29. If process-crash characterization fails, does the proposal require redesign rather than weakening accepted all-or-nothing semantics?
 30. Is the two-layer assembly the minimum sufficient mechanism supported by current authority requirements?
+
+31. What establishes positive correspondence between a recovered control-less store and its `establishing` witness, rather than a substituted unrelated store?
+32. Which unexpected store replacements or competing creators can the supported failure model prevent, detect, or only classify as unknown/unproven?
+33. Are all admitted asynchronous operations and `ModelContext` writers governed by one authority acquisition/effect order with in-boundary stale-observation rejection?
+34. Can ordinary bootstrap still commit after fresh hold wins if both read `eligible`, or can two contenders independently pass precommit revalidation?
+35. Are interrupted witness replacement, substituted-store recovery and racing authority acquisitions tested by falsifiable negative cases, not just happy paths?
+36. Does proposed-contract acceptance remain separate from executable feasibility, exact schema/migration/legacy compatibility admission, and implementation authorization?
 
 ---
 

@@ -2801,6 +2801,8 @@ same-ledger effect/proof transaction
 
 The proposed lifecycle witness is an internal Lumen-controlled Application Support record created durably **before** a genuinely new configured SwiftData store is opened/created. Its authority is limited to positive lifecycle establishment/binding.
 
+The exact mechanism must separately warrant **store correspondence during interrupted first establishment**. An `establishing` witness proves that lifecycle establishment began; it does not prove that an unrelated/replaced store at the expected path belongs to it. Recovery of a control-less store may create its first authority control only when a testable, exclusive creation/recovery protocol positively establishes correspondence within an explicit supported failure model. Exclusivity alone does not authenticate against unexpected substitution. Unknown or unproven correspondence remains non-authorizing, without preemptively mandating a new persisted store identity.
+
 The proposed ledger-resident control carries one internal lifecycle UUID and exactly one ongoing reference-initialization state:
 
 ```text
@@ -2810,6 +2812,8 @@ resolved
 ```
 
 Unknown/unproven remains a non-authorizing recovery classification rather than inferred eligible state.
+
+The three persisted control tokens also do not by themselves enforce **exclusive acquisition**. Ordinary bootstrap and fresh-restoration hold paths must use a single enforceable authority order guarding eligibility validation through acquisition/commit and the canonical effects it authorizes. Stale `eligible` observations never permit late reference writes after a competing hold wins; a hold cannot acquire while ordinary initialization retains effect-commit authority. Admitted asynchronous and multiple-context writers must be included in the supported concurrency model. Exact synchronization choices remain downstream, while adversarial interleaving tests must be capable of falsifying the guarantee.
 
 The proposal requires ordinary initialization to replace current family-by-family repair semantics with one coherent future authority boundary:
 
@@ -2868,6 +2872,8 @@ prior authority control state
 ```
 
 A split durable outcome is not admitted.
+
+The implementation-readiness evidence must also test unexpected store substitution and competing creation during `establishing` recovery, simultaneous/stale eligibility observations during competing authority acquisitions, and witness whole-record creation/replacement durability. Neither a returned file-write call nor `ModelContext.save()` alone proves these properties. Inadmissible supported traces require redesign or a separately justified narrower supported failure model rather than weakened accepted semantics.
 
 This section is **PROPOSED FOR REVIEW**.
 
