@@ -2,7 +2,7 @@
 
 ## Status / authority
 
-**PROPOSED FOR INDEPENDENT REVIEW — DOCUMENTATION ONLY. Diagnostic code and experiments are NOT AUTHORIZED.**
+**ACCEPTED AT PROPOSED-PLAN LEVEL — DOCUMENTATION ONLY. Diagnostic code, builds and experiments are NOT AUTHORIZED by this acceptance.**
 
 **Accepted direct parent:** Phase 1C executable characterization plan, recorded **ACCEPTED AT PROPOSED-PLAN LEVEL** at `89b6776ef7a186fadd40c0f3749f2a40ac9538a0` (`LUMEN_PHASE1C_REFERENCE_INITIALIZATION_AUTHORITY_EXECUTABLE_CHARACTERIZATION_PROPOSAL.md`). Its reviewed substantive checkpoint was `755c87269f6c3111c251a81fd04c6139c8755f02`.
 
@@ -121,4 +121,21 @@ Allowed result categories: **OBSERVED (NARROW PLATFORM RESULT)**, **FALSIFIED AS
 5. Are the recorded evidence fields and blocked/inconclusive/stop cases sufficient to prevent overclaiming mechanism feasibility based on narrow Stage A success?
 6. Is the exact accepted-plan baseline respected without adding new authority to upstream proposal history?
 
-**Requested disposition: review this documentation-only Stage A implementation scope.** Do not write/run diagnostic code, modify project/CI files, create test stores, execute termination tests, or begin Stage B unless the owner separately authorizes the accepted diagnostic implementation scope after review.
+**Original review request (satisfied through §9):** review this documentation-only Stage A scope. Approval does not itself permit writing/running diagnostics, changing project/CI files, creating stores or starting Stage B. Implementation requires a separately reviewed exact file-level executable boundary and express owner authorization.
+
+
+---
+
+# 9. Independent-review acceptance and next executable boundary
+
+The owner provided an independent, read-only reviewer disposition for this document's full substantive checkpoint at `e5a148355943015d681e00c19593e0c18998eccd`, checked against the characterization-plan acceptance at `89b6776ef7a186fadd40c0f3749f2a40ac9538a0`.
+
+**APPROVE — ACCEPTED AT PROPOSED-PLAN LEVEL (A0/A1/A4 FIRST TRANCHE ONLY).** This records the independent review and owner-authorized documentation acceptance, not executable admission or a claim of platform observations. No further generic architecture-hardening cycle is required before proposing an exact executable boundary.
+
+The independent review found the following adequate at scoped-plan level: exact single-document ancestry; the A0 external-termination foundation, A1 controlled-store creation/reopen, and mandatory A4 observational-isolation safeguard; separate external controller, disposable worker, and fresh observer; quiescence plus full store-associated-artifact capture before any potentially mutating SwiftData inspection; original-versus-copy pre/post observations; production/legacy-store exclusion; falsification and stop categories. A2 (post-create abrupt kill) and A3 (creation-window kill) remain expressly deferred. Their deferral does **not** narrow the accepted mechanism's ordinary interruption obligations, including mid-creation recovery.
+
+**Implementation-detail requirements retained for the next independent gate:** (1) a precise per-file/project-setting inventory and selected diagnostic packaging; (2) the proposed external termination signal/API, target-process identity checks, controller acknowledgement, observed process death and fresh-process identity, with no inference of a particular interruption point from adjacent markers; (3) an A4-first observer protocol distinguishing original artifact baseline, isolated copy before SwiftData opening, isolated copy after inspection, and original after inspection; (4) quiescent all-artifact copy/validation, explicit failure on unestablished isolation/consistency, and negative controls; (5) per-scenario A0/A1/A4 expected and forbidden observations, evidence records and blocked/inconclusive outcomes. Any requirement to touch Lumen production startup, scheme, schema, application data, historical fixtures, or normal CI is a stop/escalation, not implied permission.
+
+**Authority boundary remains closed:** No diagnostic source, SwiftData model/target, Xcode project settings, host scripts, experiment execution, test store, termination attempt, production Swift/schema/migration change, Stage B representative control/witness record, or historical fixture access is authorized by this documentation acceptance. The accepted mechanism remains at its existing proposed-contract level; Stage A success could not promote it to implementation authority.
+
+**Next distinct gate:** present a separate, narrowly scoped and independently reviewable **exact file-level diagnostic executable-boundary proposal**, preferably as an isolated standalone project if its controller and SwiftData semantics can be shown equivalent. That proposal remains docs-only until separately approved and expressly authorized for implementation. Do not merge this proposal lineage wholesale to canonical `main` merely because the scoped plan was accepted.
