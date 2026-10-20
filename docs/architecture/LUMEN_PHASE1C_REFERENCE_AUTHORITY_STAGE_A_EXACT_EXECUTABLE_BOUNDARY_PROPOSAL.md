@@ -2,7 +2,7 @@
 
 ## Status / authority
 
-**PROPOSED FOR INDEPENDENT REVIEW — DOCUMENTATION ONLY. NOT AUTHORIZED TO WRITE, BUILD, INSTALL, RUN, OR TERMINATE A DIAGNOSTIC APP.**
+**ACCEPTED AT PROPOSED-PLAN LEVEL — DOCUMENTATION BOUNDARY APPROVED. OWNER AUTHORIZATION FOR THE ELEVEN SOURCE FILES IS SEPARATE; BUILDS, INSTALLATION, EXECUTION, STORE INSPECTION AND TERMINATION REMAIN UNAUTHORIZED.**
 
 **Immediate accepted dependency:** Stage A A0/A1/A4 scoped diagnostic plan, independently approved and recorded at `71c74d2a29a7204331c68bbd9d1c77e9764e1396`, whose reviewed substantive checkpoint was `e5a148355943015d681e00c19593e0c18998eccd`.
 
@@ -140,3 +140,16 @@ The reviewer should inspect (a) separate project/target with exact eleven-file a
 **Requested disposition: APPROVE/REFINE THIS DOCUMENTATION-ONLY EXACT EXECUTABLE BOUNDARY.** That approval still must be followed by **a separate explicit owner authorization to write the listed files**. An even later, distinct owner decision is required before building, installing, launching, killing, copying, inspecting stores or executing diagnostic scenarios, unless the owner expressly combines executable implementation and initial running in that later authorization.
 
 No production Swift/schema/CI changes, no diagnostic code or runs, no Rork build/import, no A2/A3, no historical fixture use, no Stage B and no mechanism acceptance promotion are performed or authorized by this document.
+
+
+---
+
+# 9. Independent-review acceptance and owner-limited source authorization
+
+The independent reviewer assessed the complete exact executable boundary at `c0f090edee6010861da894bb2ccc170ffd2f9e6b` and **APPROVED AT PROPOSED-PLAN LEVEL**, contingent on preserving fail-closed process identity through any future signal delivery and making A4 observation-integrity evidence a prerequisite to A1 inspection success.
+
+The owner subsequently authorized **implementation only** of exactly the eleven new source/configuration/documentation files listed in §2, restricted to A0/A1/A4 and isolated from the production Lumen app and its Xcode project. This implementation permission does **not** authorize building, installing, launching, signaling any process, touching or opening a store, executing diagnostic scenarios, adding A2/A3 or Stage B, or modifying production, historical fixtures, CI, existing Lumen models, schemas or migrations.
+
+The first implementation checkpoint must return for **independent source review before execution**. A PID read and subsequently passed to `os.kill` does not close the time-of-check/time-of-use race; if the environment cannot establish a suitably process-bound external SIGKILL operation, the controller must refuse to signal and report `BLOCKED / TERMINATION UNVERIFIED`. No substitute graceful exit is promoted into A0 success. A1 inspection results remain inadmissible unless the A4 baseline, independent copy and post-inspection source/copy checks pass.
+
+This acceptance records review and owner instruction only. It is **not** evidence that a diagnostic harness has been built or run, that its process-binding and snapshot capabilities work, or that SwiftData supports the accepted Phase 1C mechanism. Separate owner authorization remains necessary before any executable activity.
