@@ -2,7 +2,7 @@
 
 ## Status and authority boundary
 
-**PROPOSED FOR INDEPENDENT REVIEW — DOCUMENTATION ONLY. Executable characterization is NOT authorized by this proposal.**
+**ACCEPTED AT PROPOSED-PLAN LEVEL — DOCUMENTATION ONLY. Executable characterization and diagnostic implementation are NOT AUTHORIZED by this acceptance.**
 
 **Direct accepted dependency:** Exact reference-initialization persistence/recovery mechanism at `bc85912862282c3bffc76d9049e8190d7afe750b`, especially its §§10.4, 12–14, 23–24, and 27. The accepted capability in aggregate Portable contract §21.6 is consumed without reopening; the mechanism is accepted at proposed-contract level in §21.7.
 
@@ -12,7 +12,7 @@
 
 **Decision question:** Which demonstrable SwiftData/filesystem/process guarantees are available in the explicitly supported iOS environments, and what additional evidence would be needed to decide whether an isolated candidate assembly satisfies the *already accepted* reference-initialization authority mechanism?
 
-No source code, test harness, CI workflow, SwiftData model, store, filesystem record, schema, migration, legacy fixture, UI or running application is changed by this gate. No experiment may run until a separate reviewed and authorized executable diagnostic scope exists.
+No source code, test harness, CI workflow, SwiftData model, store, filesystem record, schema, migration, legacy fixture, UI or running application is changed by this gate. The accepted plan fixes research/evidentiary expectations, **not authorization to implement or run experiments**. Any diagnostic work requires a separately reviewed and expressly authorized executable scope.
 
 ---
 
@@ -154,4 +154,30 @@ A contradictory supported trace is a **falsifier** even if many other trials pas
 5. Are the scenario oracles, retained evidence, negative controls, and stop conditions falsifiable without being interpreted as universal guarantees from repeated success?
 6. Is the branch baseline correctly limited to the accepted mechanism lineage and explicitly independent of unrelated canonical-main methodology history?
 
-**Requested result: review and approve/refine this documentation-only experimental plan.** Do not interpret approval of this proposal as permission to write/run a diagnostic harness or to modify Swift, production startup/bootstrap, store configuration, reference/import code, SwiftData models, schemas, historical stores, CI or UI. After a separate review and explicit authorization, select the smallest contained Stage A diagnostic work and evaluate its evidence before considering Stage B.
+**Original review request (satisfied through §9):** independent review of this documentation-only experimental plan. Its approval does not permit writing or running a diagnostic harness or modifying Swift, production startup/bootstrap, store configuration, reference/import code, SwiftData models, schemas, historical stores, CI or UI. The next separately reviewed and authorized work, if admitted, should be the smallest contained Stage A diagnostic investigation; Stage B remains downstream.
+
+---
+
+# 9. Independent-review acceptance and remaining authority boundary
+
+Independent read-only review of the full observation-integrity-hardened proposal at:
+
+`755c87269f6c3111c251a81fd04c6139c8755f02`
+
+**APPROVED — ACCEPTED AT PROPOSED-PLAN LEVEL.** This is a documentation-only acceptance checkpoint, not a record of executed characterization, validated platform behavior, or production implementation permission.
+
+The reviewed plan establishes the **research and evidence contract**, including:
+
+- the complete requirements-to-evidence mapping for accepted mechanism §§23.1–23.9;
+- the predeclared ordinary-interruption/failure-model envelope, including termination during initial store creation and prohibition on retroactively excluding difficult recovery states;
+- separate Stage A platform/harness feasibility probes and Stage B representative mechanism-property characterization, without Stage A evidence being promoted into Stage B proof;
+- distinction among injected failures, independently verified actual process exit, fresh-process recovery, and supported physical-device observations;
+- the required §5 sequence: pre-open physical baseline → contained, potentially mutating SwiftData inspection → separately tracked candidate recovery;
+- preservation of authentic Phase 1A historical-store originals, with suitably isolated verified working copies and pre/post-inspection evidence;
+- explicit scenario IDs, observation artifacts, inconclusive/blocked/falsified dispositions, negative controls and stopping/escalation rules.
+
+**Evidence not established:** No Stage A harness has been constructed or executed. No external iOS termination controller, store-copy/snapshot consistency protocol, automatic store-opening neutrality, physical-device durability, first-establishment recovery, correspondence, guarded acquisition, same-ledger effect/proof atomicity, hold/abandonment ordering, or historical migration has been proven by accepting this plan.
+
+**No new authority:** This acceptance does **not** authorize Swift or test-harness code; running experiments; changes to production `LedgerStore`, `Seed`, `LedgerWrite`, or startup; SwiftData models/schema/migrations; historical-store mutation/conversion; import/restoration/UI; or CI. It does not reopen or strengthen the accepted mechanism contract or accept the complete Portable JSON/CSV v1 format.
+
+**Next distinct gate:** Prepare an independently reviewable **Stage A diagnostic implementation proposal** limited initially to disposable, controlled-location SwiftData store creation, pre-open artifact observation, verified isolation/preservation, externally observed process termination and fresh-process inspection. That subsequent *proposal* is documentation-only. A further explicit authorization is required before any diagnostic implementation or execution. Stage B and implementation admission remain independently gated.
