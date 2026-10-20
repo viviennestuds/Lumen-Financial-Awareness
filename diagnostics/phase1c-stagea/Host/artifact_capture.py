@@ -351,5 +351,12 @@ def require_changes_within(
 
 
 def source_unchanged(baseline: dict[str, Any], final: dict[str, Any]) -> None:
-    if baseline["exists"] != final["exists"] or baseline["entries"] != final["entries"]:
-        raise IntegrityBlocked("The original source changed during inspection")
+    """Compare all *recorded* source attributes, including root metadata.
+
+    Equality is a bounded physical observation, not a proof that no unrecorded
+    filesystem change occurred or that an inspected database was logically valid.
+    """
+    if baseline != final:
+        raise IntegrityBlocked(
+            "Original source's recorded root metadata, entries or existence changed"
+        )

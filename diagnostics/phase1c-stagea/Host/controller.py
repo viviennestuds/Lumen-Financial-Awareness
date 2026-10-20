@@ -257,7 +257,12 @@ def inspect_one(
     snapshot = preserve(source, copied, missing_source_control=missing)
     evidence["preservation"] = snapshot
     evidence["source_copy_bytes_verified"] = snapshot["byte_and_mode_copy_verified"]
-    evidence["scenario_snapshot_consistency_status"] = "UNPROVEN"
+    # A byte-identical, quiescent copy may be safely isolated for observation,
+    # but its logical consistency BEFORE opening is not established by copying
+    # or by any later successful SwiftData fetch. Opening may perform recovery.
+    evidence["copy_preopen_logical_consistency"] = "UNPROVEN"
+    evidence["swiftdata_open_may_recover_or_repair"] = True
+    evidence["post_open_reopen_observed"] = False
     pid, snap, raw, launch_id = launch(
         simulator, "a4-missing-observer" if missing else "a1-observer", run_id, root
     )
@@ -287,40 +292,35 @@ def inspect_one(
     match = re.search(r"synthetic record count=(\d+)", fetched or "")
     evidence["observer_records"] = int(match.group(1)) if match else None
     evidence["sentinel_matched"] = not missing and evidence["observer_records"] == 1
-    # A byte-level copy is NOT automatically a valid SwiftData snapshot. For this
-    # ordinary, clean-exit, single-sentinel scenario only, require corroborating
-    # post-open semantics and independent source/copy stability observations.
-    # Interrupted and more complex database states remain NOT CHARACTERIZED.
-    observed_local_consistency = bool(
+    # Only classify the OBSERVED post-open result. This must never be promoted
+    # into independently demonstrated pre-open SQLite/SwiftData consistency,
+    # generic snapshot correctness, or absence of recovery during ModelContainer
+    # initialization. The pre-open consistency field deliberately stays UNPROVEN.
+    evidence["post_open_reopen_observed"] = bool(
         not missing and evidence.get("worker_exited") and
+        ended and evidence["fresh_observer_identity"] and
+        evidence["sentinel_matched"]
+    )
+    evidence["post_open_observation"] = (
+        "SYNTHETIC_SENTINEL_OBSERVED_AFTER_SWIFTDATA_OPEN"
+        if evidence["post_open_reopen_observed"]
+        else "NOT_ESTABLISHED"
+    )
+    evidence["a4_integrity_verified"] = bool(
         ended and evidence["fresh_observer_identity"] and
         evidence["source_copy_bytes_verified"] and
         evidence["original_unchanged"] and
         evidence["associated_artifact_scope_checked"] and
-        evidence["sentinel_matched"] and
-        evidence["inspection_delta_recorded"]
+        evidence["inspection_delta_recorded"] and
+        (evidence["post_open_reopen_observed"] if not missing
+         else evidence["observer_records"] == 0)
     )
-    if observed_local_consistency:
-        evidence["scenario_snapshot_consistency_status"] = "OBSERVED_SCENARIO_LOCAL"
-        evidence["scenario_snapshot_consistency_basis"] = (
-            "Quiescent ordinary save/exit, full regular-file/mode copy, "
-            "stable original, fresh-process successful run-bound sentinel fetch; "
-            "does not establish generic SQLite/WAL snapshot safety or crash durability"
-        )
-    else:
-        evidence["scenario_snapshot_consistency_basis"] = (
-            "Not independently established by physical-byte agreement"
-        )
-    evidence["a4_integrity_verified"] = bool(
-        observed_local_consistency
-    ) if not missing else bool(
-        ended and evidence["fresh_observer_identity"] and
-        evidence["source_copy_bytes_verified"] and
-        evidence["original_unchanged"] and
-        evidence["inspection_delta_recorded"] and evidence["observer_records"] == 0
+    evidence["a4_integrity_scope"] = (
+        "Recorded source/copy physical preservation and attributed inspection "
+        "effects only; pre-open database logical consistency UNPROVEN"
     )
     if not evidence["a4_integrity_verified"]:
-        raise DiagnosticBlocked(BLOCKED_INTEGRITY, "A4 fresh inspection/original isolation unproven")
+        raise DiagnosticBlocked(BLOCKED_INTEGRITY, "A4 physical preservation/inspection attribution unproven")
 
 
 def perform(

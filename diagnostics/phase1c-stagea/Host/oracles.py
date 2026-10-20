@@ -11,7 +11,7 @@ NOT_REACHED = "NOT REACHED"
 BLOCKED_TERMINATION = "BLOCKED / TERMINATION UNVERIFIED"
 BLOCKED_INTEGRITY = "BLOCKED / OBSERVATION INTEGRITY UNPROVEN"
 NOT_CHARACTERIZED = "NOT CHARACTERIZED"
-ORACLE_VERSION = "phase1c-stagea-a0-a1-a4-oracles-v2"
+ORACLE_VERSION = "phase1c-stagea-a0-a1-a4-oracles-v3"
 
 
 @dataclass(frozen=True)
@@ -62,11 +62,17 @@ def a1_store(evidence: dict[str, Any]) -> Verdict:
         return Verdict(INCONCLUSIVE, "Worker not independently confirmed quiescent")
     if not evidence.get("a4_integrity_verified"):
         return Verdict(BLOCKED_INTEGRITY, "A4 preservation/isolation is mandatory for A1")
-    if evidence.get("scenario_snapshot_consistency_status") != "OBSERVED_SCENARIO_LOCAL":
-        return Verdict(BLOCKED_INTEGRITY, "Scenario-local snapshot consistency not admitted")
-    if evidence.get("observer_records") != 1 or not evidence.get("sentinel_matched"):
-        return Verdict(INCONCLUSIVE, "Isolated fresh-process sentinel match not demonstrated")
-    return Verdict(OBSERVED, "Synthetic SwiftData store opened on copy; no lifecycle proof")
+    if evidence.get("copy_preopen_logical_consistency") != "UNPROVEN":
+        return Verdict(BLOCKED_INTEGRITY, "Unexpected pre-open consistency claim for this tranche")
+    if (not evidence.get("post_open_reopen_observed") or
+        evidence.get("observer_records") != 1 or
+        not evidence.get("sentinel_matched")):
+        return Verdict(INCONCLUSIVE, "Post-open fresh-process sentinel observation not established")
+    return Verdict(
+        OBSERVED,
+        "Synthetic store reopened and sentinel fetched AFTER SwiftData initialization; "
+        "pre-open logical consistency and observer-side recovery remain unproven",
+    )
 
 
 def a4_known(evidence: dict[str, Any]) -> Verdict:
@@ -74,8 +80,10 @@ def a4_known(evidence: dict[str, Any]) -> Verdict:
         return Verdict(BLOCKED_INTEGRITY, "Cannot establish quiescence")
     if not evidence.get("source_copy_bytes_verified"):
         return Verdict(BLOCKED_INTEGRITY, "Copy/tree bytes not validated")
-    if evidence.get("scenario_snapshot_consistency_status") != "OBSERVED_SCENARIO_LOCAL":
-        return Verdict(BLOCKED_INTEGRITY, "Byte equality does not establish snapshot consistency")
+    if evidence.get("copy_preopen_logical_consistency") != "UNPROVEN":
+        return Verdict(BLOCKED_INTEGRITY, "Unsupported pre-open consistency admission")
+    if not evidence.get("post_open_reopen_observed"):
+        return Verdict(INCONCLUSIVE, "Fresh observer did not confirm post-open sentinel fetch")
     if not evidence.get("associated_artifact_scope_checked"):
         return Verdict(BLOCKED_INTEGRITY, "Captured artifact scope not independently checked")
     if not evidence.get("original_unchanged"):
@@ -84,12 +92,18 @@ def a4_known(evidence: dict[str, Any]) -> Verdict:
         return Verdict(INCONCLUSIVE, "Separate inspection process not verified")
     if not evidence.get("inspection_delta_recorded") or not evidence.get("observer_exited"):
         return Verdict(BLOCKED_INTEGRITY, "Completed fresh-process inspection/delta unproven")
-    return Verdict(OBSERVED, "Original preserved and observer effects separately inventoried")
+    return Verdict(
+        OBSERVED,
+        "Original and copy observed separately within recorded physical attributes; "
+        "post-open fetch observed, pre-open logical consistency NOT CHARACTERIZED",
+    )
 
 
 def a4_missing(evidence: dict[str, Any]) -> Verdict:
     if not evidence.get("source_initially_absent"):
         return Verdict(INCONCLUSIVE, "Source absence not established before opening copy")
+    if not evidence.get("a4_integrity_verified"):
+        return Verdict(BLOCKED_INTEGRITY, "Missing-store copy isolation unproven")
     if not evidence.get("source_still_absent"):
         return Verdict(BLOCKED_INTEGRITY, "Source store unexpectedly appeared")
     if not evidence.get("fresh_observer_identity") or not evidence.get("inspection_delta_recorded"):

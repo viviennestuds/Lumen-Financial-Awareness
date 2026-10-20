@@ -104,24 +104,25 @@ struct StageAProbeApp: App {
         do {
             let request = try ProbeInvocation.parse(ProcessInfo.processInfo.arguments)
             try request.mark("role_\(request.launchID)", value: request.role.rawValue + "\n" + request.runID)
+            // Host authentication is a prerequisite for *any* diagnostic operation,
+            // not merely a gate for process exit. The role marker is the only
+            // launch handshake produced before the matching acknowledgment.
+            try await request.waitForHostIdentityAcknowledgement()
             switch request.role {
             case .waiting:
                 try request.mark("waiting", value: "waiting for external controller\n")
                 while true { try await Task.sleep(nanoseconds: 2_000_000_000) }
             case .injectedError:
                 try request.mark("negative_injected", value: "deliberate Swift-side error\n")
-                try await request.waitForHostIdentityAcknowledgement()
                 throw ProbeInputError.injected
             case .ordinaryExit:
                 try request.mark("negative_ordinary", value: "ordinary exit\n")
-                try await request.waitForHostIdentityAcknowledgement()
                 exit(EXIT_SUCCESS)
             case .create:
                 try StageAStoreDriver.createAndSave(
                     root: request.root, runID: request.runID,
                     mark: { try request.mark($0, value: $1) }
                 )
-                try await request.waitForHostIdentityAcknowledgement()
                 exit(EXIT_SUCCESS)
             case .observe, .observeMissing:
                 try StageAObserver.inspect(
@@ -129,7 +130,6 @@ struct StageAProbeApp: App {
                     expectMissing: request.role == .observeMissing,
                     mark: { try request.mark($0, value: $1) }
                 )
-                try await request.waitForHostIdentityAcknowledgement()
                 exit(EXIT_SUCCESS)
             }
         } catch {

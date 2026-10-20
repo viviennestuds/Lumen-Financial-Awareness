@@ -34,17 +34,22 @@ The independent review must inspect:
 - isolated Simulator identity and diagnostic bundle verification;
 - process attribution and whether process death was genuinely externally caused;
 - a **unique launch UUID** for each worker or observer, with a process-specific
-  acknowledgment. An earlier worker's acknowledgment cannot release a later
-  observer sharing the same run directory;
+  acknowledgment. The controller verifies the launch marker and independently
+  identifies the process before acknowledgment; the app waits for that exact
+  acknowledgment **before creating or opening any SwiftData container**.
+  An earlier worker's acknowledgment cannot release a later observer;
 - full source-store subtree capture with no-follow/no-hardlink rules and stable
   regular-file hashes; file protection, extended attributes and possible
   store-associated artifacts outside the captured tree are blockers;
 - distinct source pre-open, copy pre-open, copy post-open, source post-open evidence;
+- original source-protection comparison includes the recorded root metadata
+  (including mode and modification time), as well as entries and existence;
 - A4 source preservation and copy checks gating A1 reopening conclusions;
 - an explicit **pre-worker physical inventory** (run root, source, and copy)
   independent of the later pre-inspection inventory;
-- separate physical byte/mode-copy verification and narrowly admitted
-  scenario-local logical consistency, never generic SwiftData snapshot proof;
+- separate byte/mode-copy verification, post-open synthetic-sentinel evidence,
+  and **unproven pre-open copy logical consistency**. Reopening cannot establish
+  that the copy was logically consistent before SwiftData initialization;
 - versioned scenario oracles, approved clean Git source SHA, diagnostic binary
   hash, host-controller module hashes, and recorded Xcode/Swift/Simulator runtime;
 - blocked/inconclusive classifications and non-promotion to authority claims.
@@ -67,14 +72,15 @@ accepted Phase 1C failure model. The two non-kill A0 controls remain distinct.
 
 - A0 injected error / ordinary exit: explicit negative controls, NOT crash evidence.
 - A0 external SIGKILL: BLOCKED pending demonstrably process-bound safe signaling.
-- A1 synthetic create/save/reopen: may count only if A4 isolation/copy evidence
-  **and the independent scenario-local consistency check** pass, and a separate
-  observer process reads the expected synthetic sentinel. A plain byte match
-  never admits the snapshot by itself.
+- A1 synthetic create/save/reopen: may count only if A4's **physical observation
+  integrity** passes and a fresh observer actually retrieves the expected
+  synthetic sentinel **after opening the copied store**. This is an observed
+  post-open result, NOT pre-open snapshot validation.
 - A4 known-store: explicit original baseline, quiescent isolated full-tree
-  copy including permission modes and directory xattr checks, source unchanged,
-  observer-induced effects separately inventoried, plus a defensible
-  scenario-local consistency interpretation. Unproven consistency blocks.
+  byte/mode preservation and directory xattr checks; compare recorded root
+  metadata and entries; record observer-induced copy effects separately. A4
+  can characterize the physical observation process without admitting
+  pre-open logical consistency of SwiftData/SQLite artifacts.
 - A4 missing-store: original absence before observation and continued absence
   afterward, with any copy-created store attributed to the observer.
 
@@ -103,10 +109,15 @@ and an independently reviewed executable mechanism.
 ## Evidence limitations
 
 A byte-identical copy is not necessarily a logically consistent SwiftData store.
-A narrowly successful clean-save, quiescent ordinary-exit, fresh-process,
-run-bound sentinel fetch can support only the observed scenario-local interpretation.
-It is not a generic crash-recovery or WAL-snapshot guarantee. If companion-file
-scope, filesystem metadata or ordinary-exit provenance is uncertain, A4 blocks.
+A successful clean-save, quiescent ordinary-exit, fresh-process, run-bound
+synthetic-sentinel fetch supports only **observed post-open readability**.
+The diagnostic explicitly leaves **pre-open logical consistency UNPROVEN** and
+cannot exclude recovery or repair during SwiftData initialization. It does not
+validate general SQLite/WAL snapshot correctness or crash durability. If
+physical isolation, companion-file scope, root metadata or ordinary-exit
+provenance is uncertain, A4's physical observation integrity must block.
+Matching recorded physical inventories does not prove that no unrecorded
+filesystem mutation occurred.
 An injected Swift error is not an abrupt process termination. A post-copy
 successful fetch is not lifecycle, freshness, store-provenance, or reference
 authority proof. Simulator observations alone do not justify device-wide claims.
