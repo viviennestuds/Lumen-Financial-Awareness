@@ -22,15 +22,16 @@ private enum ProbeInputError: Error {
 private struct ProbeInvocation {
     let role: ProbeRole
     let runID: String
+    let launchID: String
     let root: URL
 
     static func parse(_ args: [String]) throws -> ProbeInvocation {
-        guard args.count == 7 else { throw ProbeInputError.invalidArguments }
+        guard args.count == 9 else { throw ProbeInputError.invalidArguments }
         var values: [String: String] = [:]
         var index = 1
         while index < args.count {
             let key = args[index]
-            guard ["--role", "--run-id", "--root"].contains(key),
+            guard ["--role", "--run-id", "--launch-id", "--root"].contains(key),
                   values[key] == nil else { throw ProbeInputError.invalidArguments }
             values[key] = args[index + 1]
             index += 2
@@ -40,6 +41,9 @@ private struct ProbeInvocation {
               let runID = values["--run-id"],
               let uuid = UUID(uuidString: runID),
               uuid.uuidString.lowercased() == runID.lowercased(),
+              let launchID = values["--launch-id"],
+              let launchUUID = UUID(uuidString: launchID),
+              launchUUID.uuidString.lowercased() == launchID.lowercased(),
               let rootValue = values["--root"], rootValue.hasPrefix("/") else {
             throw ProbeInputError.invalidArguments
         }
@@ -54,15 +58,23 @@ private struct ProbeInvocation {
               expected.resolvingSymlinksInPath().path == supplied.resolvingSymlinksInPath().path else {
             throw ProbeInputError.unsafeLocation
         }
-        return ProbeInvocation(role: role, runID: runID, root: supplied)
+        return ProbeInvocation(role: role, runID: runID, launchID: launchID, root: supplied)
     }
 
     var events: URL { root.appendingPathComponent("events", isDirectory: true) }
 
     func waitForHostIdentityAcknowledgement() async throws {
-        let acknowledgement = events.appendingPathComponent("host_ack.txt")
+        // Unique per process launch; a previous worker acknowledgement cannot
+        // release a fresh observer that shares the same diagnostic run directory.
+        let acknowledgement = events.appendingPathComponent("host_ack_\(launchID).txt")
         for _ in 0..<200 {
-            if FileManager.default.fileExists(atPath: acknowledgement.path) { return }
+            if let data = try? Data(contentsOf: acknowledgement),
+               let contents = String(data: data, encoding: .utf8) {
+                guard contents == launchID + "\n" else {
+                    throw ProbeInputError.missingHostAcknowledgement
+                }
+                return
+            }
             try await Task.sleep(nanoseconds: 100_000_000)
         }
         throw ProbeInputError.missingHostAcknowledgement
@@ -91,7 +103,7 @@ struct StageAProbeApp: App {
     private func run() async {
         do {
             let request = try ProbeInvocation.parse(ProcessInfo.processInfo.arguments)
-            try request.mark("role", value: request.role.rawValue + "\n" + request.runID)
+            try request.mark("role_\(request.launchID)", value: request.role.rawValue + "\n" + request.runID)
             switch request.role {
             case .waiting:
                 try request.mark("waiting", value: "waiting for external controller\n")

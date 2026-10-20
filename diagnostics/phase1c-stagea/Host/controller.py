@@ -12,6 +12,7 @@ import argparse
 import hashlib
 import json
 import os
+import platform
 import plistlib
 import re
 import stat
@@ -25,11 +26,11 @@ from typing import Any
 
 from artifact_capture import (
     IntegrityBlocked, assert_run_layout, create_disposable_run, inventory,
-    preserve, source_unchanged,
+    preserve, require_changes_within, source_unchanged,
 )
 from oracles import (
     BLOCKED_INTEGRITY, BLOCKED_TERMINATION, INCONCLUSIVE, NOT_REACHED,
-    Verdict, a0_external_kill, a0_negative, a1_store,
+    ORACLE_VERSION, Verdict, a0_external_kill, a0_negative, a1_store,
     a4_known, a4_missing, finalize,
 )
 
@@ -93,6 +94,50 @@ def verify_simulator(udid: str) -> None:
         raise DiagnosticBlocked(BLOCKED_INTEGRITY, "Explicit simulator not uniquely identified as booted")
 
 
+def source_identity(expected: str) -> dict[str, Any]:
+    """Bind results to exactly the reviewed Git HEAD and a clean diagnostic tree."""
+    if not re.fullmatch(r"[0-9a-f]{40}", expected):
+        raise DiagnosticBlocked(INCONCLUSIVE, "Approved source revision must be an exact 40-digit SHA")
+    repo = Path(__file__).resolve().parents[3]
+    actual = checked(["git", "-C", str(repo), "rev-parse", "HEAD"])
+    if actual != expected:
+        raise DiagnosticBlocked(INCONCLUSIVE, "Checked-out diagnostic code differs from approved revision")
+    dirty = checked([
+        "git", "-C", str(repo), "status", "--porcelain",
+        "--untracked-files=all", "--", "diagnostics/phase1c-stagea",
+    ])
+    if dirty:
+        raise DiagnosticBlocked(INCONCLUSIVE, "Diagnostic source tree has unreviewed changes")
+    names = ("controller.py", "artifact_capture.py", "oracles.py")
+    return {
+        "approved_commit": expected, "actual_commit": actual,
+        "diagnostic_tree_clean": True,
+        "host_sha256": {name: sha256_file(Path(__file__).parent / name) for name in names},
+        "predeclared_oracle_version": ORACLE_VERSION,
+    }
+
+
+def toolchain(simulator: str) -> dict[str, Any]:
+    """Collect platform versions before scenario results, not retrospectively."""
+    info = json.loads(checked(["xcrun", "simctl", "list", "devices", "--json"]))
+    for runtime, devices in info.get("devices", {}).items():
+        for device in devices:
+            if device.get("udid") == simulator and device.get("state") == "Booted":
+                return {
+                    "host_platform": platform.platform(),
+                    "python_version": sys.version,
+                    "xcode": checked(["xcodebuild", "-version"]),
+                    "swift": checked(["xcrun", "swift", "--version"]),
+                    "simulator_sdk": checked(
+                        ["xcrun", "--sdk", "iphonesimulator", "--show-sdk-version"]
+                    ),
+                    "simulator_udid": simulator, "runtime": runtime,
+                    "device_name": device.get("name"), "device_state": device.get("state"),
+                    "data_protection": "Simulator behavior; device protections unverified",
+                }
+    raise DiagnosticBlocked(INCONCLUSIVE, "Booted simulator/runtime identity unproven")
+
+
 def process_snapshot(pid: int) -> str | None:
     # Used ONLY for exit observation. It is NOT a process-bound kill primitive.
     output = subprocess.run(
@@ -143,22 +188,28 @@ def wait_process_exit(pid: int, first: str | None, *, seconds: float = 35) -> bo
     return False
 
 
-def acknowledge_identity(root: Path) -> None:
-    """Release the worker only after the controller has observed a matching process."""
-    location = root / "events" / "host_ack.txt"
+def acknowledge_identity(root: Path, launch_id: str) -> None:
+    """Acknowledge only THIS process launch, after independent host observation."""
+    location = root / "events" / ("host_ack_" + launch_id + ".txt")
     fd = os.open(location, os.O_WRONLY | os.O_CREAT | os.O_EXCL |
                  os.O_NOFOLLOW | os.O_CLOEXEC, 0o600)
     try:
-        os.write(fd, b"host observed worker identity before exit\n")
+        payload = (launch_id + "\n").encode("utf-8")
+        if os.write(fd, payload) != len(payload):
+            raise DiagnosticBlocked(INCONCLUSIVE, "Incomplete launch acknowledgement")
         os.fsync(fd)
     finally:
         os.close(fd)
 
 
-def launch(simulator: str, role: str, run_id: str, root: Path) -> tuple[int, str | None, str]:
+def launch(
+    simulator: str, role: str, run_id: str, root: Path,
+) -> tuple[int, str | None, str, str]:
+    launch_id = str(uuid.uuid4())
     raw = checked([
         "xcrun", "simctl", "launch", simulator, BUNDLE_ID,
-        "--role", role, "--run-id", run_id, "--root", str(root),
+        "--role", role, "--run-id", run_id, "--launch-id", launch_id,
+        "--root", str(root),
     ])
     match = PID_RE.search(raw)
     if match is None:
@@ -169,8 +220,13 @@ def launch(simulator: str, role: str, run_id: str, root: Path) -> tuple[int, str
     initial = process_snapshot(pid)
     if initial is None or "Phase1CStageAProbe" not in initial:
         raise DiagnosticBlocked(INCONCLUSIVE, "App PID cannot be independently associated with the diagnostic executable")
-    acknowledge_identity(root)
-    return pid, initial, raw
+    role_marker = "role_" + launch_id
+    if not wait_marker(root, role_marker):
+        raise DiagnosticBlocked(INCONCLUSIVE, "Current launch marker not independently observed")
+    if run_marker(root, role_marker) != role + "\n" + run_id:
+        raise DiagnosticBlocked(INCONCLUSIVE, "Launch/role/run marker mismatch")
+    acknowledge_identity(root, launch_id)
+    return pid, initial, raw, launch_id
 
 
 def exit_quiescent(root: Path, pid: int, start: str | None, marker: str) -> bool:
@@ -200,11 +256,14 @@ def inspect_one(
     assert_run_layout(root)
     snapshot = preserve(source, copied, missing_source_control=missing)
     evidence["preservation"] = snapshot
-    evidence["source_copy_bytes_verified"] = True
-    pid, snap, raw = launch(
+    evidence["source_copy_bytes_verified"] = snapshot["byte_and_mode_copy_verified"]
+    evidence["scenario_snapshot_consistency_status"] = "UNPROVEN"
+    pid, snap, raw, launch_id = launch(
         simulator, "a4-missing-observer" if missing else "a1-observer", run_id, root
     )
-    evidence["observer_launch"] = {"pid": pid, "reported": raw, "identity": snap}
+    evidence["observer_launch"] = {
+        "pid": pid, "reported": raw, "identity": snap, "launch_id": launch_id,
+    }
     evidence["fresh_observer_identity"] = bool(snap) and pid != evidence.get("worker_pid")
     ended = exit_quiescent(root, pid, snap, "observer_fetch")
     evidence["observer_exited"] = ended
@@ -212,6 +271,15 @@ def inspect_one(
     assert_run_layout(root)
     evidence["source_postopen"] = inventory(source)
     evidence["copy_postopen"] = inventory(copied)
+    data = container_root(simulator)
+    evidence["app_container_post_observer"] = inventory(data)
+    allowed = ("Library/Application Support/Phase1CStageA/" + run_id)
+    evidence["observer_scope_changes"] = require_changes_within(
+        evidence["app_container_after_worker"],
+        evidence["app_container_post_observer"],
+        (allowed + "/inspection-copy", allowed + "/events"),
+    )
+    evidence["associated_artifact_scope_checked"] = True
     source_unchanged(before, evidence["source_postopen"])
     evidence["original_unchanged"] = True
     evidence["inspection_delta_recorded"] = True
@@ -219,10 +287,37 @@ def inspect_one(
     match = re.search(r"synthetic record count=(\d+)", fetched or "")
     evidence["observer_records"] = int(match.group(1)) if match else None
     evidence["sentinel_matched"] = not missing and evidence["observer_records"] == 1
-    evidence["a4_integrity_verified"] = bool(
+    # A byte-level copy is NOT automatically a valid SwiftData snapshot. For this
+    # ordinary, clean-exit, single-sentinel scenario only, require corroborating
+    # post-open semantics and independent source/copy stability observations.
+    # Interrupted and more complex database states remain NOT CHARACTERIZED.
+    observed_local_consistency = bool(
+        not missing and evidence.get("worker_exited") and
         ended and evidence["fresh_observer_identity"] and
-        evidence["source_copy_bytes_verified"] and evidence["original_unchanged"] and
+        evidence["source_copy_bytes_verified"] and
+        evidence["original_unchanged"] and
+        evidence["associated_artifact_scope_checked"] and
+        evidence["sentinel_matched"] and
         evidence["inspection_delta_recorded"]
+    )
+    if observed_local_consistency:
+        evidence["scenario_snapshot_consistency_status"] = "OBSERVED_SCENARIO_LOCAL"
+        evidence["scenario_snapshot_consistency_basis"] = (
+            "Quiescent ordinary save/exit, full regular-file/mode copy, "
+            "stable original, fresh-process successful run-bound sentinel fetch; "
+            "does not establish generic SQLite/WAL snapshot safety or crash durability"
+        )
+    else:
+        evidence["scenario_snapshot_consistency_basis"] = (
+            "Not independently established by physical-byte agreement"
+        )
+    evidence["a4_integrity_verified"] = bool(
+        observed_local_consistency
+    ) if not missing else bool(
+        ended and evidence["fresh_observer_identity"] and
+        evidence["source_copy_bytes_verified"] and
+        evidence["original_unchanged"] and
+        evidence["inspection_delta_recorded"] and evidence["observer_records"] == 0
     )
     if not evidence["a4_integrity_verified"]:
         raise DiagnosticBlocked(BLOCKED_INTEGRITY, "A4 fresh inspection/original isolation unproven")
@@ -255,8 +350,17 @@ def perform(
     assert_run_layout(root)
     evidence["simulator"] = simulator
 
+    evidence["pre_worker_baseline"] = {
+        "run_root": inventory(root),
+        "source_store": inventory(root / "source-store"),
+        "inspection_copy": inventory(root / "inspection-copy"),
+    }
+    evidence["app_container_pre_worker"] = inventory(data)
+    evidence["source_initially_absent"] = (
+        evidence["pre_worker_baseline"]["source_store"]["exists"] is False
+    )
     if scenario == "a4-missing-store":
-        evidence["source_initially_absent"] = not (root / "source-store").exists()
+        evidence["app_container_after_worker"] = evidence["app_container_pre_worker"]
         inspect_one(simulator, root, run_id, missing=True, evidence=evidence)
         evidence["source_still_absent"] = not (root / "source-store").exists()
         return a4_missing(evidence), evidence
@@ -266,10 +370,11 @@ def perform(
         role = scenario
     else:
         role = "a1-create"
-    evidence["source_initially_absent"] = not (root / "source-store").exists()
-    pid, snap, raw = launch(simulator, role, run_id, root)
+    pid, snap, raw, launch_id = launch(simulator, role, run_id, root)
     evidence["worker_pid"] = pid
-    evidence["worker_launch"] = {"pid": pid, "reported": raw, "identity": snap}
+    evidence["worker_launch"] = {
+        "pid": pid, "reported": raw, "identity": snap, "launch_id": launch_id,
+    }
 
     if scenario in ("a0-injected-error", "a0-ordinary-exit"):
         marker = "negative_injected" if scenario == "a0-injected-error" else "negative_ordinary"
@@ -283,6 +388,13 @@ def perform(
         evidence["markers"].append("store_save_returned")
     if not evidence["worker_exited"]:
         raise DiagnosticBlocked(BLOCKED_INTEGRITY, "Worker not demonstrably quiescent")
+    evidence["app_container_after_worker"] = inventory(data)
+    allowed = "Library/Application Support/Phase1CStageA/" + run_id
+    evidence["worker_scope_changes"] = require_changes_within(
+        evidence["app_container_pre_worker"],
+        evidence["app_container_after_worker"],
+        (allowed + "/source-store", allowed + "/events"),
+    )
     inspect_one(simulator, root, run_id, missing=False, evidence=evidence)
     a4_result = a4_known(evidence)
     if a4_result.category != "OBSERVED (NARROW PLATFORM RESULT)":
@@ -306,10 +418,15 @@ def main() -> int:
     parser.add_argument("--simulator-udid", required=True)
     parser.add_argument("--app", required=True, type=Path, help="Existing built diagnostic .app")
     parser.add_argument("--scenario", required=True, choices=SCENARIOS)
+    parser.add_argument("--expected-source-commit", required=True,
+                        help="Exact independently reviewed source SHA")
     args = parser.parse_args()
     run_id = str(uuid.uuid4())
     evidence: dict[str, Any] = {"scenario": args.scenario, "run_id": run_id}
     try:
+        evidence["source_provenance"] = source_identity(args.expected_source_commit)
+        if args.scenario != "a0-external-sigkill":
+            evidence["toolchain"] = toolchain(args.simulator_udid)
         verdict, evidence = perform(args.simulator_udid, args.app, args.scenario, run_id, evidence)
     except DiagnosticBlocked as exc:
         verdict = Verdict(exc.category, str(exc))
@@ -320,7 +437,9 @@ def main() -> int:
         verdict = Verdict(INCONCLUSIVE, "Unhandled diagnostic-controller condition; source needs review")
     payload = finalize(verdict, evidence)
     payload["timestamp_utc"] = datetime.now(timezone.utc).isoformat()
-    payload["controller_source_revision"] = "IMPLEMENTATION-ONLY / UNBUILT / UNEXECUTED"
+    payload["provenance_note"] = (
+        "Narrow simulator diagnostic, NOT lifecycle-authority or crash-atomicity proof"
+    )
     record_manifest(run_id, payload)
     print(f"{run_id}: {verdict.category} — {verdict.reason}")
     return 0 if verdict.category == "OBSERVED (NARROW PLATFORM RESULT)" else 2

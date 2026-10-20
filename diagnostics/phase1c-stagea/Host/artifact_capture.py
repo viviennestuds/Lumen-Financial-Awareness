@@ -163,7 +163,11 @@ def _walk(fd: int, prefix: str, device: int, result: dict[str, Any]) -> None:
                 observed = os.fstat(child)
                 if (info.st_dev, info.st_ino) != (observed.st_dev, observed.st_ino):
                     raise IntegrityBlocked("Directory replaced during inventory")
-                result[entry] = {"kind": "dir", "mode": stat.S_IMODE(info.st_mode)}
+                _extended_attributes(child)
+                result[entry] = {
+                    "kind": "dir", "mode": stat.S_IMODE(info.st_mode),
+                    "mtime_ns": observed.st_mtime_ns,
+                }
                 _walk(child, entry, device, result)
             finally:
                 os.close(child)
@@ -192,9 +196,18 @@ def inventory(directory: Path) -> dict[str, Any]:
     _lstat_chain(directory)
     fd, device = _open_dir(directory)
     try:
+        info = os.fstat(fd)
+        _extended_attributes(fd)  # directories can carry protection-relevant metadata
         result: dict[str, Any] = {}
         _walk(fd, "", device, result)
-        return {"exists": True, "entries": result}
+        return {
+            "exists": True,
+            "root": {
+                "mode": stat.S_IMODE(info.st_mode),
+                "mtime_ns": info.st_mtime_ns,
+            },
+            "entries": result,
+        }
     finally:
         os.close(fd)
 
@@ -202,7 +215,7 @@ def inventory(directory: Path) -> dict[str, Any]:
 def comparable_entries(manifest: dict[str, Any]) -> dict[str, tuple[Any, ...]]:
     """Ignore inode and legitimate copy metadata; compare bytes + tree structure."""
     return {
-        name: (record["kind"], record.get("size"), record.get("sha256"))
+        name: (record["kind"], record.get("mode"), record.get("size"), record.get("sha256"))
         for name, record in manifest["entries"].items()
     }
 
@@ -210,8 +223,10 @@ def comparable_entries(manifest: dict[str, Any]) -> dict[str, tuple[Any, ...]]:
 def assert_matching_bytes(source: dict[str, Any], copy: dict[str, Any]) -> None:
     if source["exists"] is not True or copy["exists"] is not True:
         raise IntegrityBlocked("Cannot match a missing artifact tree")
+    if source["root"]["mode"] != copy["root"]["mode"]:
+        raise IntegrityBlocked("Source and copy root permission modes differ")
     if comparable_entries(source) != comparable_entries(copy):
-        raise IntegrityBlocked("Source and copy artifact bytes/tree differ")
+        raise IntegrityBlocked("Source/copy artifact modes, bytes or tree differ")
 
 
 def _copy_tree(source_fd: int, copy_fd: int, device: int) -> None:
@@ -224,10 +239,12 @@ def _copy_tree(source_fd: int, copy_fd: int, device: int) -> None:
                 check = os.fstat(source_child)
                 if (check.st_dev, check.st_ino) != (info.st_dev, info.st_ino):
                     raise IntegrityBlocked("Source directory identity changed during copying")
+                _extended_attributes(source_child)
                 os.mkdir(name, mode=0o700, dir_fd=copy_fd)
                 dest_child = os.open(name, O_DIR, dir_fd=copy_fd)
                 try:
                     _copy_tree(source_child, dest_child, device)
+                    os.fchmod(dest_child, stat.S_IMODE(check.st_mode))
                     os.fsync(dest_child)
                 finally:
                     os.close(dest_child)
@@ -250,6 +267,7 @@ def _copy_tree(source_fd: int, copy_fd: int, device: int) -> None:
                             if count <= 0:
                                 raise IntegrityBlocked("Incomplete copied bytes")
                             view = view[count:]
+                    os.fchmod(dest_file, stat.S_IMODE(before.st_mode))
                     os.fsync(dest_file)
                     _file_hash(source_file, before)  # detects changes while copying
                 finally:
@@ -274,17 +292,62 @@ def preserve(source: Path, copy: Path, *, missing_source_control: bool = False) 
         src_fd, device = _open_dir(source)
         dest_fd, _ = _open_dir(copy)
         try:
+            source_root_info = os.fstat(src_fd)
+            _extended_attributes(src_fd)
             _copy_tree(src_fd, dest_fd, device)
+            os.fchmod(dest_fd, stat.S_IMODE(source_root_info.st_mode))
             os.fsync(dest_fd)
         finally:
             os.close(dest_fd)
             os.close(src_fd)
     after_copy = inventory(copy)
+    source_after_preservation = inventory(source)
+    if source_after_preservation != before:
+        raise IntegrityBlocked("Source changed during preservation")
     if before["exists"]:
         assert_matching_bytes(before, after_copy)
     elif after_copy["entries"]:
         raise IntegrityBlocked("Missing-store negative control copy is not empty")
-    return {"source_preopen": before, "copy_preopen": after_copy}
+    return {
+        "source_preopen": before,
+        "source_after_preservation": source_after_preservation,
+        "copy_preopen": after_copy,
+        "byte_and_mode_copy_verified": True,
+        # An independent scenario-local consistency admission is still required.
+        "snapshot_consistency_admitted": False,
+        "snapshot_consistency_basis": "UNPROVEN",
+    }
+
+
+def require_changes_within(
+    before: dict[str, Any], after: dict[str, Any], allowed_rel_subtrees: tuple[str, ...],
+) -> list[str]:
+    """Fail closed on unexpected app-container artifacts outside recorded subtrees.
+
+    The inventory comparison gives *scenario-local evidence* about configured
+    store artifact scope, not a promise about all possible SwiftData versions.
+    """
+    if before.get("exists") is not True or after.get("exists") is not True:
+        raise IntegrityBlocked("Cannot establish full app-container artifact changes")
+    start, end = before["entries"], after["entries"]
+    changed: list[str] = []
+    for path in sorted(set(start) | set(end)):
+        if start.get(path) == end.get(path):
+            continue
+        inside = any(path == a or path.startswith(a + "/") for a in allowed_rel_subtrees)
+        ancestor = any(a.startswith(path + "/") for a in allowed_rel_subtrees)
+        if not inside and not ancestor:
+            raise IntegrityBlocked("Uncharacterized app-container change outside disposable root")
+        if ancestor and not inside:
+            first, second = start.get(path), end.get(path)
+            if (first and first.get("kind") != "dir") or (
+                second and second.get("kind") != "dir"
+            ):
+                raise IntegrityBlocked("Non-directory ancestor changed during scoped capture")
+            if first and second and first.get("mode") != second.get("mode"):
+                raise IntegrityBlocked("Unexpected ancestor directory permission change")
+        changed.append(path)
+    return changed
 
 
 def source_unchanged(baseline: dict[str, Any], final: dict[str, Any]) -> None:

@@ -11,6 +11,7 @@ NOT_REACHED = "NOT REACHED"
 BLOCKED_TERMINATION = "BLOCKED / TERMINATION UNVERIFIED"
 BLOCKED_INTEGRITY = "BLOCKED / OBSERVATION INTEGRITY UNPROVEN"
 NOT_CHARACTERIZED = "NOT CHARACTERIZED"
+ORACLE_VERSION = "phase1c-stagea-a0-a1-a4-oracles-v2"
 
 
 @dataclass(frozen=True)
@@ -50,12 +51,19 @@ def a0_external_kill(evidence: dict[str, Any]) -> Verdict:
 def a1_store(evidence: dict[str, Any]) -> Verdict:
     if not evidence.get("source_initially_absent"):
         return Verdict(INCONCLUSIVE, "Initial source root was not demonstrated absent")
+    baseline = evidence.get("pre_worker_baseline")
+    if (not isinstance(baseline, dict) or
+        baseline.get("source_store", {}).get("exists") is not False or
+        baseline.get("run_root", {}).get("exists") is not True):
+        return Verdict(INCONCLUSIVE, "Missing explicit pre-worker physical inventory")
     if "store_save_returned" not in evidence.get("markers", []):
         return Verdict(INCONCLUSIVE, "Worker did not report successful synthetic save")
     if not evidence.get("worker_exited"):
         return Verdict(INCONCLUSIVE, "Worker not independently confirmed quiescent")
     if not evidence.get("a4_integrity_verified"):
         return Verdict(BLOCKED_INTEGRITY, "A4 preservation/isolation is mandatory for A1")
+    if evidence.get("scenario_snapshot_consistency_status") != "OBSERVED_SCENARIO_LOCAL":
+        return Verdict(BLOCKED_INTEGRITY, "Scenario-local snapshot consistency not admitted")
     if evidence.get("observer_records") != 1 or not evidence.get("sentinel_matched"):
         return Verdict(INCONCLUSIVE, "Isolated fresh-process sentinel match not demonstrated")
     return Verdict(OBSERVED, "Synthetic SwiftData store opened on copy; no lifecycle proof")
@@ -66,12 +74,16 @@ def a4_known(evidence: dict[str, Any]) -> Verdict:
         return Verdict(BLOCKED_INTEGRITY, "Cannot establish quiescence")
     if not evidence.get("source_copy_bytes_verified"):
         return Verdict(BLOCKED_INTEGRITY, "Copy/tree bytes not validated")
+    if evidence.get("scenario_snapshot_consistency_status") != "OBSERVED_SCENARIO_LOCAL":
+        return Verdict(BLOCKED_INTEGRITY, "Byte equality does not establish snapshot consistency")
+    if not evidence.get("associated_artifact_scope_checked"):
+        return Verdict(BLOCKED_INTEGRITY, "Captured artifact scope not independently checked")
     if not evidence.get("original_unchanged"):
         return Verdict(BLOCKED_INTEGRITY, "Original artifacts changed during copy inspection")
     if not evidence.get("fresh_observer_identity"):
         return Verdict(INCONCLUSIVE, "Separate inspection process not verified")
-    if not evidence.get("inspection_delta_recorded"):
-        return Verdict(BLOCKED_INTEGRITY, "Inspection effects not distinguishable")
+    if not evidence.get("inspection_delta_recorded") or not evidence.get("observer_exited"):
+        return Verdict(BLOCKED_INTEGRITY, "Completed fresh-process inspection/delta unproven")
     return Verdict(OBSERVED, "Original preserved and observer effects separately inventoried")
 
 
