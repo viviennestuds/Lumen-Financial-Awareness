@@ -1,0 +1,292 @@
+"""Fail-closed, host-side artifact capture for synthetic Phase 1C Stage A stores.
+
+No SwiftData/SQLite opens; no access to production or historical stores.
+These byte-level inventories do NOT prove logical database consistency or authority.
+"""
+from __future__ import annotations
+
+import hashlib
+import os
+import stat
+from pathlib import Path
+from typing import Any
+
+O_DIR = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC
+O_FILE = os.O_RDONLY | os.O_NOFOLLOW | os.O_CLOEXEC
+O_NEW = os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW | os.O_CLOEXEC
+STORE_DIR = "source-store"
+COPY_DIR = "inspection-copy"
+
+
+class IntegrityBlocked(RuntimeError):
+    """Observation integrity could not be warranted; never report a PASS."""
+
+
+def _lstat_chain(path: Path) -> None:
+    if not path.is_absolute():
+        raise IntegrityBlocked("A diagnostic path must be absolute")
+    cur = Path(path.anchor)
+    for component in path.parts[1:]:
+        cur /= component
+        try:
+            info = os.lstat(cur)
+        except FileNotFoundError:
+            raise IntegrityBlocked("Expected controlled path does not exist") from None
+        if not stat.S_ISDIR(info.st_mode) or stat.S_ISLNK(info.st_mode):
+            raise IntegrityBlocked("A path component is not a real directory")
+
+
+def validate_run_root(data_container: Path, run_root: Path, run_id: str) -> None:
+    """Exact app-container/run-dir match, not a prefix or substring check."""
+    expected = data_container / "Library" / "Application Support" / "Phase1CStageA" / run_id
+    if os.path.abspath(run_root) != os.path.abspath(expected):
+        raise IntegrityBlocked("Run root does not match the diagnostic app's data container")
+    for path in (data_container, run_root):
+        _lstat_chain(path)
+    if os.path.realpath(expected) != str(expected):
+        raise IntegrityBlocked("Run-root path contains a symlink or unexpected alias")
+    if not run_id or "/" in run_id or run_id in (".", ".."):
+        raise IntegrityBlocked("Malformed run identity")
+
+
+def create_disposable_run(data_container: Path, run_id: str) -> Path:
+    """Create ONLY a UUID child of the verified diagnostic data container.
+
+    Each directory is opened via a no-follow directory descriptor; no untrusted
+    pathname traversal or symlink substitution can redirect the mkdir operations.
+    """
+    if not re_full_uuid(run_id):
+        raise IntegrityBlocked("Unrecognized disposable run UUID")
+    _lstat_chain(data_container)
+    data_fd, device = _open_dir(data_container)
+    opened = [data_fd]
+    try:
+        library = os.open("Library", O_DIR, dir_fd=data_fd)
+        opened.append(library)
+        _check_node(os.fstat(library), device, file=False)
+        try:
+            os.mkdir("Application Support", 0o700, dir_fd=library)
+        except FileExistsError:
+            pass
+        support = os.open("Application Support", O_DIR, dir_fd=library)
+        opened.append(support)
+        _check_node(os.fstat(support), device, file=False)
+        try:
+            os.mkdir("Phase1CStageA", 0o700, dir_fd=support)
+        except FileExistsError:
+            pass
+        phase = os.open("Phase1CStageA", O_DIR, dir_fd=support)
+        opened.append(phase)
+        _check_node(os.fstat(phase), device, file=False)
+        os.mkdir(run_id, 0o700, dir_fd=phase)
+        run = os.open(run_id, O_DIR, dir_fd=phase)
+        opened.append(run)
+        os.mkdir("events", 0o700, dir_fd=run)
+    finally:
+        for fd in reversed(opened):
+            os.close(fd)
+    root = data_container / "Library" / "Application Support" / "Phase1CStageA" / run_id
+    validate_run_root(data_container, root, run_id)
+    return root
+
+
+def re_full_uuid(value: str) -> bool:
+    import uuid
+    try:
+        parsed = uuid.UUID(value)
+        return str(parsed) == value
+    except (ValueError, AttributeError):
+        return False
+
+
+def assert_run_layout(root: Path) -> None:
+    """An unexpected store-associated sibling cannot be silently ignored."""
+    _lstat_chain(root)
+    names = set(os.listdir(root))
+    if not names.issubset({"source-store", "inspection-copy", "events"}):
+        raise IntegrityBlocked("Uncaptured artifacts escaped the expected store subtree")
+    for name in names:
+        _lstat_chain(root / name)
+
+
+def _check_node(info: os.stat_result, device: int, file: bool) -> None:
+    if info.st_dev != device:
+        raise IntegrityBlocked("File crosses to a different mounted device")
+    if file:
+        if not stat.S_ISREG(info.st_mode) or info.st_nlink != 1:
+            raise IntegrityBlocked("Not an independent regular file")
+    elif not stat.S_ISDIR(info.st_mode):
+        raise IntegrityBlocked("Not a directory")
+
+
+def _open_dir(path: Path, device: int | None = None) -> tuple[int, int]:
+    fd = os.open(path, O_DIR)
+    info = os.fstat(fd)
+    _check_node(info, info.st_dev if device is None else device, file=False)
+    return fd, info.st_dev
+
+
+def _file_hash(fd: int, before: os.stat_result) -> str:
+    digest = hashlib.sha256()
+    os.lseek(fd, 0, os.SEEK_SET)
+    while data := os.read(fd, 1 << 20):
+        digest.update(data)
+    after = os.fstat(fd)
+    if (after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns, after.st_ctime_ns) != (
+        before.st_dev, before.st_ino, before.st_size, before.st_mtime_ns, before.st_ctime_ns
+    ):
+        raise IntegrityBlocked("Source artifact changed while reading")
+    return digest.hexdigest()
+
+
+def _extended_attributes(fd: int) -> None:
+    # Extended attributes may include filesystem/protection semantics. This
+    # first-tranche copier does not silently discard them.
+    try:
+        names = os.listxattr(fd)
+    except (TypeError, OSError) as exc:
+        raise IntegrityBlocked("Cannot establish extended-attribute inventory") from exc
+    if names:
+        raise IntegrityBlocked("Uncharacterized extended attributes require a reviewed copier")
+
+
+def _walk(fd: int, prefix: str, device: int, result: dict[str, Any]) -> None:
+    for name in sorted(os.listdir(fd)):
+        if name in (".", "..") or "/" in name or "\x00" in name:
+            raise IntegrityBlocked("Unsafe directory entry")
+        entry = f"{prefix}/{name}" if prefix else name
+        info = os.stat(name, dir_fd=fd, follow_symlinks=False)
+        if stat.S_ISDIR(info.st_mode):
+            _check_node(info, device, file=False)
+            child = os.open(name, O_DIR, dir_fd=fd)
+            try:
+                observed = os.fstat(child)
+                if (info.st_dev, info.st_ino) != (observed.st_dev, observed.st_ino):
+                    raise IntegrityBlocked("Directory replaced during inventory")
+                result[entry] = {"kind": "dir", "mode": stat.S_IMODE(info.st_mode)}
+                _walk(child, entry, device, result)
+            finally:
+                os.close(child)
+        elif stat.S_ISREG(info.st_mode):
+            _check_node(info, device, file=True)
+            child = os.open(name, O_FILE, dir_fd=fd)
+            try:
+                before = os.fstat(child)
+                if (info.st_dev, info.st_ino) != (before.st_dev, before.st_ino):
+                    raise IntegrityBlocked("File replaced during inventory")
+                _extended_attributes(child)
+                result[entry] = {
+                    "kind": "file", "mode": stat.S_IMODE(before.st_mode),
+                    "size": before.st_size, "sha256": _file_hash(child, before),
+                    "mtime_ns": before.st_mtime_ns,
+                }
+            finally:
+                os.close(child)
+        else:
+            raise IntegrityBlocked("Unexpected symlink/special store-associated artifact")
+
+
+def inventory(directory: Path) -> dict[str, Any]:
+    if not directory.exists() and not directory.is_symlink():
+        return {"exists": False, "entries": {}}
+    _lstat_chain(directory)
+    fd, device = _open_dir(directory)
+    try:
+        result: dict[str, Any] = {}
+        _walk(fd, "", device, result)
+        return {"exists": True, "entries": result}
+    finally:
+        os.close(fd)
+
+
+def comparable_entries(manifest: dict[str, Any]) -> dict[str, tuple[Any, ...]]:
+    """Ignore inode and legitimate copy metadata; compare bytes + tree structure."""
+    return {
+        name: (record["kind"], record.get("size"), record.get("sha256"))
+        for name, record in manifest["entries"].items()
+    }
+
+
+def assert_matching_bytes(source: dict[str, Any], copy: dict[str, Any]) -> None:
+    if source["exists"] is not True or copy["exists"] is not True:
+        raise IntegrityBlocked("Cannot match a missing artifact tree")
+    if comparable_entries(source) != comparable_entries(copy):
+        raise IntegrityBlocked("Source and copy artifact bytes/tree differ")
+
+
+def _copy_tree(source_fd: int, copy_fd: int, device: int) -> None:
+    for name in sorted(os.listdir(source_fd)):
+        info = os.stat(name, dir_fd=source_fd, follow_symlinks=False)
+        if stat.S_ISDIR(info.st_mode):
+            _check_node(info, device, file=False)
+            source_child = os.open(name, O_DIR, dir_fd=source_fd)
+            try:
+                check = os.fstat(source_child)
+                if (check.st_dev, check.st_ino) != (info.st_dev, info.st_ino):
+                    raise IntegrityBlocked("Source directory identity changed during copying")
+                os.mkdir(name, mode=0o700, dir_fd=copy_fd)
+                dest_child = os.open(name, O_DIR, dir_fd=copy_fd)
+                try:
+                    _copy_tree(source_child, dest_child, device)
+                    os.fsync(dest_child)
+                finally:
+                    os.close(dest_child)
+            finally:
+                os.close(source_child)
+        elif stat.S_ISREG(info.st_mode):
+            _check_node(info, device, file=True)
+            source_file = os.open(name, O_FILE, dir_fd=source_fd)
+            try:
+                before = os.fstat(source_file)
+                if (before.st_dev, before.st_ino) != (info.st_dev, info.st_ino):
+                    raise IntegrityBlocked("Source identity changed during copying")
+                _extended_attributes(source_file)
+                dest_file = os.open(name, O_NEW, 0o600, dir_fd=copy_fd)
+                try:
+                    while chunk := os.read(source_file, 1 << 20):
+                        view = memoryview(chunk)
+                        while view:
+                            count = os.write(dest_file, view)
+                            if count <= 0:
+                                raise IntegrityBlocked("Incomplete copied bytes")
+                            view = view[count:]
+                    os.fsync(dest_file)
+                    _file_hash(source_file, before)  # detects changes while copying
+                finally:
+                    os.close(dest_file)
+            finally:
+                os.close(source_file)
+        else:
+            raise IntegrityBlocked("Unexpected store-associated node during copying")
+
+
+def preserve(source: Path, copy: Path, *, missing_source_control: bool = False) -> dict[str, Any]:
+    if source.name != STORE_DIR or copy.name != COPY_DIR or source.parent != copy.parent:
+        raise IntegrityBlocked("Source and copy must be prescribed sibling subtrees")
+    _lstat_chain(source.parent)
+    if copy.exists() or copy.is_symlink():
+        raise IntegrityBlocked("Inspection destination is not fresh")
+    before = inventory(source)
+    if not before["exists"] and not missing_source_control:
+        raise IntegrityBlocked("Source store artifact subtree is missing")
+    os.mkdir(copy, 0o700)
+    if before["exists"]:
+        src_fd, device = _open_dir(source)
+        dest_fd, _ = _open_dir(copy)
+        try:
+            _copy_tree(src_fd, dest_fd, device)
+            os.fsync(dest_fd)
+        finally:
+            os.close(dest_fd)
+            os.close(src_fd)
+    after_copy = inventory(copy)
+    if before["exists"]:
+        assert_matching_bytes(before, after_copy)
+    elif after_copy["entries"]:
+        raise IntegrityBlocked("Missing-store negative control copy is not empty")
+    return {"source_preopen": before, "copy_preopen": after_copy}
+
+
+def source_unchanged(baseline: dict[str, Any], final: dict[str, Any]) -> None:
+    if baseline["exists"] != final["exists"] or baseline["entries"] != final["entries"]:
+        raise IntegrityBlocked("The original source changed during inspection")

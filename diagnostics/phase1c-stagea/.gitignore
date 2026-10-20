@@ -1,0 +1,13 @@
+# Run evidence and build outputs are not approved as tracked source.
+.runs/
+DerivedData/
+build/
+*.app/
+*.dSYM/
+*.xcuserstate
+*.xcuserdata/
+*.xcresult/
+*.log
+__pycache__/
+*.pyc
+.DS_Store
