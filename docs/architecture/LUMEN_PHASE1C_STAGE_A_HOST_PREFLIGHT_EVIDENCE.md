@@ -1,27 +1,50 @@
-# Lumen Phase 1C — Stage A macOS host-only preflight evidence
+# Lumen Phase 1C — Stage A macOS host-only compatibility evidence
 
-**Disposition: BLOCKED — macOS Python extended-attribute API unavailable.**
+**Current disposition: HOST-ONLY PREFLIGHT PASS (review of evidence pending).** This is bounded compatibility evidence from disposable host files, **not** authorization to execute A0/A1/A4, not a claim of real SwiftData artifact completeness, and not proof of the reference-authority mechanism.
 
-This record indexes one owner-authorized, non-destructive host compatibility check. It does **not** accept A0/A1/A4 runtime behavior or authorize an executable diagnostic.
+## Earlier failure — archived, not reclassified
 
-| Evidence | Observed |
+| Evidence | Observed result |
 | --- | --- |
 | GitHub Actions run | [39527229619](https://github.com/viviennestuds/Lumen-Financial-Awareness/actions/runs/39527229619) |
-| Job | `macos-host-compatibility`, 118984629341 |
 | Workflow commit | `eadf20450843e0ffed63db5e5943f4af6c06133f` |
-| Source checked out (unmodified) | `31f416be32cc78717d6c0eb87f067ee47807570b` |
-| Runner | Standard `macos-15` |
+| Diagnostic source | `31f416be32cc78717d6c0eb87f067ee47807570b` |
+| Runner / Python | `macos-15` / 3.14.7 |
+| Outcome | **BLOCKED:** `os.listxattr(fd)` unavailable on macOS Python; subsequent tests NOT REACHED |
+
+This failure revealed a genuine host-portability defect. The prior [successful Xcode build](https://github.com/viviennestuds/Lumen-Financial-Awareness/actions/runs/39525288019) remains independently supported for the **earlier** source SHA; it did not exercise Python runtime behavior.
+
+## Corrected source — non-destructive host preflight successful
+
+| Evidence | Observed result |
+| --- | --- |
+| GitHub Actions run | [39531584972](https://github.com/viviennestuds/Lumen-Financial-Awareness/actions/runs/39531584972) |
+| Job | `macos-host-compatibility`, ID `118998477501` |
+| Workflow commit | `9bed821ebb7ebe50c6faae34dee3fe0d63b53820` |
+| Exact reviewed source checkout | `ab7de1532a9e75106a52c377da334dbe1843a381` |
+| macOS | 15.7.9, build 24G830, standard `macos-15` runner |
+| Runner image | `20260907.0337.1` |
 | Python | 3.14.7 |
-| Overall job | **FAILURE** — genuine host compatibility defect, not an Xcode build result |
-| Verified host APIs | `O_NOFOLLOW`, `O_DIRECTORY`, `O_CLOEXEC`, descriptor-relative `open/stat/mkdir`, `stat(...follow_symlinks=...)` |
-| Process observation | `controller.process_snapshot(os.getpid())` successfully observed only the preflight's own Python process |
-| Failure point | `artifact_capture.inventory(source)` on a disposable, inert file tree |
-| Root cause | `artifact_capture._extended_attributes(fd)` calls `os.listxattr(fd)`, but this macOS Python interpreter has **no `os.listxattr` attribute**. The resulting exception is `AttributeError`, not the intended `IntegrityBlocked`. |
-| Evidence completeness | Subsequent host-copy, containment-negative, and source-root mutation tests **NOT REACHED**; no conclusions about their behavior. |
-| Diagnostic execution | **NOT PERFORMED**: no Simulator install/launch, SwiftData stores, A0/A1/A4 scenarios, SIGKILL, A2/A3, Stage B, or production code changed. |
+| Workflow conclusion | **SUCCESS** |
+| Checked host assertions | **20 PASSED**, 0 failed in the successful run |
+| Scope | Only inert, disposable host-side fixtures and self-process observation. No Simulator operations or SwiftData store usage. |
 
-The previous successful build-only run [39525288019](https://github.com/viviennestuds/Lumen-Financial-Awareness/actions/runs/39525288019) remains valid: exact diagnostic source compiles and links under Xcode 16.4 / iOS 18.5 Simulator SDK. Build success did not exercise this Python runtime API.
+The corrected `flistxattr(fd, NULL, 0, XATTR_SHOWCOMPRESSION)` behavior was exercised using the approved, **unchanged** diagnostic implementation at the exact SHA above:
 
-**Required next gate:** Independently review a targeted Darwin-compatible, descriptor-based extended-attribute enumeration design (for both regular-file and directory descriptors) that preserves no-follow and fail-closed behavior. Do **not** bypass or silently omit extended-attribute inspection. A source correction requires review, an exact new diagnostic source checkpoint, and fresh host compatibility evidence before considering A1/A4 execution.
+- Ordinary regular file and directory descriptors with zero accessible reported xattrs: **accepted**.
+- Real xattrs created on disposable regular file and directory descriptors via native `fsetxattr`: setter returned success; independent `fgetxattr` readback confirmed the exact value; `_extended_attributes()` and the actual `inventory()` call sites both raised `IntegrityBlocked` for each type.
+- Negative descriptor argument: rejected. Native enumeration on unusable positive descriptor: blocked with native errno recorded. Injected native-library loading failure and unexpected negative native return: blocked.
+- Previously **NOT REACHED** checks now passed: descriptor-relative no-follow file open, copying inert bytes and permission modes, source-root permission-change rejection, synthetic symlink rejection, and out-of-scope sibling-change rejection.
+- Required host interface presence and observation of the preflight's **own** Python process: passed.
 
-**No accepted diagnostic source was modified.** This note lives only on the isolated host-validation branch, not on `main` or the implementation branch.
+The native enumeration result of zero means **no accessible extended attributes were reported with the tested enumeration options and process visibility**. It is not proof of universal attribute absence.
+
+The workflow emitted a nonblocking Python syntax warning about backslash-backtick escapes within summary-generation text. It did not affect any compatibility assertions or the final PASS, but the workflow should be tidied during subsequent maintenance rather than modifying the reviewed diagnostic.
+
+## Authority boundary and next gate
+
+The evidence supports **tested host-side Python/macOS interface compatibility** for the approved corrected source, **not** verification of a real SwiftData store, complete store-associated artifact scope, pre-open SQLite logical consistency, controller/observer identity across process launches, or A4 attribution under actual Simulator conditions. The host-only preflight deliberately did not execute `controller.py` scenario entry points, start a Simulator, install or launch any diagnostic app, create a SwiftData store, or issue any termination signal.
+
+A1/A4 runtime experiments remain **NOT AUTHORIZED**. A0 external SIGKILL remains **BLOCKED / TERMINATION UNVERIFIED**. A2/A3, Stage B, and production implementation are outside scope. No diagnostic source or `main` branch changes occurred in the successful host-preflight workflow.
+
+**Next step:** independent review of this exact host-preflight run and its logs, followed by a separate controlled Simulator experiment authorization only if justified.
