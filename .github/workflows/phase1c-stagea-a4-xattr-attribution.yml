@@ -1,0 +1,223 @@
+name: Lumen Phase 1C Stage A A4 xattr name attribution
+
+on:
+  push:
+    branches:
+      - validation/phase1c-stagea-a4-xattr-attribution
+    paths:
+      - .github/workflows/phase1c-stagea-a4-xattr-attribution.yml
+
+permissions:
+  contents: read
+
+jobs:
+  a4-attribution-once:
+    # Promotion of the exact reviewed commit onto the validation branch
+    # requires independent owner execution authorization.
+    if: github.repository == 'viviennestuds/Lumen-Financial-Awareness' && github.run_number == 1 && github.run_attempt == 1
+    runs-on: macos-15
+    timeout-minutes: 35
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_16.4.app/Contents/Developer
+      PYTHONDONTWRITEBYTECODE: "1"
+    steps:
+      - name: Checkout exact approved eleven-file diagnostic
+        uses: actions/checkout@v5
+        with:
+          ref: ab7de1532a9e75106a52c377da334dbe1843a381
+          path: source
+          persist-credentials: false
+
+      - name: Checkout exactly reviewed attribution implementation
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.sha }}
+          path: investigation
+          persist-credentials: false
+
+      - name: Validate exhaustive two-file diff and fixed diagnostic source
+        shell: bash
+        env:
+          RUN_COMMIT: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+          import subprocess
+          base = "ab7de1532a9e75106a52c377da334dbe1843a381"
+          expected = [
+              ".github/workflows/phase1c-stagea-a4-xattr-attribution.yml",
+              "investigations/phase1c-stagea-a4-xattr-attribution/attribute_names.py",
+          ]
+          def git(folder, *args):
+              return subprocess.check_output(["git", "-C", folder, *args], text=True).strip()
+          assert git("source", "rev-parse", "HEAD") == base
+          assert git("investigation", "rev-parse", "HEAD") == os.environ["RUN_COMMIT"]
+          assert git("investigation", "merge-base", "HEAD", base) == base
+          changed = git("investigation", "diff", "--name-only", base, "HEAD").splitlines()
+          assert sorted(changed) == sorted(expected), changed
+          for checkout in ("source", "investigation"):
+              assert not git(checkout, "status", "--porcelain", "--untracked-files=all")
+          assert Path("source/diagnostics/phase1c-stagea/Host/artifact_capture.py").is_file()
+          print("Exact SHA, ancestry, clean checkouts, and exhaustive two-file inventory: PASS")
+          PY
+          xcodebuild -version
+          test "$(xcodebuild -version)" = "$(printf 'Xcode 16.4\nBuild version 16F6')"
+          xcrun swift --version
+          test "$(xcrun --sdk iphonesimulator --show-sdk-version)" = '18.5'
+          python3 --version
+          echo "Runner: ${ImageOS:-unknown}/${ImageVersion:-unknown}"
+          echo "Reviewed attribution source: $RUN_COMMIT"
+          echo "Original diagnostic source: ab7de1532a9e75106a52c377da334dbe1843a381"
+
+      - name: Compile standalone diagnostic without modifying approved source
+        shell: bash
+        run: |
+          set -euo pipefail
+          xcodebuild \
+            -project source/diagnostics/phase1c-stagea/Phase1CStageAProbe.xcodeproj \
+            -scheme Phase1CStageAProbe \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath "$RUNNER_TEMP/lumen-a4-xattr-derived-data" \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO \
+            build 2>&1 | tee "$RUNNER_TEMP/lumen-a4-xattr-build.log"
+          app="$RUNNER_TEMP/lumen-a4-xattr-derived-data/Build/Products/Debug-iphonesimulator/Phase1CStageAProbe.app"
+          test -f "$app/Info.plist"
+          test -f "$app/Phase1CStageAProbe"
+          export APP_PATH="$app"
+          python3 - <<'PY'
+          import os
+          import plistlib
+          from pathlib import Path
+          info = plistlib.loads((Path(os.environ["APP_PATH"]) / "Info.plist").read_bytes())
+          assert info["CFBundleIdentifier"] == "org.lumenresearch.phase1c.stagea.probe"
+          assert info["CFBundleExecutable"] == "Phase1CStageAProbe"
+          print("Exclusive diagnostic bundle/executable identity: PASS")
+          PY
+          echo "APP_PATH=$app" >> "$GITHUB_ENV"
+          shasum -a 256 "$app/Phase1CStageAProbe"
+          echo "Standalone diagnostic build: PASS" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Create exactly one fresh iOS 18.5 Simulator
+        id: device
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+          import subprocess
+          import uuid
+          def ctl(*args):
+              return subprocess.check_output(["xcrun", "simctl", *args], text=True).strip()
+          runtimes = json.loads(ctl("list", "runtimes", "--json"))
+          matches = [x for x in runtimes.get("runtimes", [])
+                     if x.get("identifier") == "com.apple.CoreSimulator.SimRuntime.iOS-18-5"
+                     and x.get("isAvailable") is True]
+          assert len(matches) == 1, "Required iOS 18.5 runtime unavailable"
+          types = json.loads(ctl("list", "devicetypes", "--json"))
+          device_type = "com.apple.CoreSimulator.SimDeviceType.iPhone-16"
+          assert device_type in {d.get("identifier") for d in types.get("devicetypes", [])}
+          name = "LumenStageA-A4Xattr-" + os.environ["GITHUB_RUN_ID"]
+          udid = ctl("create", name, device_type, matches[0]["identifier"])
+          assert str(uuid.UUID(udid)).lower() == udid.lower()
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as out:
+              out.write("udid=" + udid + "\n")
+          print("Fresh dedicated Simulator created with UDID", udid)
+          PY
+
+      - name: Boot dedicated Simulator and install diagnostic WITHOUT launch
+        shell: bash
+        env:
+          SIMULATOR_UDID: ${{ steps.device.outputs.udid }}
+        run: |
+          set -euo pipefail
+          test -n "$SIMULATOR_UDID"
+          xcrun simctl boot "$SIMULATOR_UDID"
+          xcrun simctl bootstatus "$SIMULATOR_UDID" -b
+          xcrun simctl install "$SIMULATOR_UDID" "$APP_PATH"
+          echo "Installed exclusive diagnostic bundle; no app launch or SwiftData opens."
+
+      - name: Run only two-phase descriptor-based xattr NAME attribution
+        id: attribution
+        continue-on-error: true
+        shell: bash
+        env:
+          SIMULATOR_UDID: ${{ steps.device.outputs.udid }}
+        run: |
+          set -uo pipefail
+          helper="$GITHUB_WORKSPACE/investigation/investigations/phase1c-stagea-a4-xattr-attribution/attribute_names.py"
+          test -f "$helper" || exit 4
+          sha="$(shasum -a 256 "$helper" | awk '{print $1}')"
+          export PYTHONPATH="$GITHUB_WORKSPACE/source/diagnostics/phase1c-stagea/Host"
+          python3 "$helper" \
+            --simulator-udid "$SIMULATOR_UDID" \
+            --source-root "$GITHUB_WORKSPACE/source" \
+            --app "$APP_PATH" \
+            --workflow-sha "$GITHUB_SHA" \
+            --attribution-sha "$sha" \
+            --output "$RUNNER_TEMP/lumen-phase1c-a4-xattr-attribution.json"
+          rc=$?
+          echo "attribution_exit=$rc" >> "$GITHUB_OUTPUT"
+          exit "$rc"
+
+      - name: Summarize attribution evidence without upgrading historical A4
+        if: always()
+        shell: bash
+        env:
+          ATTRIBUTION_STEP: ${{ steps.attribution.outcome }}
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          evidence = Path(os.environ["RUNNER_TEMP"]) / "lumen-phase1c-a4-xattr-attribution.json"
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as out:
+              out.write("## One-time A4 xattr-name attribution\n")
+              out.write("- Exact approved diagnostic: ab7de1532a9e75106a52c377da334dbe1843a381\n")
+              out.write("- Attribution step outcome: " + os.environ["ATTRIBUTION_STEP"] + "\n")
+              out.write("- A4 historical outcome: BLOCKED / OBSERVATION INTEGRITY UNPROVEN\n")
+              out.write("- No diagnostic scenario, observer launch, or SwiftData store was authorized.\n")
+              if evidence.is_file():
+                  record = json.loads(evidence.read_text(encoding="utf-8"))
+                  out.write("- Attribution status: " + record.get("status", "NOT_REACHED") + "\n")
+                  for key in ("pre_run_layout", "post_run_layout"):
+                      phase = record.get(key, {})
+                      out.write("- " + key + ": coverage=" + phase.get("coverage", "NOT_REACHED")
+                                + ", candidates=" + str(phase.get("xattr_bearing_count", 0)) + "\n")
+              else:
+                  out.write("- Attribution evidence: NOT CREATED; no attribution claim.\n")
+          PY
+
+      - name: Upload only bounded JSON evidence for independent review
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lumen-phase1c-a4-xattr-attribution-json
+          path: ${{ runner.temp }}/lumen-phase1c-a4-xattr-attribution.json
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Require a classified JSON result without claiming A4 success
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          p = Path(os.environ["RUNNER_TEMP"]) / "lumen-phase1c-a4-xattr-attribution.json"
+          if not p.is_file():
+              raise SystemExit("No attribution evidence emitted; preflight NOT ESTABLISHED")
+          r = json.loads(p.read_text(encoding="utf-8"))
+          assert r.get("historical_a4_disposition") == "BLOCKED / OBSERVATION INTEGRITY UNPROVEN"
+          valid = {"ATTRIBUTION_OBSERVED_SCOPED", "PARTIAL_INCOMPLETE_OR_UNSTABLE",
+                   "ROOT_BLOCKED_OR_EXECUTION_INCOMPLETE"}
+          assert r.get("status") in valid, "Unclassified attribution result"
+          print("JSON evidence classified:", r["status"])
+          print("Historical A4 still BLOCKED. Independent evidence review required.")
+          PY
