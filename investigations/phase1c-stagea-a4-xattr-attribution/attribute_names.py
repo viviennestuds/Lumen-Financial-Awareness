@@ -299,6 +299,7 @@ class Phase:
         self.run_id, self.native = run_id, native
         self.deadline = time.monotonic() + MAX_SECONDS_PER_PHASE
         self.count = 0
+        self.entries_encountered = 0
         self.nodes: list[dict[str, Any]] = []
         self.candidates: list[dict[str, Any]] = []
         self.issues: list[dict[str, Any]] = []
@@ -341,6 +342,7 @@ class Phase:
             "phase": self.label, "coverage": coverage,
             "root_trusted": not self.root_blocked,
             "examined_objects": self.count,
+            "directory_entries_encountered": self.entries_encountered,
             "xattr_bearing_objects": self.candidates,
             "xattr_bearing_count": len(self.candidates),
             "issues": self.issues,
@@ -403,12 +405,20 @@ class Phase:
             initial = safe_names(fd)
         except ObservationIssue as exc:
             self.failure(exc.code, relative, error=exc.err)
+            if exc.code == "DIRECTORY_MEMBER_LIMIT":
+                self.limit_exhausted = True
             return
         for name in initial:
             if self.limit_exhausted or self.root_blocked:
                 break
-            verify_root(self.data, self.fd, self.root_info)
             child = name if relative == "." else relative + "/" + name
+            self.entries_encountered += 1
+            if (self.entries_encountered > MAX_OBJECTS or
+                    time.monotonic() > self.deadline):
+                self.failure("TRAVERSAL_LIMIT", child)
+                self.limit_exhausted = True
+                break
+            verify_root(self.data, self.fd, self.root_info)
             if not safe_entry_name(name):
                 self.failure("INVALID_DIRECTORY_ENTRY", relative)
                 continue
