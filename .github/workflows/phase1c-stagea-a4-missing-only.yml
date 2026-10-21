@@ -1,0 +1,206 @@
+name: Lumen Phase 1C Stage A A4 missing-store single control
+
+on:
+  push:
+    branches:
+      - validation/phase1c-stagea-a4-missing-only
+    paths:
+      - .github/workflows/phase1c-stagea-a4-missing-only.yml
+
+permissions:
+  contents: read
+
+jobs:
+  a4-missing-store-once:
+    # Explicitly owner-authorized one-scenario control. No future branch push
+    # or run re-attempt may silently execute another diagnostic experiment.
+    if: github.repository == 'viviennestuds/Lumen-Financial-Awareness' && github.run_number == 1 && github.run_attempt == 1
+    runs-on: macos-15
+    timeout-minutes: 35
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_16.4.app/Contents/Developer
+      PYTHONDONTWRITEBYTECODE: "1"
+    steps:
+      - name: Check out exact independently approved diagnostic checkpoint
+        uses: actions/checkout@v5
+        with:
+          ref: ab7de1532a9e75106a52c377da334dbe1843a381
+          persist-credentials: false
+
+      - name: Verify source identity and Apple toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = 'ab7de1532a9e75106a52c377da334dbe1843a381'
+          test -z "$(git status --porcelain --untracked-files=all -- diagnostics/phase1c-stagea)"
+          test -d "$DEVELOPER_DIR"
+          xcodebuild -version
+          test "$(xcodebuild -version)" = "$(printf 'Xcode 16.4\nBuild version 16F6')"
+          echo "Swift toolchain:"
+          xcrun swift --version
+          sdk="$(xcrun --sdk iphonesimulator --show-sdk-version)"
+          test "$sdk" = "18.5"
+          python3 --version
+          echo "Pinned source: $(git rev-parse HEAD)"
+          echo "Runner: ${ImageOS:-unknown}/${ImageVersion:-unknown}; arch: $(uname -m)"
+          echo "Simulator SDK: $sdk"
+          {
+            echo "## Narrow A4 missing-store control"
+            echo "- Source: ab7de1532a9e75106a52c377da334dbe1843a381"
+            echo "- Runner: macos-15 (image ${ImageOS:-unknown}/${ImageVersion:-unknown})"
+            echo "- Xcode: 16.4 (16F6); Simulator SDK: iOS 18.5"
+            echo "- Exactly one permitted controller scenario: a4-missing-store"
+            echo "- Other A0/A1/A4 scenarios, A2/A3, Stage B and production: NOT AUTHORIZED"
+            echo "- No external process-targeted SIGKILL"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Compile exact corrected-source standalone diagnostic
+        shell: bash
+        run: |
+          set -euo pipefail
+          xcodebuild \
+            -project diagnostics/phase1c-stagea/Phase1CStageAProbe.xcodeproj \
+            -scheme Phase1CStageAProbe \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath "$RUNNER_TEMP/lumen-stagea-a4-missing-derived-data" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            build 2>&1 | tee "$RUNNER_TEMP/lumen-stagea-a4-missing-build.log"
+          app="$RUNNER_TEMP/lumen-stagea-a4-missing-derived-data/Build/Products/Debug-iphonesimulator/Phase1CStageAProbe.app"
+          test -d "$app"
+          test -f "$app/Phase1CStageAProbe"
+          shasum -a 256 "$app/Phase1CStageAProbe"
+          echo "APP_PATH=$app" >> "$GITHUB_ENV"
+          {
+            echo "- Build: SUCCEEDED from exact corrected-source checkout"
+            echo "- Built diagnostic binary SHA-256: $(shasum -a 256 "$app/Phase1CStageAProbe" | awk '{print $1}')"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Provision exactly one fresh isolated iOS 18.5 Simulator
+        id: simulator
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+          import subprocess
+
+          def simctl(*args):
+              return subprocess.check_output(
+                  ["xcrun", "simctl", *args], text=True
+              ).strip()
+
+          available = json.loads(simctl("list", "runtimes", "--json"))
+          runtimes = [
+              r for r in available.get("runtimes", [])
+              if r.get("identifier") == "com.apple.CoreSimulator.SimRuntime.iOS-18-5"
+              and r.get("isAvailable", False) is True
+          ]
+          if len(runtimes) != 1:
+              raise RuntimeError("Exact iOS 18.5 runtime unavailable or ambiguous; no scenario launched")
+
+          types = json.loads(simctl("list", "devicetypes", "--json"))
+          device_ids = {
+              d.get("identifier") for d in types.get("devicetypes", [])
+          }
+          device_type = "com.apple.CoreSimulator.SimDeviceType.iPhone-16"
+          if device_type not in device_ids:
+              raise RuntimeError("Requested iPhone 16 Simulator device type unavailable")
+
+          name = "LumenStageA-A4Missing-" + os.environ["GITHUB_RUN_ID"]
+          udid = simctl("create", name, device_type, runtimes[0]["identifier"])
+          import uuid
+          assert str(uuid.UUID(udid)).lower() == udid.lower()
+          print("Created one fresh Simulator; UDID:", udid)
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as fh:
+              fh.write("udid=" + udid + "\n")
+          PY
+          udid="${{ steps.simulator.outputs.udid }}"
+          test -n "$udid"
+          xcrun simctl boot "$udid"
+          xcrun simctl bootstatus "$udid" -b
+          echo "Fresh isolated Simulator booted: $udid"
+
+      - name: Execute exactly one A4 missing-store negative-control scenario
+        id: scenario
+        continue-on-error: true
+        shell: bash
+        env:
+          SIMULATOR_UDID: ${{ steps.simulator.outputs.udid }}
+        run: |
+          set -uo pipefail
+          test -n "$SIMULATOR_UDID" || exit 3
+          echo "AUTHORIZED SCENARIO: a4-missing-store ONLY"
+          python3 diagnostics/phase1c-stagea/Host/controller.py \
+            --simulator-udid "$SIMULATOR_UDID" \
+            --app "$APP_PATH" \
+            --scenario a4-missing-store \
+            --expected-source-commit ab7de1532a9e75106a52c377da334dbe1843a381
+          rc=$?
+          echo "scenario_exit_code=$rc" >> "$GITHUB_OUTPUT"
+          exit "$rc"
+
+      - name: Summarize the one-scenario evidence without elevating its claims
+        if: always()
+        shell: bash
+        env:
+          OUTCOME: ${{ steps.scenario.outcome }}
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          root = Path("diagnostics/phase1c-stagea/.runs")
+          files = sorted(root.glob("*.json")) if root.exists() else []
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as fh:
+              fh.write("\n## One-scenario controller evidence\n")
+              fh.write("- Scenario step outcome: " + os.environ["OUTCOME"] + "\n")
+              fh.write("- Manifest count: " + str(len(files)) + "\n")
+              if len(files) == 1:
+                  evidence = json.loads(files[0].read_text(encoding="utf-8"))
+                  obs = evidence.get("observations", {})
+                  result = evidence.get("result", {})
+                  for name, value in [
+                      ("Run UUID", obs.get("run_id")),
+                      ("Scenario", obs.get("scenario")),
+                      ("Result category", result.get("category")),
+                      ("Result reason", result.get("reason")),
+                      ("Source initially absent", obs.get("source_initially_absent")),
+                      ("Source still absent", obs.get("source_still_absent")),
+                      ("Fresh observer identity", obs.get("fresh_observer_identity")),
+                      ("Observer exited", obs.get("observer_exited")),
+                      ("Observer records", obs.get("observer_records")),
+                      ("A4 bounded physical integrity", obs.get("a4_integrity_verified")),
+                      ("Copy preopen logical consistency", obs.get("copy_preopen_logical_consistency")),
+                      ("Binary SHA-256", (obs.get("app") or {}).get("binary_sha256")),
+                  ]:
+                      fh.write("- " + name + ": " + str(value) + "\n")
+              fh.write("- Other scenarios and external termination: NOT EXECUTED\n")
+              fh.write("- These observations do not prove pre-open SQLite consistency or the reference-authority mechanism.\n")
+          PY
+
+      - name: Preserve JSON-only scenario manifest for independent review
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lumen-stagea-a4-missing-json-evidence
+          path: diagnostics/phase1c-stagea/.runs/*.json
+          if-no-files-found: warn
+          include-hidden-files: true
+          retention-days: 14
+
+      - name: Fail gate on missing, unobserved, or failed controller scenario
+        if: always()
+        shell: bash
+        env:
+          OUTCOME: ${{ steps.scenario.outcome }}
+        run: |
+          set -euo pipefail
+          if [[ "$OUTCOME" != "success" ]]; then
+            echo "A4 missing-store scenario not observed; inspect JSON manifest and job logs"
+            exit 1
+          fi
+          echo "Single missing-store controller scenario returned OBSERVED; independent review still required"
