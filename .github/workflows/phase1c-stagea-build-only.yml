@@ -1,0 +1,109 @@
+name: Lumen Phase 1C Stage A build-only validation
+
+on:
+  push:
+    branches:
+      - validation/phase1c-stagea-build-only
+    paths:
+      - .github/workflows/phase1c-stagea-build-only.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lumen-phase1c-stagea-build-only
+  cancel-in-progress: false
+
+jobs:
+  isolated-compile:
+    if: github.repository == 'viviennestuds/Lumen-Financial-Awareness'
+    runs-on: macos-15
+    timeout-minutes: 30
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_16.4.app/Contents/Developer
+      PYTHONPYCACHEPREFIX: ${{ runner.temp }}/lumen-phase1c-stagea-pycache
+    steps:
+      - name: Check out exact independently reviewed source
+        uses: actions/checkout@v4
+        with:
+          ref: 31f416be32cc78717d6c0eb87f067ee47807570b
+          persist-credentials: false
+
+      - name: Verify pinned commit and Apple toolchain
+        id: preflight
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual="$(git rev-parse HEAD)"
+          test "$actual" = '31f416be32cc78717d6c0eb87f067ee47807570b'
+          test -d "$DEVELOPER_DIR"
+          echo "Reviewed source SHA: $actual"
+          echo "Runner image: ${ImageOS:-unknown} / ${ImageVersion:-unknown}"
+          echo "Host architecture: $(uname -m)"
+          xcodebuild -version
+          test "$(xcodebuild -version | head -n 1)" = 'Xcode 16.4'
+          xcrun swift --version
+          sdk="$(xcrun --sdk iphonesimulator --show-sdk-version)"
+          echo "Selected iOS Simulator SDK: $sdk"
+          test "$sdk" = '18.5'
+          {
+            echo "## Environment and source"
+            echo "- Reviewed source: \`$actual\`"
+            echo "- Runner: \`macos-15\`; image: \`${ImageOS:-unknown}/${ImageVersion:-unknown}\`"
+            echo "- Xcode: \`$(xcodebuild -version | head -n 1)\`"
+            echo "- Simulator SDK: \`$sdk\`"
+            echo "- Build scope: standalone Stage A Xcode project only; no install or launch"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Parse and byte-compile only the three Python host modules
+        id: python_syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 --version
+          mkdir -p "$PYTHONPYCACHEPREFIX"
+          python3 -m py_compile \
+            diagnostics/phase1c-stagea/Host/controller.py \
+            diagnostics/phase1c-stagea/Host/artifact_capture.py \
+            diagnostics/phase1c-stagea/Host/oracles.py
+          echo "Python bytecode syntax compilation passed; no diagnostic entry points invoked."
+
+      - name: Build isolated diagnostic for generic iOS Simulator
+        id: compile
+        shell: bash
+        run: |
+          set -euo pipefail
+          xcodebuild \
+            -project diagnostics/phase1c-stagea/Phase1CStageAProbe.xcodeproj \
+            -scheme Phase1CStageAProbe \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath "$RUNNER_TEMP/lumen-phase1c-stagea-derived-data" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            build 2>&1 | tee "$RUNNER_TEMP/lumen-phase1c-stagea-xcodebuild.log"
+
+      - name: Summarize build-only gate
+        if: always()
+        shell: bash
+        env:
+          PREFLIGHT_OUTCOME: ${{ steps.preflight.outcome }}
+          PYTHON_OUTCOME: ${{ steps.python_syntax.outcome }}
+          BUILD_OUTCOME: ${{ steps.compile.outcome }}
+        run: |
+          {
+            echo "## Build-only gate result"
+            echo "- Preflight: \`$PREFLIGHT_OUTCOME\`"
+            echo "- Python syntax/bytecode: \`$PYTHON_OUTCOME\`"
+            echo "- Swift/Xcode generic Simulator build: \`$BUILD_OUTCOME\`"
+            echo "- A0 external termination: BLOCKED / TERMINATION UNVERIFIED"
+            echo "- No app installation, app launch, SwiftData execution or diagnostics authorized."
+            if [[ -f "$RUNNER_TEMP/lumen-phase1c-stagea-xcodebuild.log" ]]; then
+              echo ""
+              echo "### Compiler warnings and errors (up to 75 lines)"
+              echo '~~~'
+              grep -E 'warning:|error:|BUILD (SUCCEEDED|FAILED)' "$RUNNER_TEMP/lumen-phase1c-stagea-xcodebuild.log" | head -n 75 || true
+              echo '~~~'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
