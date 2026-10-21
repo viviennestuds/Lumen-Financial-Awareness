@@ -14,7 +14,7 @@ jobs:
   a4-missing-store-once:
     # Explicitly owner-authorized one-scenario control. No future branch push
     # or run re-attempt may silently execute another diagnostic experiment.
-    if: github.repository == 'viviennestuds/Lumen-Financial-Awareness' && github.run_number == 1 && github.run_attempt == 1
+    if: github.repository == 'viviennestuds/Lumen-Financial-Awareness' && github.run_number == 2 && github.run_attempt == 1
     runs-on: macos-15
     timeout-minutes: 35
     env:
@@ -118,7 +118,7 @@ jobs:
           with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as fh:
               fh.write("udid=" + udid + "\n")
           PY
-          udid="${{ steps.simulator.outputs.udid }}"
+          udid="$(sed -n 's/^udid=//p' "$GITHUB_OUTPUT")"
           test -n "$udid"
           xcrun simctl boot "$udid"
           xcrun simctl bootstatus "$udid" -b
