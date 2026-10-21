@@ -33,6 +33,7 @@ jobs:
         with:
           ref: ${{ github.sha }}
           path: investigation
+          fetch-depth: 0
           persist-credentials: false
 
       - name: Validate exhaustive two-file diff and fixed diagnostic source
@@ -201,9 +202,11 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
-      - name: Require a classified JSON result without claiming A4 success
+      - name: Require complete scoped attribution for workflow success
         if: always()
         shell: bash
+        env:
+          ATTRIBUTION_STEP_OUTCOME: ${{ steps.attribution.outcome }}
         run: |
           set -euo pipefail
           python3 - <<'PY'
@@ -214,10 +217,18 @@ jobs:
           if not p.is_file():
               raise SystemExit("No attribution evidence emitted; preflight NOT ESTABLISHED")
           r = json.loads(p.read_text(encoding="utf-8"))
-          assert r.get("historical_a4_disposition") == "BLOCKED / OBSERVATION INTEGRITY UNPROVEN"
+          if r.get("historical_a4_disposition") != "BLOCKED / OBSERVATION INTEGRITY UNPROVEN":
+              raise SystemExit("Historical A4 blocker not preserved in evidence")
+          status = r.get("status")
           valid = {"ATTRIBUTION_OBSERVED_SCOPED", "PARTIAL_INCOMPLETE_OR_UNSTABLE",
                    "ROOT_BLOCKED_OR_EXECUTION_INCOMPLETE"}
-          assert r.get("status") in valid, "Unclassified attribution result"
-          print("JSON evidence classified:", r["status"])
+          if status not in valid:
+              raise SystemExit("Unclassified attribution result; investigation NOT ESTABLISHED")
+          print("JSON evidence classified:", status)
           print("Historical A4 still BLOCKED. Independent evidence review required.")
+          if status != "ATTRIBUTION_OBSERVED_SCOPED":
+              raise SystemExit("Attribution incomplete or blocked; partial JSON evidence preserved")
+          if os.environ["ATTRIBUTION_STEP_OUTCOME"] != "success":
+              raise SystemExit("Attribution step failed despite scoped JSON classification")
+          print("Scoped container attribution completed; no A4 behavioral claim")
           PY
