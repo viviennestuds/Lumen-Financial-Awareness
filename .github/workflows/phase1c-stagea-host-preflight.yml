@@ -23,14 +23,14 @@ jobs:
       - name: Check out exact reviewed diagnostic source
         uses: actions/checkout@v5
         with:
-          ref: 31f416be32cc78717d6c0eb87f067ee47807570b
+          ref: ab7de1532a9e75106a52c377da334dbe1843a381
           persist-credentials: false
 
       - name: Verify pinned source and host environment
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = '31f416be32cc78717d6c0eb87f067ee47807570b'
+          test "$(git rev-parse HEAD)" = 'ab7de1532a9e75106a52c377da334dbe1843a381'
           echo "Reviewed diagnostic SHA: $(git rev-parse HEAD)"
           echo "Runner image: ${ImageOS:-unknown}/${ImageVersion:-unknown}"
           sw_vers
@@ -39,7 +39,7 @@ jobs:
           xcodebuild -version
           {
             echo "## Stage A host compatibility — NON-DIAGNOSTIC preflight"
-            echo "- Reviewed source: \`31f416be32cc78717d6c0eb87f067ee47807570b\`"
+            echo "- Reviewed source: \`ab7de1532a9e75106a52c377da334dbe1843a381\`"
             echo "- Runner: \`macos-15\` (${ImageOS:-unknown}/${ImageVersion:-unknown})"
             echo "- No Simulator commands, application installation/launch, SwiftData access, or process signals."
           } >> "$GITHUB_STEP_SUMMARY"
@@ -53,6 +53,7 @@ jobs:
           set -euo pipefail
           python3 - <<'PY'
           import ast
+          import ctypes
           import errno
           import json
           import os
@@ -61,8 +62,9 @@ jobs:
           import sys
           import tempfile
           import uuid
+          from unittest import mock
 
-          sha = "31f416be32cc78717d6c0eb87f067ee47807570b"
+          sha = "ab7de1532a9e75106a52c377da334dbe1843a381"
           repo = Path.cwd()
           assert (repo / "diagnostics/phase1c-stagea/Host/controller.py").is_file()
           host = repo / "diagnostics/phase1c-stagea/Host"
@@ -104,6 +106,133 @@ jobs:
               baseline = a.inventory(source)
               assert baseline["exists"] and baseline["entries"]["probe.txt"]["kind"] == "file"
               pass_check("Descriptor-based inventory and file/directory extended-attribute queries")
+
+              # Real positive/negative xattr checks, using only disposable host files.
+              # Fixture creation and readback use native Darwin APIs independently
+              # of the approved flistxattr() implementation under examination.
+              libc = ctypes.CDLL("/usr/lib/libSystem.B.dylib", use_errno=True)
+              setter = libc.fsetxattr
+              setter.argtypes = (
+                  ctypes.c_int, ctypes.c_char_p, ctypes.c_void_p,
+                  ctypes.c_size_t, ctypes.c_uint32, ctypes.c_int
+              )
+              setter.restype = ctypes.c_int
+              getter = libc.fgetxattr
+              getter.argtypes = (
+                  ctypes.c_int, ctypes.c_char_p, ctypes.c_void_p,
+                  ctypes.c_size_t, ctypes.c_uint32, ctypes.c_int
+              )
+              getter.restype = ctypes.c_ssize_t
+              attr_name = b"com.lumenresearch.phase1c.stagea.synthetic"
+              attr_bytes = b"disposable-host-xattr-fixture-v1"
+              with tempfile.TemporaryDirectory(
+                  prefix="lumen-stagea-xattr-fixtures-",
+                  dir=os.environ["RUNNER_TEMP"],
+              ) as fixture_tmp:
+                  fixtures = Path(fixture_tmp).resolve()
+                  file_parent = fixtures / "regular"
+                  file_parent.mkdir()
+                  test_file = file_parent / "xattr-file.txt"
+                  test_file.write_bytes(b"ordinary disposable regular file")
+                  test_dir = fixtures / "xattr-dir"
+                  test_dir.mkdir()
+
+                  for label, entry, flags in (
+                      ("regular file", test_file, a.O_FILE),
+                      ("directory", test_dir, a.O_DIR),
+                  ):
+                      fd = os.open(entry, flags)
+                      try:
+                          a._extended_attributes(fd)
+                          pass_check("Empty accessible xattrs accepted: " + label)
+                      finally:
+                          os.close(fd)
+
+                  for label, entry, flags, manifest_root in (
+                      ("regular file", test_file, a.O_FILE, file_parent),
+                      ("directory", test_dir, a.O_DIR, test_dir),
+                  ):
+                      # fsetxattr/fgetxattr target this exact verified descriptor.
+                      fd = os.open(entry, flags)
+                      try:
+                          fixture_buf = ctypes.create_string_buffer(attr_bytes)
+                          ctypes.set_errno(0)
+                          written = setter(
+                              fd, attr_name, ctypes.cast(fixture_buf, ctypes.c_void_p),
+                              len(attr_bytes), 0, 0,
+                          )
+                          assert written == 0, (
+                              "Native fsetxattr fixture creation failed for "
+                              + label + " errno=" + str(ctypes.get_errno())
+                          )
+                          read_buf = ctypes.create_string_buffer(len(attr_bytes))
+                          ctypes.set_errno(0)
+                          count = getter(
+                              fd, attr_name, ctypes.cast(read_buf, ctypes.c_void_p),
+                              len(attr_bytes), 0, 0,
+                          )
+                          assert count == len(attr_bytes) and read_buf.raw == attr_bytes, (
+                              "Native fgetxattr fixture readback failed for "
+                              + label + " errno=" + str(ctypes.get_errno())
+                          )
+                          pass_check("Native fsetxattr/fgetxattr positive fixture: " + label)
+                          try:
+                              a._extended_attributes(fd)
+                          except a.IntegrityBlocked:
+                              pass_check("Native xattr rejection on descriptor: " + label)
+                          else:
+                              raise AssertionError("Nonempty xattrs accepted: " + label)
+                          try:
+                              a.inventory(manifest_root)
+                          except a.IntegrityBlocked:
+                              pass_check("A4 inventory rejects nonempty xattrs: " + label)
+                          else:
+                              raise AssertionError("A4 inventory accepted xattrs: " + label)
+                      finally:
+                          os.close(fd)
+
+                  try:
+                      a._extended_attributes(-1)
+                  except a.IntegrityBlocked:
+                      pass_check("Negative descriptor rejected before native invocation")
+                  else:
+                      raise AssertionError("Negative descriptor accepted")
+
+                  # A positive but unusable int32 descriptor exercises real EBADF.
+                  try:
+                      a._extended_attributes(2147483647)
+                  except a.IntegrityBlocked as exc:
+                      assert "errno=" in str(exc), str(exc)
+                      pass_check("Native invalid-descriptor error fails closed with errno")
+                  else:
+                      raise AssertionError("Unusable descriptor accepted")
+
+                  with mock.patch.object(
+                      a.ctypes, "CDLL", side_effect=OSError("synthetic loader failure")
+                  ):
+                      try:
+                          a._extended_attributes(0)
+                      except a.IntegrityBlocked:
+                          pass_check("Unavailable native library fails closed")
+                      else:
+                          raise AssertionError("Missing native library accepted")
+
+                  class UnexpectedReturn:
+                      argtypes = None
+                      restype = None
+                      def __call__(self, *_args):
+                          return -2
+
+                  class UnexpectedLib:
+                      flistxattr = UnexpectedReturn()
+
+                  with mock.patch.object(a.ctypes, "CDLL", return_value=UnexpectedLib()):
+                      try:
+                          a._extended_attributes(0)
+                      except a.IntegrityBlocked:
+                          pass_check("Unexpected native return fails closed")
+                      else:
+                          raise AssertionError("Malformed native result accepted")
 
               srcfd = os.open(source, a.O_DIR)
               try:
