@@ -5,9 +5,11 @@ These byte-level inventories do NOT prove logical database consistency or author
 """
 from __future__ import annotations
 
+import ctypes
 import hashlib
 import os
 import stat
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -140,14 +142,49 @@ def _file_hash(fd: int, before: os.stat_result) -> str:
 
 
 def _extended_attributes(fd: int) -> None:
-    # Extended attributes may include filesystem/protection semantics. This
-    # first-tranche copier does not silently discard them.
+    """Fail closed unless Darwin reports zero accessible extended attributes.
+
+    flistxattr(fd, NULL, 0, XATTR_SHOWCOMPRESSION) queries the *size* of
+    accessible attribute names, not their contents. A zero result means none
+    were reported under these options and the caller's filesystem visibility;
+    it is NOT proof that no extended attributes exist anywhere.
+
+    The descriptor is opened and checked by the existing no-follow traversal.
+    XATTR_NOFOLLOW is pathname-only and must NOT be passed to flistxattr.
+    """
+    if sys.platform != "darwin":
+        raise IntegrityBlocked("Darwin descriptor-based xattr observation unavailable")
+    if isinstance(fd, bool) or not isinstance(fd, int) or not (0 <= fd <= 0x7FFFFFFF):
+        raise IntegrityBlocked("Invalid extended-attribute observation descriptor")
+
     try:
-        names = os.listxattr(fd)
-    except (TypeError, OSError) as exc:
-        raise IntegrityBlocked("Cannot establish extended-attribute inventory") from exc
-    if names:
-        raise IntegrityBlocked("Uncharacterized extended attributes require a reviewed copier")
+        libc = ctypes.CDLL("/usr/lib/libSystem.B.dylib", use_errno=True)
+        native = libc.flistxattr
+        native.argtypes = (ctypes.c_int, ctypes.c_void_p, ctypes.c_size_t, ctypes.c_int)
+        native.restype = ctypes.c_ssize_t
+    except (OSError, AttributeError, TypeError) as exc:
+        raise IntegrityBlocked("Darwin flistxattr interface could not be resolved") from exc
+
+    # 0x0020 is XATTR_SHOWCOMPRESSION from Apple's <sys/xattr.h>.
+    # Do not pass XATTR_NOFOLLOW, XATTR_NOSECURITY, or XATTR_NODEFAULT.
+    ctypes.set_errno(0)
+    try:
+        size = native(fd, None, 0, 0x0020)
+    except (OSError, TypeError, ValueError, ctypes.ArgumentError) as exc:
+        raise IntegrityBlocked("Darwin flistxattr invocation failed") from exc
+    if size == 0:
+        return
+    if size > 0:
+        raise IntegrityBlocked(
+            "Uncharacterized accessible extended attributes reported by Darwin flistxattr"
+        )
+    if size == -1:
+        error = ctypes.get_errno()
+        description = os.strerror(error) if error else "errno not set"
+        raise IntegrityBlocked(
+            f"Darwin flistxattr enumeration failed (errno={error}: {description})"
+        )
+    raise IntegrityBlocked("Darwin flistxattr returned an unexpected negative result")
 
 
 def _walk(fd: int, prefix: str, device: int, result: dict[str, Any]) -> None:
