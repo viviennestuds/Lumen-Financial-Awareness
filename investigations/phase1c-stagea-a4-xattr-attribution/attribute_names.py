@@ -524,9 +524,13 @@ def presence(data: Path, root_fd: int, root_info: os.stat_result, run_id: str,
 
 
 def write_json(output: Path, payload: dict[str, Any]) -> None:
-    if not output.is_absolute() or output.suffix != ".json":
-        raise ValueError("Result location must be absolute JSON path")
-    output.parent.mkdir(parents=True, exist_ok=True)
+    """Permit exactly one evidence file in the trusted runner temporary directory."""
+    root = Path(os.environ.get("RUNNER_TEMP", ""))
+    if not root.is_absolute():
+        raise RootUntrusted("Evidence runner temporary directory not established")
+    validate_absolute_chain(root)
+    if output != root / "lumen-phase1c-a4-xattr-attribution.json":
+        raise RootUntrusted("Evidence output is outside the exact runner-temporary target")
     with output.open("x", encoding="utf-8") as fh:
         json.dump(payload, fh, indent=2, sort_keys=True, ensure_ascii=True)
         fh.write("\n")
