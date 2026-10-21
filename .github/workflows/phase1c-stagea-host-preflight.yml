@@ -1,0 +1,197 @@
+name: Lumen Phase 1C Stage A host-only preflight
+
+on:
+  push:
+    branches:
+      - validation/phase1c-stagea-host-preflight
+    paths:
+      - .github/workflows/phase1c-stagea-host-preflight.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lumen-phase1c-stagea-host-preflight
+  cancel-in-progress: false
+
+jobs:
+  macos-host-compatibility:
+    if: github.repository == 'viviennestuds/Lumen-Financial-Awareness'
+    runs-on: macos-15
+    timeout-minutes: 15
+    steps:
+      - name: Check out exact reviewed diagnostic source
+        uses: actions/checkout@v5
+        with:
+          ref: 31f416be32cc78717d6c0eb87f067ee47807570b
+          persist-credentials: false
+
+      - name: Verify pinned source and host environment
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = '31f416be32cc78717d6c0eb87f067ee47807570b'
+          echo "Reviewed diagnostic SHA: $(git rev-parse HEAD)"
+          echo "Runner image: ${ImageOS:-unknown}/${ImageVersion:-unknown}"
+          sw_vers
+          uname -m
+          python3 --version
+          xcodebuild -version
+          {
+            echo "## Stage A host compatibility — NON-DIAGNOSTIC preflight"
+            echo "- Reviewed source: \`31f416be32cc78717d6c0eb87f067ee47807570b\`"
+            echo "- Runner: \`macos-15\` (${ImageOS:-unknown}/${ImageVersion:-unknown})"
+            echo "- No Simulator commands, application installation/launch, SwiftData access, or process signals."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Import Python modules and exercise only disposable host APIs
+        id: host_api
+        shell: bash
+        env:
+          PYTHONDONTWRITEBYTECODE: "1"
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import ast
+          import errno
+          import json
+          import os
+          from pathlib import Path
+          import stat
+          import sys
+          import tempfile
+          import uuid
+
+          sha = "31f416be32cc78717d6c0eb87f067ee47807570b"
+          repo = Path.cwd()
+          assert (repo / "diagnostics/phase1c-stagea/Host/controller.py").is_file()
+          host = repo / "diagnostics/phase1c-stagea/Host"
+          names = ("controller.py", "artifact_capture.py", "oracles.py")
+          for name in names:
+              ast.parse((host / name).read_text(encoding="utf-8"), filename=name)
+          sys.path.insert(0, str(host))
+          import artifact_capture as a
+          import controller as c
+          import oracles as o
+          assert c.BUNDLE_ID == "org.lumenresearch.phase1c.stagea.probe"
+          assert o.ORACLE_VERSION == "phase1c-stagea-a0-a1-a4-oracles-v3"
+
+          checks = []
+          def pass_check(msg):
+              checks.append(msg)
+              print("PASS:", msg)
+
+          for flag in ("O_NOFOLLOW", "O_DIRECTORY", "O_CLOEXEC"):
+              assert isinstance(getattr(os, flag), int), flag
+          assert os.open in os.supports_dir_fd
+          assert os.stat in os.supports_dir_fd
+          assert os.mkdir in os.supports_dir_fd
+          assert os.stat in os.supports_follow_symlinks
+          pass_check("macOS no-follow, directory fd, stat and mkdir interfaces available")
+
+          observed = c.process_snapshot(os.getpid())
+          assert observed is not None and str(os.getpid()) in observed
+          pass_check("Host ps process-snapshot observes ONLY the current Python process")
+
+          with tempfile.TemporaryDirectory(prefix="lumen-stagea-host-only-", dir=os.environ["RUNNER_TEMP"]) as scratch:
+              root = Path(scratch).resolve()
+              source = root / "source-store"
+              copy = root / "inspection-copy"
+              source.mkdir(mode=0o700)
+              payload = b"synthetic-inert-host-probe-not-a-SwiftData-store"
+              (source / "probe.txt").write_bytes(payload)
+              a.assert_run_layout(root)
+              baseline = a.inventory(source)
+              assert baseline["exists"] and baseline["entries"]["probe.txt"]["kind"] == "file"
+              pass_check("Descriptor-based inventory and file/directory extended-attribute queries")
+
+              srcfd = os.open(source, a.O_DIR)
+              try:
+                  childfd = os.open("probe.txt", a.O_FILE, dir_fd=srcfd)
+                  try:
+                      assert stat.S_ISREG(os.fstat(childfd).st_mode)
+                  finally:
+                      os.close(childfd)
+              finally:
+                  os.close(srcfd)
+              pass_check("Descriptor-relative no-follow file open works on macOS")
+
+              snapshot = a.preserve(source, copy)
+              assert snapshot["byte_and_mode_copy_verified"] is True
+              assert snapshot["snapshot_consistency_admitted"] is False
+              assert (copy / "probe.txt").read_bytes() == payload
+              a.source_unchanged(snapshot["source_preopen"], a.inventory(source))
+              pass_check("Host copier preserves inert disposable bytes and modes without touching application data")
+
+              before_mode = stat.S_IMODE(os.stat(source).st_mode)
+              try:
+                  os.chmod(source, 0o711 if before_mode != 0o711 else 0o700)
+                  try:
+                      a.source_unchanged(baseline, a.inventory(source))
+                  except a.IntegrityBlocked:
+                      pass_check("Original-root metadata mutation is rejected")
+                  else:
+                      raise AssertionError("Source-root mode mutation was not detected")
+              finally:
+                  os.chmod(source, before_mode)
+
+              alias = source / "symlink-probe"
+              alias.symlink_to("probe.txt")
+              try:
+                  try:
+                      a.inventory(source)
+                  except a.IntegrityBlocked:
+                      pass_check("No-follow inventory rejects synthetic symlink")
+                  else:
+                      raise AssertionError("Symlink accepted")
+              finally:
+                  alias.unlink()
+
+              previous = a.inventory(root)
+              outside = root / "out-of-scope.txt"
+              outside.write_text("isolated-test", encoding="utf-8")
+              try:
+                  try:
+                      a.require_changes_within(previous, a.inventory(root), ("source-store", "inspection-copy"))
+                  except a.IntegrityBlocked:
+                      pass_check("Unexpected disposable-root sibling change rejected")
+                  else:
+                      raise AssertionError("Out-of-scope change accepted")
+              finally:
+                  outside.unlink()
+              a.assert_run_layout(root)
+
+          summary = {
+              "reviewed_source": sha,
+              "oracle_version": o.ORACLE_VERSION,
+              "python": sys.version.split()[0],
+              "host_checks": checks,
+              "host_checks_passed": len(checks),
+              "scope": "macOS host-only APIs and inert temporary files; NOT A0/A1/A4 diagnostic execution",
+              "not_characterized": [
+                  "SwiftData store creation/reopen", "Simulator process launch",
+                  "A4 real-store artifact completeness", "database pre-open logical consistency",
+                  "external SIGKILL", "Stage B", "production authority"
+              ],
+          }
+          print("HOST_PREFLIGHT_RESULT=" + json.dumps(summary, sort_keys=True))
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as out:
+              out.write("\n## Host preflight results\n")
+              out.write(f"- Python: \`{summary['python']}\`\n")
+              out.write(f"- Host-only compatibility checks: **{len(checks)} PASSED**\n")
+              out.write("- Scope: Inert temporary host files and self-process observation only.\n")
+              out.write("- SwiftData/Simulator/A0/A1/A4 execution: **NOT PERFORMED**\n")
+          PY
+
+      - name: Record preflight outcome and explicit exclusions
+        if: always()
+        shell: bash
+        env:
+          HOST_OUTCOME: ${{ steps.host_api.outcome }}
+        run: |
+          {
+            echo "## Preflight disposition"
+            echo "- Host-only API compatibility step: \`$HOST_OUTCOME\`"
+            echo "- A0 SIGKILL: BLOCKED / TERMINATION UNVERIFIED"
+            echo "- No Stage A runtime evidence, production changes, or execution authorization."
+          } >> "$GITHUB_STEP_SUMMARY"
