@@ -12,6 +12,8 @@ permissions:
 
 jobs:
   a4-attribution-once:
+    # One-time activation: source must be independently reviewed before a
+    # separately owner-authorized push updates the validation branch.
     # Promotion of the exact reviewed commit onto the validation branch
     # requires independent owner execution authorization.
     if: github.repository == 'viviennestuds/Lumen-Financial-Awareness' && github.run_number == 1 && github.run_attempt == 1
