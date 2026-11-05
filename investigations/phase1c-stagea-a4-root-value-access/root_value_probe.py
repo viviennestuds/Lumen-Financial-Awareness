@@ -59,6 +59,16 @@ class Secret:
         ctypes.memset(ctypes.addressof(self.storage), 0, ctypes.sizeof(self.storage))
 
 
+class AttemptBudget:
+    def __init__(self, limit: int = MAX_ATTEMPTS):
+        self.remaining = limit
+
+    def charge(self) -> None:
+        if self.remaining <= 0:
+            raise CapabilityIssue("VALUE_ATTEMPT_BUDGET_EXHAUSTED", unstable=True)
+        self.remaining -= 1
+
+
 class NativeValues:
     """Six-argument Darwin descriptor access; the native buffer never becomes JSON."""
 
@@ -99,16 +109,21 @@ class NativeValues:
             raise CapabilityIssue("INVALID_NATIVE_LENGTH", unstable=True)
         return n
 
-    def complete(self, fd: int, name: str, deadline: float) -> Secret:
+    def complete(self, fd: int, name: str, deadline: float,
+                 budget: AttemptBudget) -> Secret:
         raw = name.encode("utf-8")
-        for attempt in range(MAX_ATTEMPTS):
-            if time.monotonic() > deadline:
+        while True:
+            if time.monotonic() >= deadline:
                 raise CapabilityIssue("PHASE_TIME_LIMIT")
+            budget.charge()
             try:
                 need = self.call(fd, raw, None, 0)
             except CapabilityIssue as exc:
-                if exc.code == "BUFFER_RACE" and attempt + 1 < MAX_ATTEMPTS:
-                    continue
+                if exc.code == "BUFFER_RACE":
+                    if budget.remaining > 0:
+                        continue
+                    raise CapabilityIssue("VALUE_ATTEMPT_BUDGET_EXHAUSTED",
+                                          exc.err, unstable=True) from exc
                 raise
             if need > MAX_VALUE_BYTES:
                 raise CapabilityIssue("VALUE_SIZE_LIMIT")
@@ -122,14 +137,13 @@ class NativeValues:
                 after = self.call(fd, raw, None, 0)
                 if after != need:
                     raise CapabilityIssue("VALUE_LENGTH_CHANGED", unstable=True)
+                if time.monotonic() >= deadline:
+                    raise CapabilityIssue("PHASE_TIME_LIMIT")
                 established = True
                 return value
-            except CapabilityIssue:
-                raise
             finally:
                 if not established:
                     value.erase()
-        raise CapabilityIssue("VALUE_RETRY_EXHAUSTED", unstable=True)
 
 
 def metadata_tuple(info: os.stat_result) -> tuple[int, int, int, int, int, int]:
@@ -174,9 +188,10 @@ def observe_root(phase: str, data: Path, fd: int, baseline: os.stat_result,
             if time.monotonic() > deadline:
                 raise CapabilityIssue("PHASE_TIME_LIMIT")
             prior.verify_root(data, fd, baseline)
-            first_value = values.complete(fd, name, deadline)
+            budget = AttemptBudget()
+            first_value = values.complete(fd, name, deadline, budget)
             try:
-                second_value = values.complete(fd, name, deadline)
+                second_value = values.complete(fd, name, deadline, budget)
                 try:
                     if not first_value.equals(second_value):
                         raise CapabilityIssue("WITHIN_PHASE_BYTES_CHANGED", unstable=True)
@@ -196,6 +211,8 @@ def observe_root(phase: str, data: Path, fd: int, baseline: os.stat_result,
         after = prior.verify_root(data, fd, baseline)
         if metadata_tuple(before) != metadata_tuple(after):
             raise CapabilityIssue("WITHIN_PHASE_ROOT_METADATA_CHANGED", unstable=True)
+        if time.monotonic() >= deadline:
+            raise CapabilityIssue("PHASE_TIME_LIMIT")
         report["acquisition"] = "COMPLETE"
     except prior.RootUntrusted:
         report["root_identity"] = "ROOT_BLOCKED"
@@ -236,12 +253,36 @@ def utc() -> str:
 
 
 def emit_json(path: Path, doc: dict[str, Any]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
+    raw_temp = os.environ.get("RUNNER_TEMP", "")
+    root = Path(raw_temp)
+    if not raw_temp or not root.is_absolute() or str(root) != os.path.abspath(str(root)):
+        raise CapabilityIssue("RUNNER_TEMP_UNTRUSTED")
+    expected = root / "lumen-phase1c-a4-root-value-capability.json"
+    if path != expected:
+        raise CapabilityIssue("OUTPUT_PATH_NOT_AUTHORIZED")
+    try:
+        prior.validate_absolute_chain(root)
+    except prior.RootUntrusted as exc:
+        raise CapabilityIssue("RUNNER_TEMP_UNTRUSTED") from exc
     if path.is_symlink():
         raise CapabilityIssue("OUTPUT_PATH_SYMLINK")
-    with path.open("x", encoding="utf-8") as out:
-        json.dump(doc, out, sort_keys=True, indent=2, ensure_ascii=True)
-        out.write("\n")
+    parent_fd = os.open(root, O_ROOT)
+    try:
+        original = os.fstat(parent_fd)
+        if prior.identity(original) != prior.identity(os.lstat(root)):
+            raise CapabilityIssue("RUNNER_TEMP_IDENTITY_CHANGED")
+        if os.path.lexists(path):
+            raise CapabilityIssue("OUTPUT_ALREADY_EXISTS")
+        fd = os.open(path.name, os.O_WRONLY | os.O_CREAT | os.O_EXCL |
+                     os.O_NOFOLLOW | os.O_CLOEXEC, 0o600, dir_fd=parent_fd)
+        with os.fdopen(fd, "w", encoding="utf-8") as out:
+            json.dump(doc, out, sort_keys=True, indent=2, ensure_ascii=True)
+            out.write("\n")
+        prior.validate_absolute_chain(root)
+        if prior.identity(original) != prior.identity(os.lstat(root)):
+            raise CapabilityIssue("RUNNER_TEMP_IDENTITY_CHANGED")
+    finally:
+        os.close(parent_fd)
 
 
 def real_fixture() -> None:
@@ -262,7 +303,7 @@ def real_fixture() -> None:
         fd = os.open(target, os.O_RDWR | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW | os.O_CLOEXEC, 0o600)
         try:
             try:
-                getter.complete(fd, key.decode(), time.monotonic() + 10)
+                getter.complete(fd, key.decode(), time.monotonic() + 10, AttemptBudget())
             except CapabilityIssue as exc:
                 assert exc.code == "ATTRIBUTE_MISSING"
             else:
@@ -277,19 +318,19 @@ def real_fixture() -> None:
                     ctypes.memset(ctypes.addressof(buffer), 0, ctypes.sizeof(buffer))
 
             put_value(b"")
-            zero = getter.complete(fd, key.decode(), time.monotonic() + 10)
+            zero = getter.complete(fd, key.decode(), time.monotonic() + 10, AttemptBudget())
             try:
                 assert zero.length == 0
             finally:
                 zero.erase()
             put_value(b"fixture-sample-one")
-            v1 = getter.complete(fd, key.decode(), time.monotonic() + 10)
-            v1_again = getter.complete(fd, key.decode(), time.monotonic() + 10)
+            v1 = getter.complete(fd, key.decode(), time.monotonic() + 10, AttemptBudget())
+            v1_again = getter.complete(fd, key.decode(), time.monotonic() + 10, AttemptBudget())
             try:
                 assert v1.equals(v1_again)
                 assert key.decode() in name_list(names, fd)
                 put_value(b"fixture-sample-two")
-                v2 = getter.complete(fd, key.decode(), time.monotonic() + 10)
+                v2 = getter.complete(fd, key.decode(), time.monotonic() + 10, AttemptBudget())
                 try:
                     assert v2.length == v1.length and not v1.equals(v2)
                 finally:
@@ -319,7 +360,9 @@ class FakeValues:
         self.series = series
         self.index = 0
 
-    def complete(self, fd: int, name: str, deadline: float) -> Secret:
+    def complete(self, fd: int, name: str, deadline: float,
+                 budget: AttemptBudget) -> Secret:
+        budget.charge()
         value = self.series[min(self.index, len(self.series) - 1)]
         self.index += 1
         result = Secret(len(value))
@@ -370,7 +413,160 @@ def simulated_checks() -> int:
             b.clear()
         finally:
             os.close(fd)
-    return 6
+    return 6 + regression_checks()
+
+
+def regression_checks() -> int:
+    from unittest.mock import patch
+
+    count = 0
+
+    def expect_issue(code: str, action: Any) -> None:
+        try:
+            action()
+        except CapabilityIssue as exc:
+            assert exc.code == code, (exc.code, code)
+        else:
+            raise AssertionError("Required classified failure was not raised: " + code)
+
+    def native_sequence(sequence: list[Any]) -> NativeValues:
+        instance = NativeValues.__new__(NativeValues)
+        events = iter(sequence)
+
+        def scripted(fd: int, name: bytes, target: Secret | None,
+                     length: int) -> int:
+            response = next(events)
+            if isinstance(response, CapabilityIssue):
+                raise response
+            if isinstance(response, tuple):
+                reported, payload = response
+                if target is not None and payload:
+                    ctypes.memmove(target.storage, payload, min(length, len(payload)))
+                return reported
+            return response
+
+        instance.call = scripted
+        return instance
+
+    zero = native_sequence([0, 0]).complete(0, "fixture", float("inf"), AttemptBudget())
+    try:
+        assert zero.length == 0
+    finally:
+        zero.erase()
+    count += 1
+
+    budget = AttemptBudget()
+    reread = FakeValues([b"abc", b"abc", b"abc"])
+    first = reread.complete(0, "fixture", float("inf"), budget)
+    second = reread.complete(0, "fixture", float("inf"), budget)
+    try:
+        assert first.equals(second) and budget.remaining == 1
+        reread.complete(0, "fixture", float("inf"), budget).erase()
+        assert budget.remaining == 0
+        expect_issue("VALUE_ATTEMPT_BUDGET_EXHAUSTED",
+                     lambda: reread.complete(0, "fixture", float("inf"), budget))
+    finally:
+        first.erase()
+        second.erase()
+    count += 1
+
+    race = CapabilityIssue("BUFFER_RACE", errno.ERANGE, unstable=True)
+    repeat_races = native_sequence([race, race, race])
+    race_budget = AttemptBudget()
+    expect_issue("VALUE_ATTEMPT_BUDGET_EXHAUSTED",
+                 lambda: repeat_races.complete(0, "fixture", float("inf"), race_budget))
+    assert race_budget.remaining == 0
+    count += 1
+
+    length_error = native_sequence([3, (2, b"ab")])
+    length_budget = AttemptBudget()
+    expect_issue("VALUE_LENGTH_CHANGED",
+                 lambda: length_error.complete(0, "fixture", float("inf"), length_budget))
+    assert length_budget.remaining == 2
+    count += 1
+
+    after_error = native_sequence([3, (3, b"abc"), 4])
+    expect_issue("VALUE_LENGTH_CHANGED",
+                 lambda: after_error.complete(0, "fixture", float("inf"), AttemptBudget()))
+    count += 1
+
+    native_errors = (
+        (getattr(errno, "ENODATA", 61), "ATTRIBUTE_MISSING"),
+        (errno.EACCES, "ATTRIBUTE_UNREADABLE"),
+        (errno.EINVAL, "ATTRIBUTE_UNSUPPORTED"),
+        (errno.ERANGE, "BUFFER_RACE"),
+    )
+    for native_errno, code in native_errors:
+        instance = NativeValues.__new__(NativeValues)
+
+        def fail_native(*args: Any) -> int:
+            ctypes.set_errno(native_errno)
+            return -1
+
+        instance.native = fail_native
+        expect_issue(code, lambda: instance.call(0, b"fixture", None, 0))
+        count += 1
+
+    with tempfile.TemporaryDirectory(prefix="lumen-root-value-deadline-") as directory:
+        root = Path(directory)
+        fd = os.open(root, O_ROOT)
+        try:
+            base = os.fstat(fd)
+            calls = [0]
+
+            def clock() -> float:
+                calls[0] += 1
+                return 1000.0 if calls[0] <= 2 else 1061.0
+
+            with patch.object(time, "monotonic", side_effect=clock):
+                late = observe_root("fixture", root, fd, base,
+                                    FakeNames([["fixture"], ["fixture"]]),
+                                    FakeValues([b"abc", b"abc"]))
+            try:
+                assert late.record["acquisition"] == "INCOMPLETE"
+                assert late.record["failure"]["code"] == "PHASE_TIME_LIMIT"
+                assert late.record["root_identity"] == "TRUSTED"
+            finally:
+                late.clear()
+        finally:
+            os.close(fd)
+    count += 1
+
+    with patch.object(time, "monotonic", side_effect=[1000.0, 1061.0]):
+        expect_issue("PHASE_TIME_LIMIT", lambda:
+                     native_sequence([3, (3, b"abc"), 3]).complete(
+                         0, "fixture", 1060.0, AttemptBudget()))
+    count += 1
+
+    with tempfile.TemporaryDirectory(prefix="lumen-root-value-output-") as directory:
+        root = Path(directory)
+        expected = root / "lumen-phase1c-a4-root-value-capability.json"
+        wrong = root / "unauthorized.json"
+        with patch.dict(os.environ, {"RUNNER_TEMP": str(root)}):
+            expect_issue("OUTPUT_PATH_NOT_AUTHORIZED", lambda: emit_json(wrong, {"ok": True}))
+            assert not wrong.exists()
+            emit_json(expected, {"ok": True})
+            assert json.loads(expected.read_text(encoding="utf-8")) == {"ok": True}
+            assert stat.S_IMODE(expected.stat().st_mode) == 0o600
+            expect_issue("OUTPUT_ALREADY_EXISTS", lambda: emit_json(expected, {"ok": False}))
+        count += 3
+
+    with tempfile.TemporaryDirectory(prefix="lumen-root-value-output-link-") as directory:
+        root = Path(directory)
+        target = root / "independent-target"
+        target.write_text("preserve", encoding="utf-8")
+        expected = root / "lumen-phase1c-a4-root-value-capability.json"
+        expected.symlink_to(target)
+        with patch.dict(os.environ, {"RUNNER_TEMP": str(root)}):
+            expect_issue("OUTPUT_PATH_SYMLINK", lambda: emit_json(expected, {"ok": True}))
+            assert target.read_text(encoding="utf-8") == "preserve"
+        count += 1
+
+    with patch.dict(os.environ, {"RUNNER_TEMP": ""}):
+        expect_issue("RUNNER_TEMP_UNTRUSTED", lambda:
+                     emit_json(Path("lumen-phase1c-a4-root-value-capability.json"), {}))
+    count += 1
+    return count
 
 
 def self_test() -> int:
