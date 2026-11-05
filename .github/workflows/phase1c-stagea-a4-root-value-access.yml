@@ -1,0 +1,235 @@
+name: Lumen Phase 1C Stage A A4 root xattr value capability
+
+on:
+  push:
+    branches:
+      - validation/phase1c-stagea-a4-root-value-access
+    paths:
+      - .github/workflows/phase1c-stagea-a4-root-value-access.yml
+
+permissions:
+  contents: read
+
+jobs:
+  root-value-capability-once:
+    if: github.repository == 'viviennestuds/Lumen-Financial-Awareness' && github.run_number == 1 && github.run_attempt == 1
+    runs-on: macos-15
+    timeout-minutes: 35
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_16.4.app/Contents/Developer
+      PYTHONDONTWRITEBYTECODE: "1"
+    steps:
+      - name: Checkout exact approved eleven-file diagnostic
+        uses: actions/checkout@v5
+        with:
+          ref: ab7de1532a9e75106a52c377da334dbe1843a381
+          path: source
+          persist-credentials: false
+
+      - name: Checkout independently reviewed root-value implementation
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.sha }}
+          path: investigation
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify complete two-file boundary and source provenance
+        shell: bash
+        env:
+          RUN_COMMIT: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import os
+          import subprocess
+          from pathlib import Path
+          source = "ab7de1532a9e75106a52c377da334dbe1843a381"
+          base = "5143cc37d109853254ce689fdd6a9ba0508cc6d6"
+          expected = sorted([
+              ".github/workflows/phase1c-stagea-a4-root-value-access.yml",
+              "investigations/phase1c-stagea-a4-root-value-access/root_value_probe.py",
+          ])
+          def git(folder, *args):
+              return subprocess.check_output(["git", "-C", folder, *args], text=True).strip()
+          assert git("source", "rev-parse", "HEAD") == source
+          assert git("investigation", "rev-parse", "HEAD") == os.environ["RUN_COMMIT"]
+          assert git("investigation", "merge-base", "HEAD", base) == base
+          assert git("investigation", "diff", "--name-only", base, "HEAD").splitlines() == expected
+          for checkout in ("source", "investigation"):
+              assert git(checkout, "status", "--porcelain", "--untracked-files=all") == ""
+          assert Path("source/diagnostics/phase1c-stagea/Host/artifact_capture.py").is_file()
+          assert Path("investigation/investigations/phase1c-stagea-a4-xattr-attribution/attribute_names.py").is_file()
+          print("Source, ancestry, exact new two-file inventory and clean checkouts: PASS")
+          PY
+          test "$(xcodebuild -version)" = "$(printf 'Xcode 16.4\nBuild version 16F6')"
+          test "$(xcrun --sdk iphonesimulator --show-sdk-version)" = '18.5'
+          echo "Xcode: $(xcodebuild -version)"
+          xcrun swift --version
+          python3 --version
+          echo "Runner: ${ImageOS:-unknown}/${ImageVersion:-unknown}"
+          echo "Value-access source: $RUN_COMMIT"
+          echo "Attribution base: 5143cc37d109853254ce689fdd6a9ba0508cc6d6"
+          echo "Approved diagnostic: ab7de1532a9e75106a52c377da334dbe1843a381"
+
+      - name: Host-only value capability fixtures and synthetic regressions
+        shell: bash
+        run: |
+          set -euo pipefail
+          export PYTHONPATH="$GITHUB_WORKSPACE/source/diagnostics/phase1c-stagea/Host:$GITHUB_WORKSPACE/investigation/investigations/phase1c-stagea-a4-xattr-attribution"
+          python3 investigation/investigations/phase1c-stagea-a4-root-value-access/root_value_probe.py --self-test
+
+      - name: Compile exclusive diagnostic without modifying approved source
+        shell: bash
+        run: |
+          set -euo pipefail
+          xcodebuild \
+            -project source/diagnostics/phase1c-stagea/Phase1CStageAProbe.xcodeproj \
+            -scheme Phase1CStageAProbe \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath "$RUNNER_TEMP/lumen-a4-root-value-derived-data" \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO \
+            build 2>&1 | tee "$RUNNER_TEMP/lumen-a4-root-value-build.log"
+          app="$RUNNER_TEMP/lumen-a4-root-value-derived-data/Build/Products/Debug-iphonesimulator/Phase1CStageAProbe.app"
+          test -f "$app/Info.plist"
+          test -f "$app/Phase1CStageAProbe"
+          export APP_PATH="$app"
+          python3 - <<'PY'
+          import os
+          import plistlib
+          from pathlib import Path
+          p = Path(os.environ["APP_PATH"])
+          meta = plistlib.loads((p / "Info.plist").read_bytes())
+          assert meta["CFBundleIdentifier"] == "org.lumenresearch.phase1c.stagea.probe"
+          assert meta["CFBundleExecutable"] == "Phase1CStageAProbe"
+          print("Isolated diagnostic bundle identity: PASS")
+          PY
+          echo "APP_PATH=$app" >> "$GITHUB_ENV"
+          shasum -a 256 "$app/Phase1CStageAProbe"
+
+      - name: Provision one fresh iOS 18.5 Simulator
+        id: device
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+          import subprocess
+          import uuid
+          def ctl(*args):
+              return subprocess.check_output(["xcrun", "simctl", *args], text=True).strip()
+          data = json.loads(ctl("list", "runtimes", "--json"))
+          matches = [r for r in data.get("runtimes", [])
+                     if r.get("identifier") == "com.apple.CoreSimulator.SimRuntime.iOS-18-5"
+                     and r.get("isAvailable") is True]
+          assert len(matches) == 1
+          types = json.loads(ctl("list", "devicetypes", "--json"))
+          target = "com.apple.CoreSimulator.SimDeviceType.iPhone-16"
+          assert target in {d.get("identifier") for d in types.get("devicetypes", [])}
+          udid = ctl("create", "LumenStageA-A4RootValue-" + os.environ["GITHUB_RUN_ID"],
+                     target, matches[0]["identifier"])
+          assert str(uuid.UUID(udid)).lower() == udid.lower()
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as handle:
+              handle.write("udid=" + udid + "\n")
+          print("Disposable simulator UDID:", udid)
+          PY
+
+      - name: Boot and install diagnostic without launching
+        shell: bash
+        env:
+          SIMULATOR_UDID: ${{ steps.device.outputs.udid }}
+        run: |
+          set -euo pipefail
+          test -n "$SIMULATOR_UDID"
+          xcrun simctl boot "$SIMULATOR_UDID"
+          xcrun simctl bootstatus "$SIMULATOR_UDID" -b
+          xcrun simctl install "$SIMULATOR_UDID" "$APP_PATH"
+          echo "Isolated diagnostic installed; application not launched."
+
+      - name: Run only descriptor-bound root xattr value capability comparison
+        id: comparison
+        continue-on-error: true
+        shell: bash
+        env:
+          SIMULATOR_UDID: ${{ steps.device.outputs.udid }}
+        run: |
+          set -uo pipefail
+          helper="$GITHUB_WORKSPACE/investigation/investigations/phase1c-stagea-a4-root-value-access/root_value_probe.py"
+          test -f "$helper" || exit 4
+          digest="$(shasum -a 256 "$helper" | awk '{print $1}')"
+          export PYTHONPATH="$GITHUB_WORKSPACE/source/diagnostics/phase1c-stagea/Host:$GITHUB_WORKSPACE/investigation/investigations/phase1c-stagea-a4-xattr-attribution"
+          python3 "$helper" \
+            --simulator-udid "$SIMULATOR_UDID" \
+            --source-root "$GITHUB_WORKSPACE/source" \
+            --app "$APP_PATH" \
+            --workflow-sha "$GITHUB_SHA" \
+            --helper-sha "$digest" \
+            --output "$RUNNER_TEMP/lumen-phase1c-a4-root-value-capability.json"
+          rc=$?
+          echo "root_value_exit=$rc" >> "$GITHUB_OUTPUT"
+          exit "$rc"
+
+      - name: Summarize sanitized evidence without upgrading A4 history
+        if: always()
+        shell: bash
+        env:
+          PROBE_OUTCOME: ${{ steps.comparison.outcome }}
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          evidence = Path(os.environ["RUNNER_TEMP"]) / "lumen-phase1c-a4-root-value-capability.json"
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as output:
+              output.write("A4 root-attribute value-access capability only; historical A4 remains BLOCKED.\n")
+              output.write("Probe step: " + os.environ["PROBE_OUTCOME"] + "\n")
+              if evidence.is_file():
+                  record = json.loads(evidence.read_text(encoding="utf-8"))
+                  output.write("Capability: " + record.get("status", "NOT_REACHED") + "\n")
+                  output.write("Phase A: " + record.get("pre_run_layout", {}).get("acquisition", "NOT_REACHED") + "\n")
+                  output.write("Phase B: " + record.get("post_run_layout", {}).get("acquisition", "NOT_REACHED") + "\n")
+                  output.write("Comparison: " + record.get("comparison", "NOT_ESTABLISHED") + "\n")
+              else:
+                  output.write("No JSON evidence was created.\n")
+          PY
+
+      - name: Upload JSON only even on blocked capability observation
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lumen-phase1c-a4-root-value-capability-json
+          path: ${{ runner.temp }}/lumen-phase1c-a4-root-value-capability.json
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Require complete scoped comparison without claiming A4 acceptance
+        if: always()
+        shell: bash
+        env:
+          PROBE_STEP_OUTCOME: ${{ steps.comparison.outcome }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          target = Path(os.environ["RUNNER_TEMP"]) / "lumen-phase1c-a4-root-value-capability.json"
+          if not target.is_file():
+              raise SystemExit("Missing capability evidence; BLOCKED")
+          record = json.loads(target.read_text(encoding="utf-8"))
+          if record.get("historical_a4_disposition") != "BLOCKED / OBSERVATION INTEGRITY UNPROVEN":
+              raise SystemExit("Historical A4 disposition altered")
+          if record.get("status") != "SCOPED_COMPARISON_OBSERVED":
+              raise SystemExit("Value acquisition incomplete or unstable; JSON preserved")
+          if record.get("pre_run_layout", {}).get("acquisition") != "COMPLETE" or record.get("post_run_layout", {}).get("acquisition") != "COMPLETE":
+              raise SystemExit("Required two complete observations not established")
+          if record.get("comparison") not in {"EQUAL", "VALUES_CHANGED", "NAMES_CHANGED"}:
+              raise SystemExit("No classified comparison was established")
+          if os.environ["PROBE_STEP_OUTCOME"] != "success":
+              raise SystemExit("Probe execution failed despite positive classification")
+          print("Native value comparison capability observed within scope:", record["comparison"])
+          print("No assertion that root was unchanged or A4 behavior passed")
+          PY
