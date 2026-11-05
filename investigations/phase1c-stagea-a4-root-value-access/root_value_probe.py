@@ -124,10 +124,7 @@ class NativeValues:
                     raise CapabilityIssue("VALUE_LENGTH_CHANGED", unstable=True)
                 established = True
                 return value
-            except CapabilityIssue as exc:
-                if (exc.code in {"BUFFER_RACE", "VALUE_LENGTH_CHANGED"}
-                        and attempt + 1 < MAX_ATTEMPTS):
-                    continue
+            except CapabilityIssue:
                 raise
             finally:
                 if not established:
